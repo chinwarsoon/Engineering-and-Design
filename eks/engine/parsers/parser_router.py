@@ -64,25 +64,31 @@ class ParserRouter:
         
         if use_factory:
             # Use ParserFactory for Dependency Injection
-            self.parser_factory = ParserFactory(config_registry=doc_config)
-            # Register custom parsers from file_type_registry
-            for entry in self.file_type_registry:
-                ext = entry.get("extension", "").lower()
-                parser_class = entry.get("parser_class", "")
-                if ext and parser_class:
-                    self.parser_factory.register_parser(ext, parser_class)
+            self.parser_factory = ParserFactory(
+                config_registry=doc_config, processing_config=processing_config)
+            # I287 (T1.242): register parsers from extraction_profiles —
+            # parser_class single-sourced there (removed from file_type_registry).
+            for profile in self.parsing_profiles.values():
+                parser_class = profile.get("parser_class", "")
+                for ext in profile.get("supported_extensions", []):
+                    if ext and parser_class:
+                        self.parser_factory.register_parser(ext, parser_class)
         else:
             # Legacy mode: build parser map directly
             self._ext_parser_map = self._build_parser_map()
 
     def _build_parser_map(self) -> Dict[str, str]:
-        """Map file extension to parser_class string (legacy mode)."""
+        """Map file extension to parser_class string (legacy mode).
+
+        I287 (T1.242): source is extraction_profiles parser_class +
+        supported_extensions — parser_class removed from file_type_registry.
+        """
         result = {}
-        for entry in self.file_type_registry:
-            ext = entry.get("extension", "").lower()
-            parser_class = entry.get("parser_class", "")
-            if ext and parser_class:
-                result[ext] = parser_class
+        for profile in self.parsing_profiles.values():
+            parser_class = profile.get("parser_class", "")
+            for ext in profile.get("supported_extensions", []):
+                if ext and parser_class:
+                    result[ext] = parser_class
         return result
 
     @log_depth

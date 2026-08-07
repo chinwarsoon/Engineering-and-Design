@@ -4,7 +4,11 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
 
-Revision: 1.4.0 — I282 (T1.228): migrated document-type projection + validation
+Revision: 1.5.0 — I280 (T1.220): added structural_profile_for(type_id, class_id)
+           helper (type-level override wins, else class-level fallback, else {});
+           _derive_doc_type_projection() attaches structural_profile to the flat
+           document_type_registry entries (validated via document_type_entry_def).
+1.4.0 — I282 (T1.228): migrated document-type projection + validation
            from the concept layer to the class/type/family carrier
            (eks_document_type_schema.json v2.1.0). _derive_doc_type_projection()
            resolves label/ontology_class via binding.class_id; _validate_doc_registries()
@@ -237,7 +241,8 @@ class SchemaLoader:
         # Project Definition so FileScanner / FilenameParser keep matching.
         # NOTE: revision_validation reconstruction removed in T1.196 (I268) — dead
         # (RevisionManager consumes runtime slices since T1.194).
-        filename_profiles = self.doc_config.get("filename_profiles", {})
+        # I287 (T1.242): filename_profiles single-sourced in eks_processing_config.json.
+        filename_profiles = self.processing_config.get("filename_profiles", {})
         if self.project_definition_config and filename_profiles:
             pd_data = self.project_definition_config.get("project_definition", {})
             injected_patterns = {}
@@ -261,15 +266,16 @@ class SchemaLoader:
     def _derive_doc_type_projection(self) -> None:
         """Derive flat document-type projections from the four-section carrier.
 
-        I279 (T1.213) / I282 (T1.228): the carrier
-        (eks_document_type_schema.json v2.1.0) is the single runtime source.
+        I279 (T1.213) / I282 (T1.228) / I280 (T1.220): the carrier
+        (eks_document_type_schema.json v2.2.0) is the single runtime source.
         Runtime consumers expect a flat ``document_type_registry``
         (code → label/ontology_class/class_id/expected_file_types/format_category map)
         plus the template registry. We project these into ``doc_config`` at load
         time so no committed flat array (the old dead-duplicate SSOT) survives.
         I282: the concept layer is removed (D4) — the flat registry resolves
         label/ontology_class from the carrier ``document_classes`` registry via
-        the binding's ``class_id``.
+        the binding's ``class_id``. I280: each flat entry also carries
+        ``structural_profile`` (resolved via ``structural_profile_for``).
         """
         classes = self.document_type_schema.get("document_classes", [])
         bindings = self.document_type_schema.get("project_document_types", {})
@@ -301,6 +307,11 @@ class SchemaLoader:
                     "expected_file_types": entry.get("expected_file_types", []),
                     # I276 (T1.206): default parsing profile id for two-axis routing
                     "default_parsing_profile": entry.get("default_parsing_profile", ""),
+                    # I280 (T1.220): B3.2 structural profile for this document
+                    # type (type-level override, falling back to class-level).
+                    "structural_profile": self.structural_profile_for(
+                        "", entry.get("class_id", "")
+                    ),
                 })
         self.doc_config["document_type_registry"] = flat
 
@@ -494,14 +505,22 @@ class SchemaLoader:
         """Validates doc config cross-registries.
 
         I279 (T1.213) / I282 (T1.228): document_type data now sources from the
-        four-section carrier (eks_document_type_schema.json v2.1.0), not a flat
+        four-section carrier (eks_document_type_schema.json v2.2.0), not a flat
         registry array. Validation cross-checks the carrier sections
         (document_classes / document_types / document_family /
         project_document_types / document_templates) against ontology and
         element types. The flat project_document_type view is derived at load
         time in _derive_doc_type_projection() and injected into doc_config.
         """
-        valid_element_types = {"cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"}
+        # I283 (T1.230): valid element types derived from the base-schema enum
+        # (element_type_code) — SSOT §16/§24, no duplicated hardcoded list.
+        # Extended 8→11 (added title_block/grid/signature_block).
+        base_enum = (self.doc_base_schema.get("definitions", {})
+                     .get("element_type_code", {}).get("enum", []))
+        valid_element_types = set(base_enum) if base_enum else {
+            "cover_page", "revision_table", "section", "table", "image",
+            "link", "legend", "note", "title_block", "grid", "signature_block",
+        }
 
         file_type_reg = self.doc_config.get("file_type_registry", [])
         elem_type_reg = self.doc_config.get("element_type_registry", [])
@@ -629,16 +648,21 @@ class SchemaLoader:
                         f"Template '{tid}' has invalid detection mechanism: '{mec}'"
                     )
 
-        # 2. Validate file_type_registry parser_class is importable
-        for entry in file_type_reg:
-            ext = entry.get("extension")
-            parser = entry.get("parser_class", "")
+        # 2. Validate extraction_profiles parser_class is importable.
+        #    I287 (T1.242): parser_class single-sourced in
+        #    eks_processing_config.json#/extraction_profiles[].parser_class —
+        #    removed from file_type_registry (T1.241).
+        extraction_profiles = self.processing_config.get("extraction_profiles", {})
+        for pid, profile in extraction_profiles.items():
+            parser = profile.get("parser_class", "")
+            if not parser:
+                continue
             try:
                 module_path, class_name = parser.rsplit(".", 1)
                 importlib.import_module(module_path)
             except (ValueError, ImportError, ModuleNotFoundError) as e:
                 raise ValueError(
-                    f"File type '{ext}' has unimportable parser_class: '{parser}'. Error: {e}"
+                    f"Extraction profile '{pid}' has unimportable parser_class: '{parser}'. Error: {e}"
                 )
 
         # 3. Validate element_type_registry element_type
@@ -775,6 +799,33 @@ class SchemaLoader:
                 raise ValueError(f"Document class '{current}' references an undefined parent class.")
             current = entry.get("parent_class_id")
         return chain
+
+    def structural_profile_for(self, type_id: str, class_id: str) -> Dict[str, Any]:
+        """Returns the B3.2 structural profile for a document type.
+
+        I280 (T1.220): resolves ``structural_profile`` with type-level
+        override precedence over the class-level default:
+        - if ``type_id`` names a carrier ``document_types`` entry carrying an
+          explicit ``structural_profile``, that dict is returned;
+        - otherwise the ``class_id`` entry in ``document_classes`` is checked;
+        - if neither declares a profile, ``{}`` is returned (callers fall back
+          to their own defaults).
+
+        Consumers (StructureDetector I283, HealthScorer I284) call this
+        without knowing the carrier structure.
+        """
+        profile: Dict[str, Any] = {}
+        if type_id:
+            for t in self.document_type_schema.get("document_types", []):
+                if t.get("type_id") == type_id and isinstance(t.get("structural_profile"), dict):
+                    profile = t.get("structural_profile")
+                    break
+        if not profile and class_id:
+            for c in self.document_type_schema.get("document_classes", []):
+                if c.get("class_id") == class_id and isinstance(c.get("structural_profile"), dict):
+                    profile = c.get("structural_profile")
+                    break
+        return profile
 
 
 def load_eks_config(config_dir: str | Path = "config") -> Dict[str, Any]:

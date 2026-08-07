@@ -1,6 +1,6 @@
 """I279/I282 (T1.217/T1.228-229) — Document-type SSOT consolidation tests.
 
-Validates the five-section ``eks_document_type_schema.json`` v2.1.0 carrier is
+Validates the five-section ``eks_document_type_schema.json`` v2.2.0 carrier is
 the single runtime source: document_classes + document_types + document_family
 + per-project bindings + template registry replace the former flat
 ``document_type_registry`` / ``element_expectations`` arrays in
@@ -153,8 +153,12 @@ class TestDocumentTypeSSOT(unittest.TestCase):
         self.assertTrue(bound_templates.issubset(set(self.carrier["document_templates"].keys())))
 
     def test_template_cover_types_valid(self):
-        """Template cover_type ∈ {A,B,C,D,E}; expected_elements valid."""
-        valid_elements = {"cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"}
+        """Template cover_type ∈ {A,B,C,D,E}; expected_elements valid.
+
+        I283 (T1.230): valid element set extended 8→11 (title_block/grid/signature_block).
+        """
+        valid_elements = {"cover_page", "revision_table", "section", "table", "image", "link", "legend", "note",
+                          "title_block", "grid", "signature_block"}
         for tid, tpl in self.carrier["document_templates"].items():
             self.assertIn(tpl["cover_type"], ("A", "B", "C", "D", "E"), f"{tid} cover_type")
             for el in tpl["expected_elements"]:

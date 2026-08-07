@@ -1,8 +1,8 @@
 # Appendix C — Dynamic ISO 15926-Aligned Ontology
 
-**Version**: 1.9  
+**Version**: 1.10  
 **Status**: ✅ APPROVED & IMPLEMENTED  
-**Last Updated**: 2026-08-05  
+**Last Updated**: 2026-08-06  
 
 ---
 
@@ -20,6 +20,7 @@
 | 1.7     | 2026-06-18 | Gemini CLI  | Added Document Class Hierarchy and lifecycle relationships (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC). Linked Appendix B mapping triggers. |
 | 1.8     | 2026-06-22 | opencode    | Added `DataSheet` (subClassOf Specification, document_type_mapping: DS) and `OpsManual` (subClassOf Manual, document_type_mapping: OM) to support T1.35 document type code alignment. Updated C4 class hierarchy table. |
 | 1.9     | 2026-08-05 | opencode    | **I282 (T1.226)**: Renamed `DataSheet` → `Datasheet` and promoted to a direct `Document` subclass (D1); added `Calculation`, `Register`, `Procedure` Document subclasses; retained `CAD_Drawing`. `eks_ontology_config.json` v1.6.0 → v1.7.0. |
+| 1.10    | 2026-08-06 | opencode    | **I280 (T1.221)**: Cross-reference sync — updated document-class alignment note to reference carrier `eks_document_type_schema.json` v2.2.0 (B3.2 sub-objects implemented; see Appendix B §B2.1). |
 
 ---
 
@@ -95,7 +96,7 @@ The following table represents the class taxonomy and its associated fragments/m
 | &nbsp;&nbsp;&nbsp;├─ `Procedure` | Operating/Commissioning Procedure | `Document` | — |
 | &nbsp;&nbsp;&nbsp;└─ `CAD_Drawing` | Native CAD Drawing | `Document` | `CAD` |
 
-> **I282 (2026-08-05)**: `DataSheet` renamed to `Datasheet` and **promoted** to a direct `Document` subclass (D1 — a datasheet is not a specification). `Calculation`, `Register`, `Procedure` added as `Document` subclasses (closing the I282 gap). `CAD_Drawing` retained as a Document child. These 11 document classes align with the 8 `document_classes` entries in `eks_document_type_schema.json` v2.1.0 via `ontology_class`.
+> **I282 (2026-08-05)**: `DataSheet` renamed to `Datasheet` and **promoted** to a direct `Document` subclass (D1 — a datasheet is not a specification). `Calculation`, `Register`, `Procedure` added as `Document` subclasses (closing the I282 gap). `CAD_Drawing` retained as a Document child. These 11 document classes align with the 8 `document_classes` entries in `eks_document_type_schema.json` v2.2.0 via `ontology_class`.
 
 ---
 

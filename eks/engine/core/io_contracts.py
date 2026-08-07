@@ -60,9 +60,15 @@ class HealthInput(EngineInput):
     """Input contract for the health scoring engine.
 
     Extends EngineInput with the document record and detected structural elements.
+    I283 (T1.230): ``cover_type`` carries the schema-first cover type resolved
+    from ``document_templates[template_id].cover_type`` (None when unavailable).
     """
     document: Optional[Dict[str, Any]] = None
     elements: List[Dict[str, Any]] = field(default_factory=list)
+    cover_type: Optional[str] = None
+    # I284: resolved document class id + template id for type-aware scoring.
+    class_id: Optional[str] = None
+    template_id: Optional[str] = None
 
 
 @dataclass

@@ -32,27 +32,36 @@ class ParserFactory(Factory):
     providing config-driven parser instantiation based on file type.
     """
     
-    def __init__(self, config_registry: Optional[Dict[str, Any]] = None):
+    def __init__(self, config_registry: Optional[Dict[str, Any]] = None,
+                 processing_config: Optional[Dict[str, Any]] = None):
         """
         Initialize parser factory.
-        
+
         Args:
             config_registry: Configuration registry with parser mappings
+            processing_config: I287 (T1.242) — eks_processing_config.json values
+                SSOT. Parser mappings are derived from extraction_profiles
+                (parser_class + supported_extensions); the legacy config
+                ``parsers`` key is retired.
         """
         super().__init__(config_registry)
+        self.processing_config = processing_config or {}
         self._load_parser_mappings()
-    
+
     def _load_parser_mappings(self):
-        """Load parser class mappings from configuration."""
-        default_mappings = {
-            ".pdf": "eks.engine.parsers.pdf_parser.PDFParser",
-            ".docx": "eks.engine.parsers.docx_parser.DocxParser",
-            ".xlsx": "eks.engine.parsers.xlsx_parser.XlsxParser",
-            ".dwg": "eks.engine.parsers.dwg_parser.DWGParserStub",
-            ".dgn": "eks.engine.parsers.dgn_parser.DGNParserStub"
-        }
-        config_mappings = self._get_config("parsers", {})
-        self._parser_mappings = {**default_mappings, **config_mappings}
+        """Load parser class mappings from configuration.
+
+        I287 (T1.242): single source is extraction_profiles in
+        eks_processing_config.json — ``parser_class`` per profile bound to its
+        ``supported_extensions``. Hardcoded default fallback removed (§16).
+        """
+        mappings: Dict[str, str] = {}
+        for profile in self.processing_config.get("extraction_profiles", {}).values():
+            parser_class = profile.get("parser_class", "")
+            for ext in profile.get("supported_extensions", []):
+                if ext and parser_class:
+                    mappings[ext.lower()] = parser_class
+        self._parser_mappings = mappings
     
     def create(self, file_type: str, **kwargs) -> Any:
         """

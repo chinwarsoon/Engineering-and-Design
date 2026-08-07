@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.15.0",
+    "version": "1.17.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.14.0 (I282 T1.226): document_type_concept_def REMOVED — replaced by shape-only document_class_def, document_type_def, document_family_def (class_id/type_id/family_id plain strings — NO value enums; VALUES live in eks_document_type_schema.json#/document_classes, #/document_types, #/document_family per SSOT §9/§16 + I031 precedent). ontology_class relaxed from enum to plain string (validated at runtime against eks_ontology_config.json). project_document_type_def and document_type_entry_def migrate concept_id→class_id. document_type_code enum kept as a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.13.0 (I276 T1.206): document_type_entry_def extended with default_parsing_profile (two-axis parser routing projection). v1.12.0 (I275 T1.203): column_processing_entry_def extended with applies_to_document_types + native_only scope keys. v1.11.0 (I279 T1.214): added document_type_concept_def, project_document_type_def, document_template_entry_def — defs backing the three-section eks_document_type_schema.json v2.0.0 carrier. document_type_code enum is a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111). v1.15.0 (I281 T1.223): REMOVED parsing_profile_def — superseded by core eks_base_schema.json extraction_profile_def (one-time migration, Q1). Extraction/parsing profile values now live in eks_processing_config.json#/extraction_profiles (SSOT §9). Core schemas are the sole profile source.",
+    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.17.0 (I283 T1.230): element_type_code extended 8→11 — added title_block, grid, signature_block for the four-level Class→Type→Template→Element detection model (complete Phase 1 drawing-frame profiles). v1.16.0 (I280 T1.218): B3.2 sub-object defs added — structural_profile_def + extraction_profile_ref/retrieval_profile_ref/validation_profile_ref + Phase 3 stubs (document_semantics_def, ai_profile_def, knowledge_relationships_def), all OPTIONAL fields on document_class_def/document_type_def (absent = use defaults; extraction ref resolves to eks_processing_config.json extraction_profiles ids per I281). v1.15.0 (I281 T1.223): parsing_profile_def REMOVED. v1.14.0 (I282 T1.226): document_type_concept_def REMOVED — replaced by shape-only document_class_def, document_type_def, document_family_def (class_id/type_id/family_id plain strings — NO value enums; VALUES live in eks_document_type_schema.json#/document_classes, #/document_types, #/document_family per SSOT §9/§16 + I031 precedent). ontology_class relaxed from enum to plain string (validated at runtime against eks_ontology_config.json). project_document_type_def and document_type_entry_def migrate concept_id→class_id. document_type_code enum kept as a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.13.0 (I276 T1.206): document_type_entry_def extended with default_parsing_profile (two-axis parser routing projection). v1.12.0 (I275 T1.203): column_processing_entry_def extended with applies_to_document_types + native_only scope keys. v1.11.0 (I279 T1.214): added document_type_concept_def, project_document_type_def, document_template_entry_def — defs backing the three-section eks_document_type_schema.json v2.0.0 carrier. document_type_code enum is a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111). v1.15.0 (I281 T1.223): REMOVED parsing_profile_def — superseded by core eks_base_schema.json extraction_profile_def (one-time migration, Q1). Extraction/parsing profile values now live in eks_processing_config.json#/extraction_profiles (SSOT §9). Core schemas are the sole profile source.",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -23,8 +23,8 @@
         },
         "element_type_code": {
             "type": "string",
-            "enum": ["cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"],
-            "description": "Structural element types per Appendix D D7.10."
+            "enum": ["cover_page", "revision_table", "section", "table", "image", "link", "legend", "note", "title_block", "grid", "signature_block"],
+            "description": "Structural element types per Appendix D D7.10. I283 (T1.230): extended 8→11 — added title_block, grid, signature_block so Phase 1 document profiles cover the drawing-frame capabilities declared in structural_profile (Drawing class)."
         },
         "revision_id": {
             "type": "string",
@@ -48,31 +48,46 @@
                 "format_category": { "type": "string", "enum": ["native", "print"], "description": "I279: native vs PDF-print delivery format (projection)" },
                 "native_source": { "type": "string", "description": "I279: native source extension when format_category is print (projection)" },
                 "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions expected for this document type" },
-                "default_parsing_profile": { "type": "string", "description": "I276: default parsing profile id for two-axis routing (projection from project_document_types)" }
+                "default_parsing_profile": { "type": "string", "description": "I276: default parsing profile id for two-axis routing (projection from project_document_types)" },
+                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280 (T1.220): B3.2 structural profile projected for this document type (type-level override, falling back to class-level). Absent = class/type defaults." }
             },
             "required": ["code", "label", "description"],
             "additionalProperties": false
         },
         "document_class_def": {
             "type": "object",
-            "description": "Document class registry entry (I282 B3.1 three-level hierarchy — Level 1). Shape-only definition — the class_id VALUES live in the carrier eks_document_type_schema.json#/document_classes (SSOT §9/§16 + I031 precedent; base holds shape only, no value enums).",
+            "description": "Document class registry entry (I282 B3.1 three-level hierarchy — Level 1). Shape-only definition — the class_id VALUES live in the carrier eks_document_type_schema.json#/document_classes (SSOT §9/§16 + I031 precedent; base holds shape only, no value enums). I280 (T1.218): optional B3.2 sub-objects — structural_profile (class-level defaults), extraction_profile_ref/retrieval_profile_ref/validation_profile_ref (profile refs), Phase 3 stubs (document_semantics/ai_profile/knowledge_relationships). Absent = use defaults.",
             "properties": {
                 "class_id": { "type": "string", "description": "Document class identifier (e.g. Drawing, Specification, Datasheet, Calculation, Manual, Register, Report, Procedure). Validated at runtime against the carrier document_classes registry." },
                 "label": { "type": "string", "description": "Human-readable label" },
                 "ontology_class": { "type": "string", "description": "Ontology class for graph mapping. Plain string — validated at runtime against eks_ontology_config.json" },
-                "common_rules": { "type": "object", "description": "Class-level common processing rules shared across project bindings" }
+                "common_rules": { "type": "object", "description": "Class-level common processing rules shared across project bindings" },
+                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280: B3.2 structural characteristics for the whole class (class-level defaults; types may override)" },
+                "extraction_profile_ref": { "$ref": "#/definitions/extraction_profile_ref", "description": "I280: default extraction profile id for this class (resolves to eks_processing_config.json extraction_profiles)" },
+                "retrieval_profile_ref": { "$ref": "#/definitions/retrieval_profile_ref", "description": "I280: Phase 2/3 — default retrieval profile id" },
+                "validation_profile_ref": { "$ref": "#/definitions/validation_profile_ref", "description": "I280: default validation profile id (I284 feeds the column-value layer)" },
+                "document_semantics": { "$ref": "#/definitions/document_semantics_def", "description": "I280: Phase 3 stub — semantic entities/relationships/constraints" },
+                "ai_profile": { "$ref": "#/definitions/ai_profile_def", "description": "I280: Phase 3 stub — AI reasoning behaviour" },
+                "knowledge_relationships": { "$ref": "#/definitions/knowledge_relationships_def", "description": "I280: Phase 3 stub — typed relation registry" }
             },
             "required": ["class_id", "label", "ontology_class"],
             "additionalProperties": false
         },
         "document_type_def": {
             "type": "object",
-            "description": "Document type registry entry (I282 B3.1 three-level hierarchy — Level 2). Shape-only definition — the type_id VALUES live in the carrier eks_document_type_schema.json#/document_types. A type belongs to exactly one class and optionally one family.",
+            "description": "Document type registry entry (I282 B3.1 three-level hierarchy — Level 2). Shape-only definition — the type_id VALUES live in the carrier eks_document_type_schema.json#/document_types. A type belongs to exactly one class and optionally one family. I280 (T1.218): optional B3.2 sub-objects — type-level structural_profile/ref overrides; absent = inherit class-level defaults.",
             "properties": {
                 "type_id": { "type": "string", "description": "Document type identifier (e.g. P&ID, Isometric, Loop Drawing). Validated at runtime against the carrier document_types registry." },
                 "label": { "type": "string", "description": "Human-readable label" },
                 "class_id": { "type": "string", "description": "Reference to a class_id in the carrier document_classes registry" },
-                "family_id": { "type": ["string", "null"], "description": "Optional reference to a family_id in the carrier document_family registry. Null when the type belongs to no family." }
+                "family_id": { "type": ["string", "null"], "description": "Optional reference to a family_id in the carrier document_family registry. Null when the type belongs to no family." },
+                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280: B3.2 structural characteristics override for this type; absent = inherit class-level structural_profile" },
+                "extraction_profile_ref": { "$ref": "#/definitions/extraction_profile_ref", "description": "I280: extraction profile id override for this type" },
+                "retrieval_profile_ref": { "$ref": "#/definitions/retrieval_profile_ref", "description": "I280: Phase 2/3 — retrieval profile id override" },
+                "validation_profile_ref": { "$ref": "#/definitions/validation_profile_ref", "description": "I280: validation profile id override (I284)" },
+                "document_semantics": { "$ref": "#/definitions/document_semantics_def", "description": "I280: Phase 3 stub" },
+                "ai_profile": { "$ref": "#/definitions/ai_profile_def", "description": "I280: Phase 3 stub" },
+                "knowledge_relationships": { "$ref": "#/definitions/knowledge_relationships_def", "description": "I280: Phase 3 stub" }
             },
             "required": ["type_id", "label", "class_id"],
             "additionalProperties": false
@@ -110,6 +125,11 @@
             "properties": {
                 "label": { "type": "string", "description": "Human-readable template label" },
                 "cover_type": { "type": "string", "enum": ["A", "B", "C", "D", "E"], "description": "Cover sheet type letter for structure_detector routing" },
+                "source_quality_score": {
+                    "type": "object",
+                    "additionalProperties": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "description": "I284: template-scoped cover source-quality map {cover_type: score}. Consumed by HealthScorer._score_source_quality for the source_quality dimension. Linked only to document_templates (no project override). When absent for a template, HealthScorer falls back to health_scoring.default_source_quality_scores in eks_doc_config.json."
+                },
                 "expected_elements": {
                     "type": "array",
                     "items": { "$ref": "#/definitions/element_type_code" },
@@ -127,6 +147,67 @@
                 }
             },
             "required": ["label", "cover_type", "expected_elements", "threshold", "detection"],
+            "additionalProperties": false
+        },
+        "structural_profile_def": {
+            "type": "object",
+            "description": "I280 (T1.218): B3.2 Structural Characteristics profile. Declares the physical layout / visual elements expected for a document class or type. Used by type-aware StructureDetector (I283) to tailor element detection. Fields absent = default/unknown.",
+            "properties": {
+                "cover_page": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Whether a cover page is expected (B2.1 Document Structure)" },
+                "revision_table": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Whether a revision table is expected" },
+                "multi_sheet": { "type": "boolean", "description": "Whether the document is typically multi-sheet" },
+                "drawing_based": { "type": "boolean", "description": "Whether content is drawing-based (graphics heavy) vs text-based" },
+                "section_based": { "type": "boolean", "description": "Whether content is organised into sections/headings" },
+                "contains_callouts": { "type": "boolean", "description": "Whether visual callouts/labels are expected (B2.1 Visual Elements)" },
+                "contains_symbols": { "type": "boolean", "description": "Whether graphic symbols (P&ID/loop) are expected" },
+                "title_block": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Title block presence" },
+                "legend": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Legend presence" },
+                "grid": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Grid/reference-frame presence" },
+                "signature_block": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Signature block presence" }
+            },
+            "additionalProperties": false
+        },
+        "extraction_profile_ref": {
+            "type": "string",
+            "description": "I280 (T1.218): reference to an extraction_profiles id in eks_processing_config.json (I281 SSOT). Validated at runtime against the extraction_profiles registry."
+        },
+        "retrieval_profile_ref": {
+            "type": "string",
+            "description": "I280 (T1.218): reference to a retrieval_profiles id (Phase 2/3 — not yet populated; null/absent until then)."
+        },
+        "validation_profile_ref": {
+            "type": "string",
+            "description": "I280 (T1.218): reference to a validation_profiles id (I284 feeds the column-value validation layer; container exists, values Phase 2/3)."
+        },
+        "document_semantics_def": {
+            "type": "object",
+            "description": "I280 (T1.218): PHASE 3 STUB — B3.2 Document Semantics: what knowledge a document contains, directly feeding the graph database. Optional; no code consumers in Phase 1.",
+            "properties": {
+                "semantic_entities": { "type": "array", "items": { "type": "string" }, "description": "Entity types (Equipment, Instrument, Valve, Pipe, ...)" },
+                "semantic_relationships": { "type": "array", "items": { "type": "string" }, "description": "Relationship types (connected_to, measures, ...)" },
+                "semantic_constraints": { "type": "array", "items": { "type": "object" }, "description": "Constraints on entity relationships" },
+                "business_objects": { "type": "array", "items": { "type": "string" }, "description": "Business-relevant objects" },
+                "engineering_objects": { "type": "array", "items": { "type": "string" }, "description": "Engineering-relevant objects" }
+            },
+            "additionalProperties": false
+        },
+        "ai_profile_def": {
+            "type": "object",
+            "description": "I280 (T1.218): PHASE 3 STUB — B3.2 AI Behaviour profile: how RAG/QA should reason over this document type. Optional; no code consumers in Phase 1.",
+            "properties": {
+                "question_types": { "type": "array", "items": { "type": "string" }, "description": "Supported question types" },
+                "reasoning_level": { "type": "string", "description": "Reasoning depth required" },
+                "requires_graph": { "type": "boolean", "description": "Whether graph-backed reasoning is required" },
+                "requires_multimodal": { "type": "boolean", "description": "Whether multimodal (image+text) reasoning is required" }
+            },
+            "additionalProperties": false
+        },
+        "knowledge_relationships_def": {
+            "type": "object",
+            "description": "I280 (T1.218): PHASE 3 STUB — B3.2 Knowledge Relationships: typed relation registry for graph edges. Optional; no code consumers in Phase 1.",
+            "properties": {
+                "relationship_types": { "type": "array", "items": { "type": "string" }, "description": "Typed relations (supersedes, references_documents, ...)" }
+            },
             "additionalProperties": false
         },
         "project_metadata_def": {
@@ -494,11 +575,20 @@
                     "description": "Per-column validation rules applied after the value is resolved."
                 },
                 "processing_phase": { "$ref": "#/definitions/processing_phase_enum" },
-                "required": { "type": "boolean", "description": "Whether a non-null value is required for this column." },
+                "required": {
+                    "type": "boolean",
+                    "description": "I284: whether this column is REQUIRED for the claimed document classes. required=true → a missing value scores 0 (penalises the health score). required=false → the column weight is 0 (neutral; missing value does not penalise)."
+                },
+                "scoring_tier": {
+                    "type": "string",
+                    "enum": ["tier1", "tier2", "tier3", "excluded"],
+                    "description": "I284: health-score tier for this column. tier1=critical (weight from health_scoring.weight_tiers.tier1_critical), tier2=standard, tier3=optional, excluded=never scored. excluded takes precedence over required — an excluded column produces no score even if required=true."
+                },
                 "applies_to_document_types": {
                     "type": "array",
+                    "minItems": 1,
                     "items": { "$ref": "#/definitions/document_class_def/properties/class_id" },
-                    "description": "I275: array of class_ids (from document_classes) this column may populate. Absent = applies to all classes. The document's resolved class (local_code -> binding -> class_id) must be listed for the column to run. I282: concept_id migrated to class_id."
+                    "description": "I284: REQUIRED. Array of class_ids (from document_classes) this column explicitly applies to — every data column must be explicitly claimed to each document class. Classes not listed are NOT scored for this column. The document's resolved class (local_code -> binding -> class_id) must be listed for the column to participate. I282: concept_id migrated to class_id."
                 },
                 "native_only": {
                     "type": "boolean",
@@ -507,7 +597,7 @@
                 },
                 "description": { "type": "string", "description": "Human-readable description of this column and its processing." }
             },
-            "required": ["column_type", "is_calculated", "processing_phase"],
+            "required": ["column_type", "is_calculated", "processing_phase", "scoring_tier", "applies_to_document_types"],
             "additionalProperties": false
         }
     }

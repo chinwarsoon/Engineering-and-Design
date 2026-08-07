@@ -314,6 +314,117 @@ class TestStructureDetector(unittest.TestCase):
                          "no-cover (C) template must not emit a cover_page element")
         self.assertTrue(all(el["element_type"] != "cover_page" for el in elements))
 
+    # -- I283 (T1.230): template-gated detection + schema-first cover type -----
+
+    def test_gating_by_expected_elements(self):
+        """Only element types in expected_element_types are detected."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A\n1.0 Scope\n2.1 Design",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages,
+                                        expected_element_types={"cover_page"})
+        self.assertEqual([el["element_type"] for el in elements], ["cover_page"],
+                         "section/revision_table must be gated off")
+
+    def test_empty_expected_elements_gates_all(self):
+        """An empty expected_elements set produces no elements (spec no-cover)."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A\n1.0 Scope",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages,
+                                        expected_element_types=set())
+        self.assertEqual(elements, [])
+
+    def test_link_note_placeholders_gated_by_expected_elements(self):
+        """link/note are placeholder detectors that are always gated."""
+        text = "Note: annotate here.\nSee https://example.com/file"
+        pages = [{"text": text, "tables": [], "images": []}]
+        on = self.detector.detect("test.pdf", pages=pages,
+                                  expected_element_types={"link", "note"})
+        types = {el["element_type"] for el in on}
+        self.assertIn("link", types)
+        self.assertIn("note", types)
+        off = self.detector.detect("test.pdf", pages=pages,
+                                   expected_element_types={"section"})
+        types_off = {el["element_type"] for el in off}
+        self.assertNotIn("link", types_off)
+        self.assertNotIn("note", types_off)
+
+    def test_detects_title_block_grid_signature_when_declared(self):
+        """New 8→11 element codes return elements when declared in expected_elements."""
+        text = (
+            "TITLE: Pump Station P-101\n"
+            "SCALE: 1:100\n"
+            "DRAWN BY: J. Smith\n"
+            "CHECKED BY: M. Jones\n"
+            "APPROVED BY: R. Lee\n"
+            "Grid refs: A1 B2 C3 A4\n"
+            "SIGNED: J. Smith\n"
+        )
+        pages = [{"text": text, "tables": [], "images": []}]
+        elements = self.detector.detect(
+            "test.pdf", pages=pages,
+            expected_element_types={"title_block", "grid", "signature_block"},
+        )
+        types = {el["element_type"] for el in elements}
+        self.assertIn("title_block", types)
+        self.assertIn("grid", types)
+        self.assertIn("signature_block", types)
+
+    def test_title_block_grid_signature_gated_off(self):
+        """Drawing-frame elements are not detected when not declared."""
+        text = (
+            "TITLE: Pump Station P-101\nSCALE: 1:100\nDRAWN BY: J. Smith\n"
+            "Grid refs: A1 B2 C3 A4\nSIGNED: J. Smith\n"
+        )
+        pages = [{"text": text, "tables": [], "images": []}]
+        elements = self.detector.detect("test.pdf", pages=pages,
+                                        expected_element_types={"cover_page"})
+        self.assertNotIn("title_block", {el["element_type"] for el in elements})
+        self.assertNotIn("grid", {el["element_type"] for el in elements})
+        self.assertNotIn("signature_block", {el["element_type"] for el in elements})
+
+    def test_schema_cover_type_c_skips_cover(self):
+        """I283: schema-first cover_type 'C' skips cover detection without skip_cover_page."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages, cover_type="C")
+        self.assertFalse(any(el["element_type"] == "cover_page" for el in elements))
+
+    def test_cover_type_none_detection_fallback(self):
+        """I283: None cover_type (schema unavailable) falls back to content detection."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages, cover_type=None)
+        self.assertTrue(any(el["element_type"] == "cover_page" for el in elements),
+                        "schema value unavailable → detection fallback runs cover detection")
+
+    def test_cover_type_a_annotates_cover(self):
+        """I283: cover-bearing cover_type is annotated onto the cover_page element."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages, cover_type="A")
+        covers = [el for el in elements if el["element_type"] == "cover_page"]
+        self.assertEqual(covers[0].get("cover_type"), "A")
+
+    def test_classify_cover_type_retired(self):
+        """I283: keyword-based classify_cover_type() must be retired."""
+        self.assertFalse(hasattr(self.detector, "classify_cover_type"),
+                         "classify_cover_type() keyword heuristic must be removed")
+
 
 # ---------------------------------------------------------------------------
 # T1.99.141–T1.99.146: Document Metadata Completeness Tests
@@ -751,13 +862,18 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_config_docx_has_revision_mapping(self):
-        """T1.99.144: DOCX config has revision → embedded_revision_number mapping."""
-        config_path = CONFIG_DIR / "schemas" / "eks_doc_config.json"
+        """T1.99.144: DOCX config has revision → embedded_revision_number mapping.
+
+        I287 (T1.241): property mappings single-sourced in
+        eks_processing_config.json#/file_property_profiles (doc_config
+        file_property_patterns section retired).
+        """
+        config_path = CONFIG_DIR / "schemas" / "eks_processing_config.json"
         if not config_path.exists():
-            config_path = CONFIG_DIR / "eks_doc_config.json"
+            config_path = CONFIG_DIR / "eks_processing_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        docx_mappings = config["file_property_patterns"]["by_file_type"]["docx"]["property_mapping"]
+        docx_mappings = config["file_property_profiles"]["docx_props"]["property_mapping"]
         rev_map = [m for m in docx_mappings if m.get("source_key") == "revision"]
         self.assertEqual(len(rev_map), 1)
         self.assertEqual(rev_map[0]["maps_to"], "embedded_revision_number")
@@ -769,14 +885,21 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.10.0")  # I281 T1.224: parsing_profiles removed → eks_processing_config SSOT
+        self.assertEqual(config["version"], "1.12.0")  # I283 T1.230: element_type_registry 8→11 (I287 T1.241 was 1.11.0)
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.15.0")  # I281 T1.223: parsing_profile_def removed (I282 T1.226 was 1.14.0)
+        self.assertEqual(base["version"], "1.17.0")  # I283 T1.230: element_type_code 8→11 (I280 T1.218 was 1.16.0)
+
+        core_base_path = CONFIG_DIR / "schemas" / "eks_base_schema.json"
+        if not core_base_path.exists():
+            core_base_path = CONFIG_DIR / "eks_base_schema.json"
+        with open(core_base_path) as f:
+            core_base = json.load(f)
+        self.assertEqual(core_base["version"], "1.17.0")  # I287 T1.238: filename/file_property/os_properties defs added
 
 
 # ---------------------------------------------------------------------------

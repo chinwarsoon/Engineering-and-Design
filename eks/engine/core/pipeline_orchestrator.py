@@ -135,15 +135,22 @@ class PipelineOrchestrator(BaseEngine):
         self.scanner = self._engine_factory.create(
             "FileScanner", config=config, doc_config=doc_config, logger=self.logger,
             project_config_registry=self.project_config_registry,
+            processing_config=self.processing_config,
         )
         self.router = ParserRouter(
             doc_config, logger=self.logger, use_factory=True,
             runtime_slice=self._slice_for_orchestrator(),
             processing_config=self.processing_config,
         )
+        # I284: schema-driven scorer. column_config + weight_tiers +
+        # default_source_quality_scores come from doc_config so no scoring
+        # policy is hardcoded in the engine.
         self.scorer = self._engine_factory.create(
             "HealthScorer", logger=self.logger,
             document_templates=doc_config.get("document_templates", {}),
+            column_config=doc_config.get("column_processing", {}),
+            weight_tiers=(doc_config.get("health_scoring") or {}).get("weight_tiers"),
+            default_source_quality_scores=(doc_config.get("health_scoring") or {}).get("default_source_quality_scores"),
         )
         self.detector = self._engine_factory.create("StructureDetector", logger=self.logger)
 
@@ -198,7 +205,11 @@ class PipelineOrchestrator(BaseEngine):
         )
 
         # T1.99.134: FilePropertyExtractor for Phase B property extraction (Appendix J)
-        file_property_patterns = doc_config.get("file_property_patterns", {})
+        # I287 (T1.242): file_property config single-sourced in
+        # eks_processing_config.json — os_properties (top-level) + 
+        # file_property_profiles (bound to extraction_profiles). The legacy
+        # doc_config file_property_patterns section is retired (T1.241).
+        file_property_patterns = self._build_file_property_config()
         self._property_extractor = FilePropertyExtractor(
             file_property_patterns=file_property_patterns,
             logger=self.logger,
@@ -236,6 +247,38 @@ class PipelineOrchestrator(BaseEngine):
                 if title:
                     titles[code] = title
         return titles
+
+    def _build_file_property_config(self) -> Dict[str, Any]:
+        """Build the FilePropertyExtractor config from eks_processing_config.json.
+
+        I287 (T1.242): file property rules single-sourced in
+        eks_processing_config.json — ``os_properties`` (top-level) + 
+        ``file_property_profiles`` (keyed by profile, bound to extraction
+        profiles). The legacy doc_config ``file_property_patterns`` section is
+        retired (T1.241); this adapter projects the processing config into the
+        extractor's ``{os_properties, by_file_type}`` shape so the extractor's
+        L.14.7 backward-compatible contract is preserved.
+        """
+        pc = self.processing_config or {}
+        os_cfg = pc.get("os_properties", {})
+        by_type: Dict[str, Dict[str, Any]] = {}
+        extraction_profiles = pc.get("extraction_profiles", {})
+        for profile in pc.get("file_property_profiles", {}).values():
+            if not isinstance(profile, dict):
+                continue
+            method = "os_only"
+            bound = profile.get("bound_extraction_profile")
+            bound_profile = extraction_profiles.get(bound, {}) if bound else {}
+            methods = bound_profile.get("extraction_methods", [])
+            if "parser_metadata" in methods:
+                method = "parser_metadata"
+            for ext in profile.get("supported_extensions", []):
+                by_type[ext] = {
+                    "enabled": True,
+                    "extraction_method": method,
+                    "property_mapping": profile.get("property_mapping", []),
+                }
+        return {"os_properties": os_cfg or {}, "by_file_type": by_type}
 
     def _slice_for_orchestrator(self) -> Dict[str, Any]:
         """Return the init-time default config slice for orchestrator children.
@@ -923,17 +966,26 @@ class PipelineOrchestrator(BaseEngine):
             content_blocks = parse_result.get("content_blocks", [])
             metadata = parse_result.get("metadata", {})
 
-            # I278 (T1.211): resolve the binding template's cover_type so a
-            # no-cover (C) document skips cover-page detection and discards
-            # cover_page_element from the admitted extraction methods.
+            # I278 (T1.211) / I283 (T1.230): resolve the binding template's
+            # cover_type schema-first so a no-cover (C) document skips
+            # cover-page detection and discards cover_page_element from the
+            # admitted extraction methods. cover_type is None when the schema
+            # value is unavailable — content detection falls back. Also resolve
+            # the template expected_elements set (element-set SSOT) to gate
+            # every StructureDetector sub-detector (four-level model).
             cover_type = None
+            expected_element_types = None
             if self._column_processor:
                 cover_type = self._column_processor.resolve_cover_type(route_doc_type)
+                expected_element_types = self._column_processor.resolve_expected_element_types(route_doc_type)
 
             try:
                 pages = self._adapt_content_for_detector(content_blocks)
                 elements = self.detector.detect(
-                    file_path, pages=pages, skip_cover_page=(cover_type == "C")
+                    file_path, pages=pages,
+                    skip_cover_page=(cover_type == "C"),
+                    expected_element_types=expected_element_types,
+                    cover_type=cover_type,
                 )
                 result["elements"] = elements
 
@@ -979,7 +1031,21 @@ class PipelineOrchestrator(BaseEngine):
                     )
             if doc:
                 try:
-                    # T1.99.199 (I214): Use HealthInput/HealthOutput contract wrapper
+                    # T1.99.199 (I214): Use HealthInput/HealthOutput contract wrapper.
+                    # I283 (T1.230): cover_type wired into HealthInput so health
+                    # scoring (I284) uses the schema-first cover type.
+                    # I284: resolve class_id + template_id from the flat registry
+                    # so the scorer applies type-aware tiers and template-scoped
+                    # source quality.
+                    score_class_id = None
+                    score_template_id = None
+                    if self._column_processor:
+                        scope = self._column_processor.resolve_scope(route_doc_type)
+                        score_class_id = scope.get("class_id")
+                        for _entry in self.doc_config.get("document_type_registry", []):
+                            if _entry.get("code") == route_doc_type:
+                                score_template_id = _entry.get("template")
+                                break
                     health_input = HealthInput(
                         run_id=str(getattr(self.logger, 'run_id', '')),
                         data_dir=Path(file_path).parent,
@@ -989,6 +1055,9 @@ class PipelineOrchestrator(BaseEngine):
                         parameters={},
                         document=doc,
                         elements=elements or [],
+                        cover_type=cover_type,
+                        class_id=score_class_id,
+                        template_id=score_template_id,
                     )
                     hout = self.scorer.score_from_input(health_input)
                     score = hout.metadata

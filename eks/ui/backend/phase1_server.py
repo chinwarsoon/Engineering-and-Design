@@ -416,6 +416,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         scanner = FileScanner(
             config, doc_config=doc_config, logger=_logger,
             project_config_registry=_resolve_project_config_registry(loader, config),
+            processing_config=loader.processing_config,
         )
         discovered = scanner.scan(data_dir, recursive=recursive)
         valid, unknown = scanner.validate_file_types(discovered)

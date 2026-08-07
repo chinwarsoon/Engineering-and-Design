@@ -37,11 +37,17 @@ class FileScanner:
 
     def __init__(self, config: Dict[str, Any], doc_config: Optional[Dict[str, Any]] = None,
                  logger: Optional[EKSLogger] = None,
-                 project_config_registry: Optional[Any] = None):
+                 project_config_registry: Optional[Any] = None,
+                 processing_config: Optional[Dict[str, Any]] = None):
         self.config = config
         self.doc_config = doc_config or config
         self.logger = logger or EKSLogger("FileScanner", level=1)
         self.project_config_registry = project_config_registry
+        # I287 (T1.242): parser_class single-sourced in
+        # eks_processing_config.json#/extraction_profiles (parser_class +
+        # supported_extensions) — removed from file_type_registry (T1.241).
+        self.processing_config = processing_config or {}
+        self._ext_parser_map = self._build_ext_parser_map()
         self.file_type_registry = self.doc_config.get("file_type_registry", [])
         # I279 (T1.213): flat document_type_registry is derived at load time by
         # SchemaLoader from the three-section eks_document_type_schema.json carrier.
@@ -102,6 +108,21 @@ class FileScanner:
                 result[ext] = entry
         return result
 
+    def _build_ext_parser_map(self) -> Dict[str, str]:
+        """Map file extension to parser_class from extraction_profiles.
+
+        I287 (T1.242): parser_class single-sourced in
+        eks_processing_config.json#/extraction_profiles (parser_class +
+        supported_extensions) — file_type_registry no longer carries it.
+        """
+        result = {}
+        for profile in self.processing_config.get("extraction_profiles", {}).values():
+            parser_class = profile.get("parser_class", "")
+            for ext in profile.get("supported_extensions", []):
+                if ext and parser_class:
+                    result[ext.lower()] = parser_class
+        return result
+
     def _build_expected_types_map(self) -> Dict[str, Set[str]]:
         """Map document_type_code to its expected_file_types set."""
         result = {}
@@ -142,7 +163,7 @@ class FileScanner:
                     "file_name": file_path.name,
                     "file_type": ext,
                     "display_name": entry.get("display_name", ext),
-                    "parser_class": entry.get("parser_class", ""),
+                    "parser_class": self._ext_parser_map.get(ext, ""),
                 })
 
         self.logger.info(

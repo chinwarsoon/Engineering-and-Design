@@ -419,6 +419,10 @@ class EKSColumnProcessor(BaseColumnProcessor):
         I278 (T1.211): a binding whose template ``cover_type`` is ``"C"``
         (no-cover) additionally discards ``cover_page_element`` — no cover
         page exists to extract from.
+        I283 (T1.230): only a resolved ``"C"`` cover_type discards
+        ``cover_page_element``. ``None`` (schema value unavailable) keeps it —
+        the cover may still exist (detection fallback), so the method is not
+        pre-emptively dropped.
 
         Returns a set of admitted method names (empty when the document type
         has no binding profile or the profile declares no methods).
@@ -437,29 +441,60 @@ class EKSColumnProcessor(BaseColumnProcessor):
             methods.discard("parser_metadata")
         # I278 (T1.211): a no-cover template (cover_type "C") has no cover
         # page to extract, so cover_page_element is never an admitted method.
+        # I283 (T1.230): None (schema value unavailable) does NOT discard —
+        # detection fallback may still produce a cover.
         if self.resolve_cover_type(document_type) == "C":
             methods.discard("cover_page_element")
         return methods
 
-    def resolve_cover_type(self, document_type: Optional[str]) -> str:
+    def resolve_cover_type(self, document_type: Optional[str]) -> Optional[str]:
         """
-        I278 (T1.211): resolve the binding template's cover_type (A/B/C/D/E).
+        I278 (T1.211) / I283 (T1.230): resolve the binding template's cover_type.
 
         Follows the document_type_registry entry's ``template`` id into the
         injected ``document_templates`` (I279 carrier) and returns its
-        ``cover_type``. Unknown / missing template ids default to ``"C"`` —
-        treated as no-cover (safe: no cover is required to extract).
+        ``cover_type``.
+
+        I283 (T1.230) semantics — schema-first with detection fallback:
+        - ``"A"/"B"/"C"/"D"/"E"`` : the carrier template's cover_type
+          (``"C"`` = deliberate no-cover template — never flag a cover).
+        - ``None`` : the schema value is unavailable (no document_type, no
+          template binding, or a template without a cover_type). Callers
+          must fall back to content detection — never treat ``None`` as a
+          deliberate no-cover decision.
         """
         if not document_type:
-            return "C"
+            return None
         for entry in self.document_type_registry:
             if entry.get("code") == document_type:
                 template_id = entry.get("template")
                 if template_id:
                     tpl = self.document_templates.get(template_id, {})
-                    return tpl.get("cover_type", "C")
-                return "C"
-        return "C"
+                    return tpl.get("cover_type")
+                return None
+        return None
+
+    def resolve_expected_element_types(self, document_type: Optional[str]) -> set:
+        """
+        I283 (T1.230): resolve the binding template's ``expected_elements`` set.
+
+        Element-set SSOT for the four-level Class→Type→Template→Element
+        detection model is the carrier ``document_templates[template_id].expected_elements``.
+        Returns an empty set when the document type is unknown, the binding
+        has no template, or the template declares no expected elements —
+        callers gate ``StructureDetector.detect()`` with this set (empty set =
+        no element detectors run).
+        """
+        if not document_type:
+            return set()
+        for entry in self.document_type_registry:
+            if entry.get("code") == document_type:
+                template_id = entry.get("template")
+                if template_id:
+                    tpl = self.document_templates.get(template_id, {})
+                    return set(tpl.get("expected_elements", []))
+                return set()
+        return set()
 
     def resolve_scope(self, document_type: Optional[str]) -> Dict[str, Any]:
         """

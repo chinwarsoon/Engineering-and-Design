@@ -879,12 +879,23 @@ class TestCoverTypeBranching(unittest.TestCase):
         proc = self._make_processor({})
         self.assertEqual(proc.resolve_cover_type("SPC"), "C")
 
-    def test_resolve_cover_type_unknown_defaults_no_cover(self):
-        """An unknown binding with no template resolves to 'C' (safe no-cover default)."""
+    def test_resolve_cover_type_unknown_defaults_none(self):
+        """I283 (T1.230): no schema cover type resolves to None (detection fallback),
+        NOT 'C'. Only a deliberate no-cover template resolves to 'C'."""
         proc = self._make_processor({})
-        self.assertEqual(proc.resolve_cover_type("NO-PROFILE"), "C")
-        self.assertEqual(proc.resolve_cover_type("UNKNOWN"), "C")
-        self.assertEqual(proc.resolve_cover_type(None), "C")
+        self.assertIsNone(proc.resolve_cover_type("NO-PROFILE"))
+        self.assertIsNone(proc.resolve_cover_type("UNKNOWN"))
+        self.assertIsNone(proc.resolve_cover_type(None))
+        self.assertIsNone(proc.resolve_cover_type(""))
+
+    def test_resolve_expected_element_types(self):
+        """I283 (T1.230): resolve the template expected_elements set (element-set SSOT)."""
+        proc = self._make_processor({})
+        self.assertEqual(proc.resolve_expected_element_types("DWG"),
+                         {"cover_page", "revision_table", "section"})
+        self.assertEqual(proc.resolve_expected_element_types("SPC"), set())
+        self.assertEqual(proc.resolve_expected_element_types("NO-PROFILE"), set())
+        self.assertEqual(proc.resolve_expected_element_types(None), set())
 
     def test_cover_type_c_discards_cover_page_element(self):
         """No-cover binding discards cover_page_element from the admitted methods."""

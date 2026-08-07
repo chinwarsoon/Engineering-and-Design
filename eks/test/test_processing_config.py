@@ -29,6 +29,13 @@ ROOT = Path(__file__).resolve().parent.parent
 PROFILE_TYPES = [
     "extraction", "chunking", "embedding", "asset", "ontology", "retrieval",
     "prompt", "validation", "indexing", "ai_reasoning", "graph_mapping",
+    "filename", "file_property",
+]
+
+# I287 (T1.239): 10 deferred profile types remain empty landing zones.
+DEFERRED_TYPES = [
+    "chunking", "embedding", "asset", "ontology", "retrieval",
+    "prompt", "validation", "indexing", "ai_reasoning", "graph_mapping",
 ]
 
 
@@ -47,8 +54,8 @@ class TestProcessingConfigSchema(unittest.TestCase):
         with open(cls.config_dir / "schemas" / "eks_doc_config.json", encoding="utf-8") as f:
             cls.doc_config = json.load(f)
 
-    def test_generic_container_accepts_all_11_profile_types(self):
-        """processing_profile_registry_def.profile_type enum covers all 11 keys (Q3)."""
+    def test_generic_container_accepts_all_13_profile_types(self):
+        """processing_profile_registry_def.profile_type enum covers all 13 keys (I287)."""
         enum = self.base["definitions"]["processing_profile_registry_def"]["properties"]["profile_type"]["enum"]
         self.assertEqual(sorted(enum), sorted(PROFILE_TYPES))
 
@@ -60,10 +67,16 @@ class TestProcessingConfigSchema(unittest.TestCase):
                        "embedding", "asset", "ontology", "prompt"):
             self.assertIn(f"{suffix}_profile_def", defs, f"missing {suffix}_profile_def")
 
-    def test_setup_processing_profiles_property_declares_11_sections(self):
-        """eks_setup_schema processing_profiles property declares all 11 sections."""
+    def test_new_chain_defs_present_in_base(self):
+        """I287 (T1.238): filename/file_property/os_properties defs exist in core base."""
+        defs = self.base["definitions"]
+        for name in ("filename_profile_def", "file_property_profile_def", "os_properties_def"):
+            self.assertIn(name, defs, f"missing {name}")
+
+    def test_setup_processing_profiles_property_declares_all_sections(self):
+        """eks_setup_schema processing_profiles declares all {type}_profiles + os_properties."""
         prop = self.loader.setup_schema["properties"]["processing_profiles"]["properties"]
-        expected = {f"{t}_profiles" for t in PROFILE_TYPES}
+        expected = {f"{t}_profiles" for t in PROFILE_TYPES} | {"os_properties"}
         self.assertEqual(set(prop.keys()), expected)
 
     def test_extraction_profile_def_superset_of_legacy(self):
@@ -82,7 +95,7 @@ class TestProcessingConfigSchema(unittest.TestCase):
 
     def test_ten_deferred_sections_empty(self):
         """10 deferred profile sections present and empty (landing zones)."""
-        deferred = [f"{t}_profiles" for t in PROFILE_TYPES if t != "extraction"]
+        deferred = [f"{t}_profiles" for t in DEFERRED_TYPES]
         for section in deferred:
             self.assertIn(section, self.processing_config, f"missing {section}")
             self.assertEqual(self.processing_config[section], {}, f"{section} not empty")
@@ -181,6 +194,114 @@ class TestPhase1ProfileEstablishment(unittest.TestCase):
         """Every extraction profile declares profile_type 'extraction'."""
         for pid, prof in self.loader.processing_config.get("extraction_profiles", {}).items():
             self.assertEqual(prof.get("profile_type"), "extraction", f"{pid} wrong profile_type")
+
+
+class TestI287FileProcessingChain(unittest.TestCase):
+    """I287 T1.240 — Phase-1 file-processing chain in eks_processing_config.json."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.config_dir = ROOT / "config"
+        cls.loader = SchemaLoader(str(cls.config_dir))
+        cls.loader.load_all()
+        with open(cls.config_dir / "schemas" / "eks_processing_config.json", encoding="utf-8") as f:
+            cls.pc = json.load(f)
+
+    # -- filename_profiles ----------------------------------------------
+
+    def test_filename_profiles_present(self):
+        """filename_profiles carries twrp_standard + default."""
+        profiles = self.pc.get("filename_profiles", {})
+        self.assertIn("twrp_standard", profiles)
+        self.assertIn("default", profiles)
+
+    def test_filename_profiles_have_profile_identity(self):
+        """Each filename profile declares profile_id + profile_type 'filename'."""
+        for pid, profile in self.pc.get("filename_profiles", {}).items():
+            self.assertEqual(profile.get("profile_id"), pid, f"{pid} profile_id mismatch")
+            self.assertEqual(profile.get("profile_type"), "filename", f"{pid} wrong profile_type")
+
+    def test_filename_profile_schema_chain(self):
+        """filename profiles validate against filename_profile_def via setup schema."""
+        prop = self.loader.setup_schema["properties"]["processing_profiles"]["properties"]
+        section_schema = prop["filename_profiles"]
+        # load_all() already ran _validate_processing_config() without error
+        self.assertIn("additionalProperties", section_schema)
+
+    # -- file_property_profiles -----------------------------------------
+
+    def test_file_property_profiles_present(self):
+        """file_property_profiles carries pdf/docx/xlsx/dgn/dwg prop profiles."""
+        profiles = self.pc.get("file_property_profiles", {})
+        for name in ("pdf_props", "docx_props", "xlsx_props", "dgn_props", "dwg_props"):
+            self.assertIn(name, profiles, f"missing {name}")
+
+    def test_file_property_profiles_have_identity(self):
+        """Each file-property profile declares profile_id + profile_type 'file_property'."""
+        for pid, profile in self.pc.get("file_property_profiles", {}).items():
+            self.assertEqual(profile.get("profile_id"), pid, f"{pid} profile_id mismatch")
+            self.assertEqual(profile.get("profile_type"), "file_property", f"{pid} wrong profile_type")
+
+    def test_no_extraction_method_on_property_profiles(self):
+        """I277 gate: extraction_method dropped — inherited from bound profile."""
+        for pid, profile in self.pc.get("file_property_profiles", {}).items():
+            self.assertNotIn("extraction_method", profile, f"{pid} must not declare extraction_method")
+
+    # -- bound cross-check (Q3) ------------------------------------------
+
+    def test_bound_extraction_profiles_resolve(self):
+        """Every file_property_profiles.bound_extraction_profile exists in extraction_profiles."""
+        extraction = self.pc.get("extraction_profiles", {})
+        for pid, profile in self.pc.get("file_property_profiles", {}).items():
+            bound = profile.get("bound_extraction_profile")
+            self.assertIn(bound, extraction, f"{pid} bound to unknown profile {bound}")
+
+    def test_bound_profile_supported_extensions_admit_property_profile(self):
+        """Each property profile's supported_extensions are a subset of its bound
+        extraction profile's supported_extensions (loose naming cross-check —
+        dgn_props↔technip_dgn, dwg_props↔technip_dwg do not share exact names)."""
+        extraction = self.pc.get("extraction_profiles", {})
+        for pid, profile in self.pc.get("file_property_profiles", {}).items():
+            bound = extraction.get(profile.get("bound_extraction_profile"), {})
+            bound_exts = set(bound.get("supported_extensions", []))
+            own_exts = set(profile.get("supported_extensions", []))
+            if bound_exts:
+                self.assertTrue(
+                    own_exts.issubset(bound_exts),
+                    f"{pid} ext {sorted(own_exts)} not admitted by bound profile "
+                    f"{sorted(bound_exts)}",
+                )
+
+    # -- os_properties (Q1 top-level) ------------------------------------
+
+    def test_os_properties_top_level(self):
+        """os_properties is a TOP-LEVEL key in eks_processing_config.json (Q1)."""
+        self.assertIn("os_properties", self.pc)
+        os_cfg = self.pc["os_properties"]
+        self.assertTrue(os_cfg.get("enabled"))
+        self.assertIn("file_size", os_cfg.get("collect", []))
+        self.assertEqual(os_cfg.get("hash_algorithm"), "md5")
+
+    def test_property_profiles_use_os_properties(self):
+        """Each property profile references os_properties via uses_os_properties."""
+        for pid, profile in self.pc.get("file_property_profiles", {}).items():
+            self.assertIn("uses_os_properties", profile, f"{pid} missing uses_os_properties")
+
+    # -- doc_config no longer duplicates ---------------------------------
+
+    def test_doc_config_chain_sections_absent(self):
+        """doc_config no longer carries filename_profiles / file_property_patterns (T1.241)."""
+        with open(self.config_dir / "schemas" / "eks_doc_config.json", encoding="utf-8") as f:
+            doc = json.load(f)
+        self.assertNotIn("filename_profiles", doc)
+        self.assertNotIn("file_property_patterns", doc)
+
+    def test_file_type_registry_no_parser_class(self):
+        """parser_class single-sourced in extraction_profiles — not in file_type_registry."""
+        with open(self.config_dir / "schemas" / "eks_doc_config.json", encoding="utf-8") as f:
+            doc = json.load(f)
+        for entry in doc.get("file_type_registry", []):
+            self.assertNotIn("parser_class", entry, f"{entry.get('extension')} still has parser_class")
 
 
 if __name__ == "__main__":

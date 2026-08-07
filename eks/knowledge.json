@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
@@ -9,8 +9,8 @@
     "version": "2.6.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 through I107/T1.99.45-49 — Bootstrap completeness achieved. bootstrap_pipeline() now handles all init (OS detection, CLI parse, config load once, log-level precedence, single path resolution, single MessageManager). EKSPipelineContext fully threaded through main()/run_pipeline()/orchestrator. Tests 23/23 on pipeline test suite (incl. 4 new I107 integration tests). Defect A (split path source) + Defect B (double MessageManager) fixed. Bugs found and fixed: 1) schema_cli.py anchor kwarg mismatch, 2) main() missing project_root to bootstrap_pipeline, 3) run_pipeline() args=None causing sys.argv bleed, 4) main() missing EKSPipelineContext import.",
-    "last_updated": "2026-07-16"
+    "status": "Phase 1 through I283 — four-level Class→Type→Template→Element structure detection implemented (2026-08-07): element_type_code 8→11 (title_block/grid/signature_block), template expected_elements is the element-set SSOT, cover type schema-first (classify_cover_type() retired, detection fallback only when unavailable), StructureDetector.detect() gated by expected_element_types, detection output wired to HealthInput.cover_type (I284 base). See U271/TL046.",
+    "last_updated": "2026-08-07"
   },
   "architecture_overview": {
     "key_modules": [
@@ -75,13 +75,15 @@
       "config/schemas/eks_setup_schema.json - Core property declarations (v1.7.0, incl. top-level setup values, system_parameters, workflow_files, tool_files)",
       "config/schemas/eks_config.json - Core config values (v1.7.0, incl. discovery_rules, system_parameters, workflow_files, tool_files)",
       "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
-      "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.2.0, 8 defs)",
+      "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.17.0, incl. element_type_code enum 11 values + B3.2 structural_profile_def)",
       "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
       "config/schemas/eks_error_code_base.json - Error code taxonomy (v1.1.0, 13 defs)",
       "config/schemas/eks_message_base.json - Pipeline message catalog (v1.1.0, 6 defs)",
       "config/schemas/eks_error_setup_schema.json - Error schema setup layer",
       "config/schemas/eks_message_setup_schema.json - Message schema setup layer",
       "config/schemas/eks_project_definition_config.json - Project Definition SSOT (I265; per-project config — eks_project_rules_config.json retired in T1.196)",
+      "config/schemas/eks_doc_config.json - Document element type registry (11 entries, v1.12.0, I283)",
+      "config/schemas/eks_document_type_schema.json - Five-section carrier: document_classes/types/family/bindings/templates (v2.3.0, I283 expected_elements + cover_type + structural_profile)",
       "config/schemas/eks_project_code_schema.json - WSD11 project codes fragment",
       "config/schemas/eks_discipline_schema.json - 21 discipline codes fragment",
       "config/schemas/eks_department_schema.json - 11 department codes fragment",
@@ -116,7 +118,9 @@
     "FileScanner - Directory walk, type validation, placeholder registration",
     "ParserRouter - File type to parser class mapping",
     "HealthScorer.score_document() - 6-dimension health scoring",
-    "StructureDetector - Cover page, sections, tables, images detection",
+    "StructureDetector - Cover page, sections, tables, images detection; detect() gated by template expected_elements (all 11 detectors incl. link/note placeholders), schema-first cover_type (I283)",
+    "EKSColumnProcessor.resolve_cover_type() - Schema-first cover-type resolution from document_templates[template_id].cover_type; returns None when schema value unavailable (detection fallback, I283)",
+    "EKSColumnProcessor.resolve_expected_element_types() - Resolves template expected_elements into detector gate set (I283)",
     "SchemaToDDL - Auto-generate SQL DDL from JSON schema definitions",
     "PipelineOrchestrator - 3-phase pipeline (scan→parse→review)",
     "ManualReviewManager - Flagged doc review, correction, locking",
@@ -209,7 +213,7 @@
       "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
       "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
     ],
-    "total_issues_resolved": 38,
+    "total_issues_resolved": 39,
     "total_issues_deferred": 3,
     "revision_history": [
       {
@@ -289,6 +293,12 @@
         "date": "2026-07-16",
         "author": "opencode",
         "summary": "I107 + T1.99.45-49 resolved — bootstrap completeness achieved. bootstrap_pipeline() handles all init (OS, CLI, config, paths, level, data_dir, MM). Single resolved_paths source (Defect A) + single MessageManager (Defect B). EKSPipelineContext fully threaded. 4 new integration tests for single-source/phase1-key/context-consistency. Pre-existing bugs fixed: schema_cli.py anchor kwarg mismatch, main() missing project_root, run_pipeline() args=None sys.argv bleed, main() missing EKSPipelineContext import. 23/23 pipeline tests pass."
+      },
+      {
+        "version": "2.8.0",
+        "date": "2026-08-07",
+        "author": "opencode",
+        "summary": "I283 resolved (2026-08-07) — four-level Class→Type→Template→Element structure detection implemented. element_type_code 8→11 (title_block/grid/signature_block) in eks_doc_base_schema v1.17.0; element_type_registry 11 entries (eks_doc_config v1.12.0); carrier v2.3.0 twrp_drawing/twrp_pandid expected_elements → 8, threshold 5; StructureDetector.detect() gated by template expected_elements (all 11 detectors incl. link/note placeholders) + schema-first cover_type param; classify_cover_type() keyword classification retired (resolve_cover_type() → Optional; None = schema unavailable → detection fallback); detection output wired to HealthInput.cover_type (I284 base); valid_element_types derived from base enum. Tasks T1.230–T1.231 ✅; 33 new tests (TL046); full suite 617 passed / 3 pre-existing. See U271, issue log v78."
       }
     ]
   }

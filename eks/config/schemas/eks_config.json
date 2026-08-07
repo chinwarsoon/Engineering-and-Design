@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.10.0",
-    "title": "EKS Default Project Configuration — v1.10.0 (project_rules_registry $ref removed — eks_project_rules_config.json retired, I265 T1.196)",
+    "version": "1.11.0",
+    "title": "EKS Default Project Configuration — v1.11.0 (parsers section removed — parser_class single-sourced in eks_processing_config.json#/extraction_profiles, I287 T1.241)",
     "project_definition": {
         "$ref": "https://eks.engineering/configs/eks_project_definition_config.json"
     },
@@ -29,13 +29,6 @@
     "registry": {
         "type": "duckdb",
         "connection_string": "output/eks_registry.db"
-    },
-    "parsers": {
-        ".pdf": "eks.engine.parsers.pdf_parser.PDFParser",
-        ".docx": "eks.engine.parsers.docx_parser.DOCXParser",
-        ".xlsx": "eks.engine.parsers.xlsx_parser.XLSXParser",
-        ".dgn": "eks.engine.parsers.dgn_parser.DGNParserStub",
-        ".dwg": "eks.engine.parsers.dwg_parser.DWGParserStub"
     },
     "embedding": {
         "active_provider": "openai",

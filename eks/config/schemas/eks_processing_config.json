@@ -1,9 +1,129 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_processing_config_default.json",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "title": "EKS Processing Profile Configuration",
-    "description": "Processing profile values SSOT (I281 T1.224). Actual VALUES for all processing profile types live here (SSOT §9/§16) — base/setup schemas hold shape only. v1.0.0: migrated 5 technip_* extraction profiles from eks_doc_config.json#/parsing_profiles into extraction_profiles (Q1 one-time migration); added 10 empty landing zones for the deferred profile types (chunking/embedding/asset/ontology/retrieval/prompt/validation/indexing/ai_reasoning/graph_mapping) — Phase 2/3 implementors populate these.",
+    "description": "Processing profile values SSOT (I281 T1.224 / I287 T1.240). Actual VALUES for all processing profile types live here (SSOT §9/§16) — base/setup schemas hold shape only. v1.0.0: migrated 5 technip_* extraction profiles from eks_doc_config.json#/parsing_profiles into extraction_profiles (Q1 one-time migration); added 10 empty landing zones for the deferred profile types. v2.0.0 (I287 T1.240): consolidated the Phase-1 file-processing chain — filename_profiles (twrp_standard + default, migrated from eks_doc_config.json#/filename_profiles with profile_id/profile_type), file_property_profiles (5 {extraction_profile}_props profiles migrated from file_property_patterns.by_file_type; extraction_method dropped per I277 gate — inherited from bound_extraction_profile), and os_properties (Q1 TOP-LEVEL shared key, migrated from file_property_patterns.os_properties). Parse order: name (filename) → properties (file_property) → extract (extraction).",
+    "filename_profiles": {
+        "twrp_standard": {
+            "profile_id": "twrp_standard",
+            "profile_type": "filename",
+            "description": "TWRP WSD11 tenderspec naming: {project}-{area}-{type}-{disc}-{seq}[_suffix].ext",
+            "parser_type": "delimited",
+            "separator": "-",
+            "min_segments": 5,
+            "max_segments": 5,
+            "segments": [
+                { "position": 0, "maps_to": "project_number", "label": "project_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "131101" }, "validation": { "type": "pattern", "pattern": "^\\d{6}$" } },
+                { "position": 1, "maps_to": "area", "label": "contract_or_area", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "pattern", "pattern": "^[A-Z0-9]{3,6}$" } },
+                { "position": 2, "maps_to": "document_type", "label": "type_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "schema_reference", "reference": "document_type_registry" } },
+                { "position": 3, "maps_to": "discipline", "label": "discipline_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "pattern", "pattern": "^[A-Z]{1,2}$" } },
+                { "position": 4, "maps_to": null, "label": "sequence_number", "required": true, "null_handling": { "strategy": "default_value", "default_value": "0000" }, "validation": { "type": "pattern", "pattern": "^\\d{4}$" } }
+            ],
+            "rejoin_separator": "-",
+            "strip_suffixes": ["_Add1", "_Add2", "_Add3", "_2-Stage", "_2-stage", "_HAC"],
+            "revision_separators": ["_rev"],
+            "dash_revision_max_len": 3,
+            "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": null, "preservation_mode": "overwrite_existing" },
+            "error_subcodes": { "too_few_segments": "P5-F-V-0004", "too_many_segments": "P5-F-V-0005", "segment_validation_failed": "P5-F-V-0006", "unresolvable": "P5-F-P-0007" },
+            "processing_phase": "P0"
+        },
+        "default": {
+            "profile_id": "default",
+            "profile_type": "filename",
+            "description": "Generic dash-suffix revision detection (backward compatible)",
+            "parser_type": "delimited",
+            "separator": "-",
+            "min_segments": 1,
+            "max_segments": null,
+            "segments": [],
+            "rejoin_separator": "-",
+            "strip_suffixes": [],
+            "revision_separators": ["_rev"],
+            "dash_revision_max_len": 3,
+            "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": "00", "preservation_mode": "overwrite_existing" },
+            "error_subcodes": {},
+            "processing_phase": "P0"
+        }
+    },
+    "file_property_profiles": {
+        "pdf_props": {
+            "profile_id": "pdf_props",
+            "profile_type": "file_property",
+            "description": "PDF property extraction profile — bound to technip_pdf (I277 gate: extraction_method inherited)",
+            "supported_extensions": ["pdf"],
+            "bound_extraction_profile": "technip_pdf",
+            "uses_os_properties": true,
+            "property_mapping": [
+                { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "creator", "maps_to": "embedded_creator_app", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "producer", "maps_to": "embedded_producer", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "creation_date", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "mod_date", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "page_count", "maps_to": "page_count", "null_handling": { "strategy": "default_value", "default_value": 0 }, "required": false },
+                { "source_key": "keywords", "maps_to": "embedded_keywords", "null_handling": { "strategy": "skip" }, "required": false }
+            ]
+        },
+        "docx_props": {
+            "profile_id": "docx_props",
+            "profile_type": "file_property",
+            "description": "DOCX property extraction profile — bound to technip_docx (I277 gate: extraction_method inherited)",
+            "supported_extensions": ["docx"],
+            "bound_extraction_profile": "technip_docx",
+            "uses_os_properties": true,
+            "property_mapping": [
+                { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "created", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "modified", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "last_modified_by", "maps_to": "embedded_last_modified_by", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "revision", "maps_to": "embedded_revision_number", "null_handling": { "strategy": "skip" }, "required": false }
+            ]
+        },
+        "xlsx_props": {
+            "profile_id": "xlsx_props",
+            "profile_type": "file_property",
+            "description": "XLSX property extraction profile — bound to technip_xlsx (I277 gate: extraction_method inherited)",
+            "supported_extensions": ["xlsx"],
+            "bound_extraction_profile": "technip_xlsx",
+            "uses_os_properties": true,
+            "property_mapping": [
+                { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "created", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "modified", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                { "source_key": "sheet_count", "maps_to": "embedded_sheet_count", "null_handling": { "strategy": "default_value", "default_value": 0 }, "required": false },
+                { "source_key": "last_modified_by", "maps_to": "embedded_last_modified_by", "null_handling": { "strategy": "skip" }, "required": false }
+            ]
+        },
+        "dgn_props": {
+            "profile_id": "dgn_props",
+            "profile_type": "file_property",
+            "description": "DGN property extraction profile — bound to technip_dgn (GAP-N4 stub; no embedded property_mapping)",
+            "supported_extensions": ["dgn"],
+            "bound_extraction_profile": "technip_dgn",
+            "uses_os_properties": true,
+            "property_mapping": []
+        },
+        "dwg_props": {
+            "profile_id": "dwg_props",
+            "profile_type": "file_property",
+            "description": "DWG property extraction profile — bound to technip_dwg (GAP-N4 stub; no embedded property_mapping)",
+            "supported_extensions": ["dwg"],
+            "bound_extraction_profile": "technip_dwg",
+            "uses_os_properties": true,
+            "property_mapping": []
+        }
+    },
+    "os_properties": {
+        "enabled": true,
+        "collect": ["file_size", "fs_created", "fs_modified", "file_hash"],
+        "hash_algorithm": "md5"
+    },
     "extraction_profiles": {
         "technip_pdf": {
             "profile_id": "technip_pdf",

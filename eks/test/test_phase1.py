@@ -457,23 +457,31 @@ class TestPhase1(unittest.TestCase):
             f"ontology mapping {sorted(mapping_values)} not subset of enum {sorted(enum_values)}")
 
     def test_file_type_registry_completeness(self):
-        """T1.35: Verify file_type_registry has all 5 expected entries."""
+        """T1.35: Verify file_type_registry has all 5 expected entries.
+
+        I287 (T1.241): parser_class removed — single-sourced in
+        eks_processing_config.json#/extraction_profiles.
+        """
         config = json.load(open(self.config_dir / 'eks_doc_config.json', encoding='utf-8'))
         reg = config.get('file_type_registry', [])
         self.assertEqual(len(reg), 5)
         extensions = {e['extension'] for e in reg}
         self.assertEqual(extensions, {'pdf', 'dgn', 'docx', 'xlsx', 'dwg'})
         for entry in reg:
-            self.assertIn('parser_class', entry)
+            self.assertNotIn('parser_class', entry)
             self.assertIn('display_name', entry)
 
     def test_element_type_registry_completeness(self):
-        """T1.35: Verify element_type_registry has all 8 expected entries."""
+        """T1.35/I283: Verify element_type_registry has all 11 expected entries.
+
+        I283 (T1.230): extended 8→11 — added title_block, grid, signature_block.
+        """
         config = json.load(open(self.config_dir / 'eks_doc_config.json', encoding='utf-8'))
         reg = config.get('element_type_registry', [])
-        self.assertEqual(len(reg), 8)
+        self.assertEqual(len(reg), 11)
         ets = {e['element_type'] for e in reg}
-        expected = {'cover_page', 'revision_table', 'section', 'table', 'image', 'link', 'legend', 'note'}
+        expected = {'cover_page', 'revision_table', 'section', 'table', 'image', 'link', 'legend', 'note',
+                    'title_block', 'grid', 'signature_block'}
         self.assertEqual(ets, expected)
 
     def test_element_expectations_keys_match_doc_type_registry(self):
@@ -853,7 +861,7 @@ class TestPhase1(unittest.TestCase):
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         loader = SchemaLoader(config_parent)
         config = loader.load_all()
-        router = ParserRouter(loader.doc_config)
+        router = ParserRouter(loader.doc_config, processing_config=loader.processing_config)
 
         self.assertIsNotNone(router.get_parser_class("pdf"))
         self.assertIsNotNone(router.get_parser_class("dgn"))
@@ -867,7 +875,7 @@ class TestPhase1(unittest.TestCase):
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         loader = SchemaLoader(config_parent)
         config = loader.load_all()
-        router = ParserRouter(loader.doc_config)
+        router = ParserRouter(loader.doc_config, processing_config=loader.processing_config)
 
         test_file = _PROJECT_ROOT / "test_output" / "test_router.dgn"
         test_file.parent.mkdir(parents=True, exist_ok=True)
@@ -885,7 +893,7 @@ class TestPhase1(unittest.TestCase):
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         loader = SchemaLoader(config_parent)
         config = loader.load_all()
-        router = ParserRouter(loader.doc_config)
+        router = ParserRouter(loader.doc_config, processing_config=loader.processing_config)
 
         result = router.route("test.txt", "txt")
         self.assertEqual(result["status"], "failed")
@@ -897,7 +905,7 @@ class TestPhase1(unittest.TestCase):
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         loader = SchemaLoader(config_parent)
         config = loader.load_all()
-        router = ParserRouter(loader.doc_config)
+        router = ParserRouter(loader.doc_config, processing_config=loader.processing_config)
 
         files = [
             {"file_path": "test.txt", "file_type": "txt"},

@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98.6/I090 (DCC project_config parity). v1.8.0: added project_definition property for I265 T1.190 — per-project definition registry superseding project_rules_registry. v1.9.0: removed project_rules_registry property + required entry for I265 T1.196 — eks_project_rules_config.json retired. v1.10.0 (I281 T1.223): added processing_profiles property — object keyed {type}_profiles (extraction/chunking/embedding/asset/ontology/retrieval/prompt/validation/indexing/ai_reasoning/graph_mapping), each a name→per-type-def map; validates eks_processing_config.json (SSOT §9 — values live there, never in base/setup).",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98.6/I090 (DCC project_config parity). v1.8.0: added project_definition property for I265 T1.190 — per-project definition registry superseding project_rules_registry. v1.9.0: removed project_rules_registry property + required entry for I265 T1.196 — eks_project_rules_config.json retired. v1.10.0 (I281 T1.223): added processing_profiles property — object keyed {type}_profiles (extraction/chunking/embedding/asset/ontology/retrieval/prompt/validation/indexing/ai_reasoning/graph_mapping), each a name→per-type-def map; validates eks_processing_config.json (SSOT §9 — values live there, never in base/setup). v1.11.0 (I287 T1.239): processing_profiles gains filename_profiles + file_property_profiles + os_properties sections — the Phase-1 file-processing chain consolidated from doc config (T1.238).",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -20,8 +20,24 @@
         },
         "processing_profiles": {
             "type": "object",
-            "description": "Reusable processing profile registries (I281 T1.223). Object keyed by profile-type section — each {type}_profiles key maps profile names to their per-type def. Actual VALUES live in eks_processing_config.json (SSOT §9/§16); base/setup hold shape only.",
+            "description": "Reusable processing profile registries (I281 T1.223). Object keyed by profile-type section — each {type}_profiles key maps profile names to their per-type def. Actual VALUES live in eks_processing_config.json (SSOT §9/§16); base/setup hold shape only. v1.11.0 (I287 T1.239): added filename_profiles (name→filename_profile_def), file_property_profiles (name→file_property_profile_def, bound_extraction_profile inherits extraction_method per I277 gate), and os_properties (TOP-LEVEL shared key, Q1) — the Phase-1 file-processing chain sections.",
             "properties": {
+                "filename_profiles": {
+                    "type": "object",
+                    "description": "Reusable filename parsing profiles keyed by profile name (I287 T1.238 — consolidated from doc config filename_profiles). Profile names referenced by Project Definition document_profile.filename_pattern.",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/filename_profile_def" }
+                },
+                "file_property_profiles": {
+                    "type": "object",
+                    "description": "Per-file-type property extraction profiles keyed by profile name (I287 T1.238 — consolidated from doc config file_property_patterns.by_file_type). Each binds supported_extensions to an extraction profile via bound_extraction_profile (I277 gate). Naming convention {extraction_profile}_props cross-checked by SchemaLoader.",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/file_property_profile_def" }
+                },
+                "os_properties": {
+                    "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/os_properties_def",
+                    "description": "OS-level property collection (I287 T1.238 Q1 — TOP-LEVEL shared key, NOT nested per profile)."
+                },
                 "extraction_profiles": {
                     "type": "object",
                     "description": "Extraction (parsing) profiles keyed by profile name.",
@@ -169,6 +185,6 @@
             "description": "Project metadata (top-level, T1.90)"
         }
     },
-    "required": ["project_definition", "discipline_registry", "project_registry", "department_registry", "facility_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging", "folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata"],
+    "required": ["project_definition", "discipline_registry", "project_registry", "department_registry", "facility_registry", "global_paths", "registry", "embedding", "vector_store", "logging", "folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata"],
     "additionalProperties": false
 }

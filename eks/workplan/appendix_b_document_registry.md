@@ -1,20 +1,20 @@
 ﻿# Appendix B — Document Registry
 
-**Version**: 2.1.1  
-**Last Updated**: 2026-08-05  
+**Version**: 2.1.5  
+**Last Updated**: 2026-08-07  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Official  
 **Related Files**:
 - [`eks/engine/core/registry.py`](../engine/core/registry.py)
 - [`eks/engine/core/revision.py`](../engine/core/revision.py)
 - [`eks/engine/core/config_registry.py`](../engine/core/config_registry.py)
-- [`eks/config/schemas/eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) — Document column definitions (v1.14.0)
+- [`eks/config/schemas/eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) — Document column definitions (v1.17.0)
 - [`eks/config/schemas/eks_doc_setup_schema.json`](../config/schemas/eks_doc_setup_schema.json) — Table declarations, extraction rules, health scoring
-- [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers
-- [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.1.0)
+- [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers (v1.12.0)
+- [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.3.0)
 - [`eks/config/schemas/eks_ontology_config.json`](../config/schemas/eks_ontology_config.json) — Document class hierarchy (§C4, v1.7.0)
 
-**Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`.
+**Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`. v2.1.3 (I280): §2 Structural Characteristics implemented via per-class/type `structural_profile` (carrier v2.2.0, base v1.16.0). v2.1.5 (I283): four-level Class→Type→Template→Element detection implemented — `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`), template `expected_elements` is the element-set SSOT (structural_profile = capability metadata only), cover type schema-first (detection fallback only when unavailable), all detectors gated by `expected_elements` (carrier v2.3.0, base v1.17.0, doc config v1.12.0).
 
 ---
 
@@ -52,7 +52,7 @@
   - [Document Lifecycle (15 columns — v1.6.0)](#document-lifecycle-15-columns--v160)
   - [B4.1. Ontology Mapping (Knowledge Graph Triggers)](#b41-ontology-mapping-knowledge-graph-triggers)
 - [B5. Function Reference](#b5-function-reference)
-### B5.1 `DocumentRegistry.__init__(logger, db_path=None, pre_generated_ddl=None)`
+  - [B5.1 `DocumentRegistry.__init__(logger, db_path=None, pre_generated_ddl=None)]
   - [B5.2 `DocumentRegistry.register_document(metadata) → str`](#b52-documentregistryregister_documentmetadata--str)
   - [B5.3 `DocumentRegistry.get_document(doc_number, revision=None) → dict | None`](#b53-documentregistryget_documentdoc_number-revisionnone--dict--none)
   - [B5.4 `DocumentRegistry.get_latest_by_key(doc_number, revision) → dict | None`](#b54-documentregistryget_latest_by_keydoc_number-revision--dict--none)
@@ -94,7 +94,10 @@
 | 2.1.0 | 2026-08-04 | Franklin Song | **ALIGNMENT FIX**: Unified B2.1 and B3.2 into single Document Type Definition structure with 7 functional domains; deprecated B3.2 with migration note; added B3.1 cross-reference to B2.1; updated B4 schema references to unified structure; standardized terminology across sections. |
 | 2.1.1 | 2026-08-05 | Franklin Song | **DOCS SYNC**: Aligned all sections to code/schema reality post I255/I264/I274/I275/I276/I277/I278/I279. Updated B2.1 tree with Phase 1 scope annotations; fixed B2.2 workflow diagram (added `_ensure_schema_version()`, fixed `COLUMN_ALLOWLIST` description); expanded B3.2 table to 15 codes with project-binding model and three-section SSOT reference; added `format_category` column to B3.3; updated B3.4 `element_expectations` source reference to `document_templates`; updated B4 schema version to v1.13.0; fixed B4.1 ontology trigger routing description; added `_ensure_schema_version()` + `pre_generated_ddl` to B5.1; updated B6 Phase 1 steps 2/3/6 for FilenameParser auto-detect/format_category/column-scope; updated B7.2 steps 3/4/7; added revision history entries for I264/I275–I279. Retired `appendix_b_document_registry.md` (original). |
 | 2.1.2 | 2026-08-05 | opencode | **I282 T1.236**: Documented removal of the concept layer (`document_type_concepts`) and the migration to the 5-section class-based carrier (`document_classes`/`document_types`/`document_family`/`project_document_types`/`document_templates`). Updated B2.1 Identity fields (class_id/type_id/family_id), B3.1 tree note, B3.2 binding tables (Concept→Class), document class list (8 classes closing I282), B4.1 ontology trigger, and related-file refs (v1.14.0 / v1.7.0). |
+| 2.1.3 | 2026-08-06 | opencode | **I280 T1.221**: Documented B3.2 sub-object implementation in B2.1 §2 Structural Characteristics — `structural_profile` (11 fields) populated on 8 classes / 28 types (carrier v2.2.0, base v1.16.0), SSOT hierarchy + `structural_profile_for()` resolution, extraction/retrieval/validation profile refs, Phase-3 stubs, and per-class profile table. |
 | 2.1.3 | 2026-08-05 | opencode | **I281 T1.223/T1.224**: Documented the 11-type processing profile registry (Domain 4). Profile VALUES now live in `eks_processing_config.json` (SSOT §9/§16) — `extraction_profiles` (5 `technip_*`) migrated from `eks_doc_config.json#/parsing_profiles`; core `eks_base_schema.json` holds shape-only defs (`processing_profile_registry_def` + 11 per-type defs incl. `extraction_profile_def` superset); core `eks_setup_schema.json` `processing_profiles` declares the `{type}_profiles` sections; updated Phase 1 scope note. Related-file refs (base v1.16.0 / setup v1.10.0 / doc config v1.10.0). |
+| 2.1.4 | 2026-08-07 | opencode | **I283 RESUMMARIZED (T1.230/T1.231)**: Four-level Class→Type→Template→Element detection model documented. Element-set SSOT = template `expected_elements` (structural_profile = capability metadata only); `element_type_code` expands 8→11 with `title_block`/`grid`/`signature_block` detectors; `classify_cover_type()` keyword classification retired — cover type schema-first from carrier `document_templates[template_id].cover_type`, detection fallback only when unavailable; Phase 1 gates all detectors by `expected_elements` (link/note placeholders); detection output feeds health score (I284) from metadata sources only. See U270. |
+| 2.1.5 | 2026-08-07 | opencode | **I283 T1.230/T1.231**: Four-level Class→Type→Template→Element detection IMPLEMENTED. `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`) in doc base v1.17.0; `element_type_registry` 11 entries (doc config v1.12.0); carrier v2.3.0 — `twrp_drawing` (A) + `twrp_pandid` (B) `expected_elements` → 8 (`cover_page`/`revision_table`/`section`/`image`/`link`/`title_block`/`grid`/`signature_block`), `threshold` 5; `StructureDetector.detect()` gated by template `expected_elements` (all 11 detectors incl. link/note placeholders) + schema-first `cover_type` param, `classify_cover_type()` retired; `resolve_cover_type()` → Optional (None = schema unavailable → detection fallback); detection output wired to `HealthInput.cover_type` (I284 base); `valid_element_types` derived from base enum. See U271/TL046. |
 
 ---
 
@@ -120,7 +123,7 @@ The registry is config-driven — the DB path is read from `eks_config.json` at 
 
 The Document Type Definition provides a unified structure that serves both registry implementation and semantic ontology purposes. It is organized into 7 functional domains:
 
-> **Phase 1 Scope Note**: Domains 1 (Identity & Classification — partial), 4 (Processing Profiles — Extraction/Validation containers + config SSOT via I281; values in `eks_processing_config.json`), 5 (Knowledge Relationships — registry columns only), and 6 (Lifecycle & Governance) are implemented in Phase 1. Domains 2 (Structural Characteristics — template-level only), 3 (Document Semantics — 🔷 Phase 3), 4 remaining profiles (Chunking, Retrieval, Indexing, AI Reasoning, Graph Mapping, Embedding, Asset, Ontology, Prompt — 🔷 Phase 2/3), and 7 (Capabilities & Extensions — 🔷 future) are planned. See I280, I281, I283, I284 for open gaps.
+> **Phase 1 Scope Note**: Domains 1 (Identity & Classification — partial), 2 (Structural Characteristics — ✅ per-class/type profile via `structural_profile`, I280; template-level `expected_elements` also present; I283 resummarized 2026-08-07 — four-level Class→Type→Template→Element detection, element-set SSOT = template `expected_elements`, `element_type_code` 8→11, cover type schema-first, Phase 1 gates all detectors, detection feeds health score from metadata-only sources), 4 (Processing Profiles — Extraction/Validation containers + config SSOT via I281; values in `eks_processing_config.json`), 5 (Knowledge Relationships — registry columns only), and 6 (Lifecycle & Governance) are implemented in Phase 1. Domains 3 (Document Semantics — 🔷 Phase 3), 4 remaining profiles (Chunking, Retrieval, Indexing, AI Reasoning, Graph Mapping, Embedding, Asset, Ontology, Prompt — 🔷 Phase 2/3), and 7 (Capabilities & Extensions — 🔷 future) are planned. See I280, I281, I283, I284 for open gaps.
 
 ```
 Document Type Life Cycle Definition
@@ -129,12 +132,12 @@ Document Type Life Cycle Definition
 │      ├── Classification (document_class, document_family, discipline, category, project_phase, lifecycle_stage)
 │      └── Metadata (required, optional fields)
 │          Note: class_id/label/ontology_class/common_rules implemented in document_class_def (shape-only, I282).
-│          family_id and nested parent_class_id supported at runtime via get_class_ancestry(); type hierarchy 🔷 I280/I283.
+│          family_id and nested parent_class_id supported at runtime via get_class_ancestry(); type hierarchy ✅ I282 (8 classes / 28 types); detection layer 🔷 I283 (Class→Type→Template→Element, resummarized 2026-08-07).
 │
-├── 2. Structural Characteristics  [✅ template-level only — full per-type profile 🔷 I280/I283]
-│      ├── Document Structure (cover_type, expected_elements, threshold — in document_templates)
-│      ├── Content Organization (section_based, drawing_based, embedded_tables — 🔷 I280)
-│      └── Visual Elements (contains_callouts, contains_symbols, title_block, legend, grid — 🔷 I280)
+├── 2. Structural Characteristics  [✅ per-class/type profile — I280]
+│      ├── Document Structure (cover_page, revision_table, title_block, signature_block, multi_sheet — structural_profile on classes/types, I280)
+│      ├── Content Organization (section_based, drawing_based — structural_profile, I280; expected_elements in document_templates)
+│      └── Visual Elements (contains_callouts, contains_symbols, legend, grid — structural_profile, I280)
 │
 ├── 3. Document Semantics  [🔷 Phase 3 — not implemented]
 │      ├── Semantic Entities (semantic_entities list)
@@ -203,16 +206,42 @@ Document Type Life Cycle Definition
 
 #### 2. Structural Characteristics
 
-**Document Structure** defines the physical layout:
+**Structural Characteristics** define the physical layout, content organization, and visual elements of a document type. **I280 (T1.218–T1.220)** implemented a per-class/per-type `structural_profile` (11 fields) with SSOT in the carrier (`eks_document_type_schema.json` v2.2.0):
+
+**SSOT hierarchy** (resolved by `SchemaLoader.structural_profile_for(type_id, class_id)` in `schema_loader.py`):
+1. **Type-level override** — a `document_types[].structural_profile` entry (present on all 28 types) wins when it differs from the class default.
+2. **Class-level default** — the `document_classes[].structural_profile` entry (present on all 8 classes) supplies the base profile; types without an explicit field inherit it.
+3. **Schema shape** — `structural_profile_def` in `eks_doc_base_schema.json` v1.16.0 (11 fields; presence fields use `required|optional|absent` enums; flags are boolean). `additionalProperties: false` preserved on `document_class_def` / `document_type_def`.
+4. **Projection** — `_derive_doc_type_projection()` attaches `structural_profile` to flat `document_type_registry` entries (validated via `document_type_entry_def`).
+
+Presence fields (`cover_page`, `revision_table`, `title_block`, `legend`, `grid`, `signature_block`) use `required|optional|absent`; flags (`multi_sheet`, `drawing_based`, `section_based`, `contains_callouts`, `contains_symbols`) are booleans.
+
+**Profile refs**: `extraction_profile_ref` (implemented, resolves to `eks_processing_config.json#/extraction_profiles` ids — I281), `retrieval_profile_ref` / `validation_profile_ref` (schema-declared, 🔷 no values yet). Phase-3 stubs `document_semantics_def` / `ai_profile_def` / `knowledge_relationships_def` are declared in the base schema (shape-only, no values).
+
+**Current carrier population (8 classes / 28 types)**:
+
+| Class | structural_profile highlight | extraction_profile_ref |
+| ----- | --------------------------- | --------------------- |
+| Drawing | drawing_based, multi_sheet, contains_symbols, legend/grid required-optional | `technip_pdf` |
+| Specification | section_based, title_block required, no symbols | `technip_docx` |
+| Manual | section_based, cover_page required | `technip_docx` |
+| Report | section_based, cover_page required | `technip_docx` |
+| Procedure | section_based, cover_page required | `technip_docx` |
+| Datasheet | cover_page optional, embedded-table oriented, not drawing_based | `technip_xlsx` |
+| Register | cover_page/revision_table optional, not drawing_based | `technip_xlsx` |
+| Calculation | title_block required, not drawing_based | `technip_pdf` |
+
+**Type-level overrides**: e.g. `PID_DRAWING` forces `legend: required` + `contains_symbols: true`; `ISOMETRIC` is single-sheet (`multi_sheet: false`) while class default stays `multi_sheet: true`. Presence fields not explicitly set on a type inherit the class value.
+
+**Document Structure** defines the physical layout (template-level `expected_elements`/`threshold` remain in `document_templates`):
 
 ```json
 {
-   "title_block": "standard",
-   "revision_table": "standard",
+   "title_block": "required",
+   "revision_table": "required",
    "cover_page": "required",
    "signature_block": "required",
-   "multi_sheet": true,
-   "vector_graphics": true
+   "multi_sheet": true
 }
 ```
 
@@ -221,10 +250,7 @@ Document Type Life Cycle Definition
 ```json
 {
    "section_based": false,
-   "drawing_based": true,
-   "embedded_tables": false,
-   "table_regions": "none",
-   "has_table_of_contents": false
+   "drawing_based": true
 }
 ```
 
@@ -234,18 +260,8 @@ Document Type Life Cycle Definition
 {
    "contains_callouts": true,
    "contains_symbols": true,
-   "contains_cross_references": true,
-   "legend": "standard",
-   "grid": "standard",
-   "drawing_scale": "1:100",
-   "sheet_number": "standard",
-   "north_arrow": "standard",
-   "table_regions": "none",
-   "revision_block": "standard",
-   "signature_block": "required",
-   "approval_block": "required",
-   "change_cloud": "optional",
-   "callout_regions": "detected"
+   "legend": "required",
+   "grid": "optional"
 }
 ```
 
@@ -628,7 +644,7 @@ Drawing
 
 ### B3.2 Document Type Registry
 
-**SSOT (I279/I282)**: Document type codes are defined in `eks_document_type_schema.json` v2.1.0 — the five-section runtime carrier (`document_classes` / `document_types` / `document_family` / `project_document_types` / `document_templates`). The `document_type_registry` section was removed from `eks_doc_config.json` v1.9.0, and the former concept layer (`document_type_concepts`) was **removed** in v2.1.0 (I282) — bindings reference `class_id` directly. Codes are **project-bound**: the same class (e.g. `Drawing`) may use different local codes in different projects (`DWG` in project 131101, `DR` in project 131242).
+**SSOT (I279/I282/I280)**: Document type codes are defined in `eks_document_type_schema.json` v2.2.0 — the five-section runtime carrier (`document_classes` / `document_types` / `document_family` / `project_document_types` / `document_templates`). The `document_type_registry` section was removed from `eks_doc_config.json` v1.9.0, and the former concept layer (`document_type_concepts`) was **removed** in v2.1.0 (I282) — bindings reference `class_id` directly. v2.2.0 (I280) adds the B3.2 sub-objects: `structural_profile` on all 8 classes / 28 types and `extraction_profile_ref` on all 8 classes. Codes are **project-bound**: the same class (e.g. `Drawing`) may use different local codes in different projects (`DWG` in project 131101, `DR` in project 131242).
 
 **Project 131101 bindings**:
 
@@ -695,13 +711,16 @@ Structural element types per Appendix D Â§D7.10, used for structural completen
 | `link` | URL or file path reference | `regex` | Skip | Reference edges | A, B, C, D, E |
 | `legend` | Page legend/symbol key | `heuristic` | Skip | Legend nodes | A, B |
 | `note` | Page 1 annotation block | `heuristic` | Skip | Annotation nodes | A, B |
+| `title_block` | Drawing title block fields | `regex` | Section anchor | Title-block node | A, B, D, E |
+| `grid` | Drawing grid reference system | `regex` | Skip | Grid-coordinate nodes | A, B |
+| `signature_block` | Signature/approval block | `regex` | Skip | Approval nodes | A, B |
 
-**Element Expectations by Template (from `document_templates` â€” I279)**:
+**Element Expectations by Template (from `document_templates` — I279/I283)**:
 
 | Template | Expected Elements | Threshold | Cover Type | Used By |
 |:-------- |:----------------- |:--------: |:----------:|:------- |
-| `twrp_drawing` | cover_page, revision_table, section, image, link | 4 | A | DWG, CAD, DR, M3 |
-| `twrp_pandid` | cover_page, revision_table, section, image, link | 4 | B | PI-PID |
+| `twrp_drawing` | cover_page, revision_table, section, image, link, title_block, grid, signature_block | 5 | A | DWG, CAD, DR, M3 |
+| `twrp_pandid` | cover_page, revision_table, section, image, link, title_block, grid, signature_block | 5 | B | PI-PID |
 | `twrp_spec_c` | (none) | 0 | C | SPC, SP, CL, BQ |
 | `twrp_datasheet_e` | cover_page, section, table | 2 | E | DS |
 | `twrp_manual_d` | cover_page, section | 2 | D | MAN, OM, VI |
@@ -710,9 +729,10 @@ Structural element types per Appendix D Â§D7.10, used for structural completen
 The `threshold` is the minimum detected element types for structural completeness to reach a passing tier. Cover type `C` (no-cover) skips cover-page detection and `cover_page_element`-based columns entirely (I278).
 
 **Alignment**:
-- `structure_detector.py` detects elements and stores in `document_elements` table via `DocumentRegistry.store_elements()`.
-- `HealthScorer._build_expected_elements_map()` reads from `document_templates` at runtime (I279 T1.213) â€” no hardcoded map.
-- `EKSColumnProcessor.resolve_cover_type()` reads `document_templates[template_id].cover_type` as SSOT (I278).
+- `structure_detector.py` detects elements and stores in `document_elements` table via `DocumentRegistry.store_elements()`; `detect()` is gated by template `expected_elements` (all detectors, incl. `link`/`note` placeholders) and takes a schema-first `cover_type` param (I283).
+- `HealthScorer._build_expected_elements_map()` reads from `document_templates` at runtime (I279 T1.213) — no hardcoded map.
+- `EKSColumnProcessor.resolve_cover_type()` reads `document_templates[template_id].cover_type` as SSOT (I278); returns `None` when the schema value is unavailable (detection fallback, I283).
+- `SchemaLoader.valid_element_types` is derived from the `element_type_code` enum (11 codes, I283).
 - Asset tag detection (`asset_tags`) is best-effort regex from cover page / title block (T1.99.162).
 
 ---
@@ -722,7 +742,7 @@ The `threshold` is the minimum detected element types for structural completenes
 **Table**: `documents`  
 **Backend**: DuckDB (`output/eks_registry.db`)  
 **Created by**: `_init_db()` on first instantiation (`CREATE TABLE IF NOT EXISTS`)  
-**Schema source**: [`eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) v1.13.0 — 54 columns  
+**Schema source**: [`eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) v1.16.0 — 54 columns  
 
 **Primary key**: `id` (UUID v4, system-generated per I186). Business key `(document_number, revision)` is indexed separately via `idx_doc_business_key` for fast lookup. The old `{document_number}-{revision}` format is retired — each call to `register_document()` now generates a new UUID unconditionally, controlled by the I185 three-tier check (key lookup → hash match → hash mismatch/supersedes) in `FileScanner.register_placeholders()`.
 
@@ -977,7 +997,7 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
      - DGN/DWG: OS-only extraction (`format_category=native`, stub parsers). `format_category` from `file_type_registry` determines extraction mode — native formats support embedded metadata; PDF prints are flattened (I279 T1.215).
 
 4. **Structure Detection** (`StructureDetector`):
-   - Analyses parsed PDF text from page 1 to detect 8 element types: `cover_page`, `revision_table`, `section`, `table`, `image`, `link`, `legend`, `note`. Classifies cover type (A-E) from `document_templates[template_id].cover_type` SSOT (I279). Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278).
+   - Analyses parsed PDF text from page 1 to detect element types (11 `element_type_code` values, I283: `cover_page`, `revision_table`, `section`, `table`, `image`, `link`, `legend`, `note`, `title_block`, `grid`, `signature_block`), gated by template `expected_elements`. Cover type resolved schema-first from `document_templates[template_id].cover_type` SSOT (I279/I283; `classify_cover_type()` keyword classification retired); detection fallback only when the schema value is unavailable. Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278).
    - Classifies cover type (A–E) based on detected element combinations.
    - Best-effort `asset_tags` regex detection from title block (`COVER_PAGE_PATTERNS["asset_tags"]`).
    - Results persisted to `document_elements` table via `registry.store_elements()`.
@@ -1027,7 +1047,7 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 
 3. **Filename Parsing** — Schema-driven `FilenameParser` (Appendix I) auto-detects project code per filename via `_detect_pattern()` (I255) — no constructor `project_code` parameter. Extracts `project_number`, `area`, `document_type`, `discipline` from delimited filenames (e.g. `131101-XXX-DWG-PI-0001_A.pdf`). Handles revision suffix stripping, segment validation against the five-section SSOT carrier (I279/I282), and fallback resolution for unrecognised patterns.
 
-4. **Structure Detection** — `StructureDetector` analyses page 1 of each PDF to detect 8 element types (cover_page, revision_table, section, table, image, link, legend, note), classifies cover type (A-E) from `document_templates[template_id].cover_type` SSOT (I279), and performs best-effort `asset_tags` regex detection from the title block. Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278). Results persisted to `document_elements` table via `registry.store_elements()`.
+4. **Structure Detection** — `StructureDetector` analyses page 1 of each PDF to detect element types (11 `element_type_code` values, gated by template `expected_elements` — I283), resolves cover type schema-first from `document_templates[template_id].cover_type` SSOT (I279/I283; `classify_cover_type()` retired, detection fallback only when unavailable), and performs best-effort `asset_tags` regex detection from the title block. Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278). Results persisted to `document_elements` table via `registry.store_elements()`.
 
 5. **Health Scoring** — `HealthScorer` computes a 6-dimensional composite score per document (completeness 20% + extraction_confidence 20% + structural_completeness 20% + source_quality 15% + xref_quality 15% + consistency 10%). Structural completeness dimension uses `element_expectations` thresholds from B3.4. Score tiers map to pipeline actions (auto_register → manual_entry).
 

@@ -1,10 +1,18 @@
 """
 EKS Structure Detector - PDF structural element detection.
 Detects cover pages, revision tables, section headings, data tables,
-images, links, legends, and notes from parsed PDF content.
+images, links, legends, notes, title blocks, grid coordinates, and
+signature blocks from parsed PDF content.
+
+I283 (T1.230): all sub-detectors are gated by the template ``expected_elements``
+(four-level Class→Type→Template→Element model) — ``detect()`` accepts an
+``expected_element_types`` set resolved from ``document_templates[template_id].expected_elements``
+and skips any element type not in the set. Cover type is resolved schema-first
+(``cover_type`` param) with content detection as the fallback; the keyword-based
+``classify_cover_type()`` heuristic is retired.
 """
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from ..logging.logger import EKSLogger, log_depth
 
 COVER_PAGE_PATTERNS = {
@@ -22,6 +30,16 @@ COVER_PAGE_PATTERNS = {
 REVISION_ROW_PATTERN = re.compile(r'^\s*(\d+)\s+(\S+)\s+(\S+)')
 SECTION_PATTERN = re.compile(r'^(\d+(?:\.\d+)*)\s+(.+)$')
 LINK_PATTERN = re.compile(r'(https?://\S+|file://\S+|\\\\[^\\]+\\.+)', re.IGNORECASE)
+# I283 (T1.230): drawing-frame element patterns (title block / grid / signature block).
+TITLE_BLOCK_PATTERN = re.compile(
+    r'^\s*(?:title|description|drawn by|designed by|checked by|approved by|scale)\s*[.:]',
+    re.IGNORECASE,
+)
+GRID_PATTERN = re.compile(r'\b[A-H]\d{1,2}\b')
+SIGNATURE_PATTERN = re.compile(
+    r'^\s*(?:signature|signed|approved by|checked by|designed by|drawn by)\s*[.:]',
+    re.IGNORECASE,
+)
 
 
 class StructureDetector:
@@ -36,14 +54,16 @@ class StructureDetector:
     @log_depth
     def detect(self, filename: str, pages: Optional[List[Dict[str, Any]]] = None,
                full_text: Optional[str] = None,
-               skip_cover_page: bool = False) -> List[Dict[str, Any]]:
+               skip_cover_page: bool = False,
+               expected_element_types: Optional[Iterable[str]] = None,
+               cover_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Detect all structural elements in a document.
 
         Parameters
         ----------
         filename : str
-            The source filename (used for cover type heuristics).
+            The source filename.
         pages : list of dict, optional
             List of page dicts from pdf_parser, each containing 'text', 'tables', 'images'.
         full_text : str, optional
@@ -53,12 +73,30 @@ class StructureDetector:
             (no-cover), skip cover-page detection entirely so ``cover_page``
             elements are never produced and ``cover_page_element`` columns
             have nothing to consume.
+        expected_element_types : iterable of str, optional
+            I283 (T1.230): the template ``expected_elements`` set resolved by
+            the caller (element-set SSOT). When provided, ONLY the element
+            types in this set are detected — every sub-detector (including the
+            link/note placeholders) is gated. ``None`` keeps the legacy
+            behaviour of running all detectors.
+        cover_type : str, optional
+            I283 (T1.230): schema-first cover type resolved from
+            ``document_templates[template_id].cover_type``. ``"C"`` (no-cover)
+            forces skip_cover_page behaviour; a non-``"C"`` value annotates the
+            detected cover_page element with the resolved type. ``None`` means
+            the schema value is unavailable — content detection falls back.
 
         Returns
         -------
         list of dict, each with keys: element_type, element_id, title, content,
                                        confidence, source
         """
+        allowed = None if expected_element_types is None else set(expected_element_types)
+
+        def _is_allowed(element_type: str) -> bool:
+            """I283: gate every sub-detector by the template expected_elements."""
+            return allowed is None or element_type in allowed
+
         elements: List[Dict[str, Any]] = []
         text = full_text or ""
         page_texts: List[str] = []
@@ -76,63 +114,89 @@ class StructureDetector:
         else:
             page_texts = [text]
 
-        # Detect cover page (page 1) — I278: skipped for no-cover (C) templates
-        cover = None
-        if not skip_cover_page:
+        # Detect cover page (page 1) — I278: skipped for no-cover (C) templates;
+        # I283: gated by expected_elements + schema-first cover_type skip.
+        skip_cover = skip_cover_page or cover_type == "C"
+        if _is_allowed("cover_page") and not skip_cover:
             cover = self._detect_cover_page(page_texts[0] if page_texts else text)
-        if cover:
-            elements.append(cover)
+            if cover:
+                if cover_type:
+                    cover["cover_type"] = cover_type
+                elements.append(cover)
 
         # Detect revision table
-        rev_table = self._detect_revision_table(page_texts[0] if page_texts else text)
-        if rev_table:
-            elements.append(rev_table)
+        if _is_allowed("revision_table"):
+            rev_table = self._detect_revision_table(page_texts[0] if page_texts else text)
+            if rev_table:
+                elements.append(rev_table)
 
         # Detect sections across all pages
-        for page_num, pt in enumerate(page_texts, 1):
-            sections = self._detect_sections(pt)
-            for sec in sections:
-                sec["element_id"] = str(page_num)
-                elements.append(sec)
+        if _is_allowed("section"):
+            for page_num, pt in enumerate(page_texts, 1):
+                sections = self._detect_sections(pt)
+                for sec in sections:
+                    sec["element_id"] = str(page_num)
+                    elements.append(sec)
 
         # Detect tables in all pages
-        for page_num, tables in enumerate(page_tables, 1):
-            for table in tables:
-                elements.append({
-                    "element_type": "table",
-                    "element_id": str(page_num),
-                    "title": "",
-                    "content": str(table)[:500],
-                    "confidence": 0.9,
-                    "source": "heuristic",
-                })
+        if _is_allowed("table"):
+            for page_num, tables in enumerate(page_tables, 1):
+                for table in tables:
+                    elements.append({
+                        "element_type": "table",
+                        "element_id": str(page_num),
+                        "title": "",
+                        "content": str(table)[:500],
+                        "confidence": 0.9,
+                        "source": "heuristic",
+                    })
 
         # Detect images in all pages
-        for page_num, images in enumerate(page_images, 1):
-            for img in images:
-                elements.append({
-                    "element_type": "image",
-                    "element_id": str(page_num),
-                    "title": img.get("alt", "") if isinstance(img, dict) else "",
-                    "content": str(img)[:200],
-                    "confidence": 0.9,
-                    "source": "heuristic",
-                })
+        if _is_allowed("image"):
+            for page_num, images in enumerate(page_images, 1):
+                for img in images:
+                    elements.append({
+                        "element_type": "image",
+                        "element_id": str(page_num),
+                        "title": img.get("alt", "") if isinstance(img, dict) else "",
+                        "content": str(img)[:200],
+                        "confidence": 0.9,
+                        "source": "heuristic",
+                    })
 
-        # Detect links
-        links = self._detect_links(text)
-        for link in links:
-            elements.append(link)
+        # Detect links (placeholder detector — I283: always gated)
+        if _is_allowed("link"):
+            links = self._detect_links(text)
+            for link in links:
+                elements.append(link)
 
         # Detect legend (page 1)
-        legend = self._detect_legend(page_texts[0] if page_texts else text)
-        if legend:
-            elements.append(legend)
+        if _is_allowed("legend"):
+            legend = self._detect_legend(page_texts[0] if page_texts else text)
+            if legend:
+                elements.append(legend)
 
-        # Detect notes (page 1)
-        notes = self._detect_notes(page_texts[0] if page_texts else text)
-        for note in notes:
-            elements.append(note)
+        # Detect notes (page 1) (placeholder detector — I283: always gated)
+        if _is_allowed("note"):
+            notes = self._detect_notes(page_texts[0] if page_texts else text)
+            for note in notes:
+                elements.append(note)
+
+        # I283 (T1.230): drawing-frame element detectors — gated like the rest.
+        if _is_allowed("title_block"):
+            title_block = self._detect_title_block(text)
+            if title_block:
+                elements.append(title_block)
+
+        if _is_allowed("grid"):
+            grid = self._detect_grid(text)
+            if grid:
+                elements.append(grid)
+
+        if _is_allowed("signature_block"):
+            signature_block = self._detect_signature_block(text)
+            if signature_block:
+                elements.append(signature_block)
 
         self.logger.debug(f"Detected {len(elements)} structural elements in {filename}",
                           context="StructureDetector.detect")
@@ -251,21 +315,63 @@ class StructureDetector:
                     break
         return notes
 
-    def classify_cover_type(self, filename: str, text: str) -> str:
-        """
-        Classify the cover sheet type (A, B, C, D, E) based on content heuristics.
-        """
-        text_lower = text.lower()
-        is_scanned = len(text.strip()) < 50
-        has_standard_keywords = bool(re.search(r'dwg|drawing|detail|plan', text_lower))
-        has_spec_keywords = bool(re.search(r'specification|spec|standard', text_lower))
+    def _detect_title_block(self, text: str) -> Optional[Dict[str, Any]]:
+        """Detect drawing title block fields (title, scale, drawn/checked/approved by).
 
-        if is_scanned:
-            return "C"
-        if has_spec_keywords:
-            return "E"
-        if "volume" in text_lower or "part" in text_lower:
-            return "D"
-        if has_standard_keywords:
-            return "A"
-        return "B"
+        I283 (T1.230): gated by ``expected_elements`` — only runs when the
+        template declares ``title_block``.
+        """
+        fields = []
+        for line in text.split("\n"):
+            if TITLE_BLOCK_PATTERN.match(line):
+                fields.append(line.strip())
+        if len(fields) < 2:
+            return None
+        return {
+            "element_type": "title_block",
+            "element_id": "1",
+            "title": "Title Block",
+            "content": "\n".join(fields)[:500],
+            "confidence": 0.7,
+            "source": "regex",
+        }
+
+    def _detect_grid(self, text: str) -> Optional[Dict[str, Any]]:
+        """Detect drawing grid coordinate references (e.g. A1, B4).
+
+        I283 (T1.230): gated by ``expected_elements`` — only runs when the
+        template declares ``grid``.
+        """
+        matches = GRID_PATTERN.findall(text)
+        if len(matches) < 3:
+            return None
+        unique = sorted(set(matches))
+        return {
+            "element_type": "grid",
+            "element_id": "1",
+            "title": f"Grid Coordinates ({len(unique)})",
+            "content": ", ".join(unique)[:500],
+            "confidence": 0.6,
+            "source": "regex",
+        }
+
+    def _detect_signature_block(self, text: str) -> Optional[Dict[str, Any]]:
+        """Detect drawing signature/approval block fields.
+
+        I283 (T1.230): gated by ``expected_elements`` — only runs when the
+        template declares ``signature_block``.
+        """
+        fields = []
+        for line in text.split("\n"):
+            if SIGNATURE_PATTERN.match(line):
+                fields.append(line.strip())
+        if len(fields) < 2:
+            return None
+        return {
+            "element_type": "signature_block",
+            "element_id": "1",
+            "title": "Signature Block",
+            "content": "\n".join(fields)[:500],
+            "confidence": 0.7,
+            "source": "regex",
+        }

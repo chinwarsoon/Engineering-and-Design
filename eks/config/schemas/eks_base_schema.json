@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.16.0",
+    "version": "1.17.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198. v1.15.0: removed project_rules_def and project_definition_entry_def.compatibility (legacy_project_rules flag) for I265 T1.196 — eks_project_rules_config.json retired; fragment_required_fields now lives per-project in eks_project_definition_config.json. v1.16.0 (I281 T1.223): added generic processing_profile_registry_def container (profile_id, profile_type enum of 11, version, capabilities, constraints) shared by all processing profile types; added per-type defs — extraction_profile_def (superset of the removed doc-base parsing_profile_def: profile_id/parser_class/description/supported_extensions/supported_document_profiles/requires_ocr/extraction_methods + profile_type/version/capabilities/constraints), validation_profile_def (validation_layers), and shape-only stubs chunking_profile_def, retrieval_profile_def, indexing_profile_def, ai_reasoning_profile_def, graph_mapping_profile_def (recommended fields), embedding_profile_def, asset_profile_def, ontology_profile_def, prompt_profile_def. Values live in eks_processing_config.json (SSOT §9/§16); base holds shape only.",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198. v1.15.0: removed project_rules_def and project_definition_entry_def.compatibility (legacy_project_rules flag) for I265 T1.196 — eks_project_rules_config.json retired; fragment_required_fields now lives per-project in eks_project_definition_config.json. v1.16.0 (I281 T1.223): added generic processing_profile_registry_def container (profile_id, profile_type enum of 11, version, capabilities, constraints) shared by all processing profile types; added per-type defs — extraction_profile_def (superset of the removed doc-base parsing_profile_def: profile_id/parser_class/description/supported_extensions/supported_document_profiles/requires_ocr/extraction_methods + profile_type/version/capabilities/constraints), validation_profile_def (validation_layers), and shape-only stubs chunking_profile_def, retrieval_profile_def, indexing_profile_def, ai_reasoning_profile_def, graph_mapping_profile_def (recommended fields), embedding_profile_def, asset_profile_def, ontology_profile_def, prompt_profile_def. Values live in eks_processing_config.json (SSOT §9/§16); base holds shape only. v1.17.0 (I287 T1.238): added filename_profile_def, file_property_profile_def, os_properties_def (Q1 os_properties TOP-LEVEL key) for the Phase-1 file-processing chain (filename - properties - extract); profile_type enum extended 11-13 (+filename, +file_property).",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -1061,9 +1061,11 @@
                         "validation",
                         "indexing",
                         "ai_reasoning",
-                        "graph_mapping"
+                        "graph_mapping",
+                        "filename",
+                        "file_property"
                     ],
-                    "description": "Processing profile type (I281 Q3 — all 11 registry keys; each is a separate config section keyed {type}_profiles)"
+                    "description": "Processing profile type (I281 Q3 — all 11 registry keys; each is a separate config section keyed {type}_profiles). I287 T1.238: added 'filename' and 'file_property' — the Phase-1 file-processing chain profiles (os_properties is a TOP-LEVEL shared key, not a profile type, Q1)."
                 },
                 "version": {
                     "type": "string",
@@ -1157,9 +1159,58 @@
             ],
             "additionalProperties": false
         },
+        "filename_profile_def": {
+            "type": "object",
+            "description": "Reusable filename parsing profile (I287 T1.238). Container profile declaring profile_id/profile_type='filename' plus the filename pattern shape (Appendix I §I4.2, moved from doc config filename_profiles). Values live in eks_processing_config.json#/filename_profiles.",
+            "properties": {
+                "profile_id": { "type": "string", "description": "Unique filename profile identifier (referenced by Project Definition document_profile.filename_pattern)" },
+                "profile_type": { "const": "filename" },
+                "description": { "type": "string" },
+                "parser_type": { "type": "string", "enum": ["delimited"] },
+                "separator": { "type": "string" },
+                "min_segments": { "type": "integer", "minimum": 1 },
+                "max_segments": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+                "segments": { "type": "array", "items": { "$ref": "eks_doc_base_schema.json#/definitions/filename_segment_def" } },
+                "rejoin_separator": { "type": "string" },
+                "strip_suffixes": { "type": "array", "items": { "type": "string" } },
+                "revision_separators": { "type": "array", "items": { "type": "string" } },
+                "dash_revision_max_len": { "type": "integer", "minimum": 0 },
+                "output": { "$ref": "eks_doc_base_schema.json#/definitions/filename_output_def" },
+                "error_subcodes": { "$ref": "eks_doc_base_schema.json#/definitions/filename_error_subcodes_def" },
+                "processing_phase": { "type": "string", "enum": ["P0"] }
+            },
+            "required": ["profile_id", "profile_type"],
+            "additionalProperties": false
+        },
+        "file_property_profile_def": {
+            "type": "object",
+            "description": "Per-file-type property extraction profile (I287 T1.238). Container profile declaring profile_id/profile_type='file_property' plus supported_extensions, property_mapping (Appendix J §J2.1), bound_extraction_profile (I277 gate — extraction_method inherited from the bound extraction profile, never declared here), and uses_os_properties (Q1 — os_properties is a top-level shared key). Values live in eks_processing_config.json#/file_property_profiles.",
+            "properties": {
+                "profile_id": { "type": "string", "description": "Unique file property profile identifier" },
+                "profile_type": { "const": "file_property" },
+                "description": { "type": "string" },
+                "supported_extensions": { "type": "array", "items": { "$ref": "eks_doc_base_schema.json#/definitions/file_type_code" }, "description": "File extensions this property profile applies to" },
+                "property_mapping": { "type": "array", "items": { "$ref": "eks_doc_base_schema.json#/definitions/file_property_source_def" }, "description": "Mapping from parser extract_metadata() keys to registry columns (Appendix J §J2.1)" },
+                "bound_extraction_profile": { "type": "string", "description": "profile_id of the extraction profile that owns the parser_class/extraction_methods for this file type (I277 gate + I287 Q3). SchemaLoader cross-checks naming convention {extraction_profile}_props." },
+                "uses_os_properties": { "type": "boolean", "default": true, "description": "Whether this profile participates in OS-level property collection (Q1 — top-level os_properties key in processing config)" }
+            },
+            "required": ["profile_id", "profile_type", "supported_extensions", "bound_extraction_profile"],
+            "additionalProperties": false
+        },
+        "os_properties_def": {
+            "type": "object",
+            "description": "OS-level property collection configuration (I287 T1.238 Q1). TOP-LEVEL key of eks_processing_config.json shared by all file_property_profiles via uses_os_properties (Appendix J §J2.1).",
+            "properties": {
+                "enabled": { "type": "boolean", "description": "Master switch for OS-level property extraction" },
+                "collect": { "type": "array", "items": { "type": "string", "enum": ["file_size", "fs_created", "fs_modified", "fs_accessed", "file_mode", "file_hash"] }, "description": "OS property keys to collect" },
+                "hash_algorithm": { "type": "string", "enum": ["md5", "sha256"], "description": "Hashing algorithm for file integrity check" }
+            },
+            "required": ["enabled", "collect"],
+            "additionalProperties": false
+        },
         "validation_profile_def": {
             "type": "object",
-            "description": "Validation profile (I281 T1.223). Container for the multi-layer document validation rules per Appendix B B2.1 §4 — metadata/structure/business/engineering/graph/quality. The I284 column scoring_tier / applies_to_concepts mechanism is the column-value validation LAYER within this container (Q4) — complementary, not merged.",
+            "description": "Validation profile (I281 T1.223). Container for the multi-layer document validation rules per Appendix B B2.1 §4 — metadata/structure/business/engineering/graph/quality. The I284 column scoring_tier / applies_to_classes mechanism is the column-value validation LAYER within this container (Q4) — complementary, not merged.",
             "properties": {
                 "profile_id": {
                     "type": "string",

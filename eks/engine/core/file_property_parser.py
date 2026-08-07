@@ -124,18 +124,25 @@ class FilePropertyExtractor:
 
     Instantiate once per pipeline run, reuse across all files.
     Layer 1 (OS) is always available — zero external dependencies.
-    Layer 2 (embedded) is driven by ``file_property_patterns`` config.
+    Layer 2 (embedded) is driven by ``file_property_patterns`` config (a
+    ``{os_properties, by_file_type}`` dict). I287 (T1.242): the dict is
+    projected from eks_processing_config.json (os_properties +
+    file_property_profiles) by PipelineOrchestrator._build_file_property_config()
+    — the legacy doc_config file_property_patterns section is retired.
 
     Parameters
     ----------
     file_property_patterns : dict or None
-        The ``file_property_patterns`` block from eks_doc_config.json.
+        The ``{os_properties, by_file_type}`` extraction config. I287 (T1.242):
+        projected from eks_processing_config.json by the pipeline orchestrator;
+        doc_config no longer carries this section.
         If None, the extractor operates in no-op mode (all fields None).
     logger : EKSLogger, optional
     runtime_slice : dict, optional
         Injected config slice for the module's project (Appendix L D1).
         Retained for traceability; extraction rules stay schema-driven via
-        ``file_property_patterns`` (L.14.7 backward compatibility).
+        ``file_property_patterns`` (L.14.7 backward compatibility; source is
+        eks_processing_config.json since I287 T1.242).
     """
 
     def __init__(

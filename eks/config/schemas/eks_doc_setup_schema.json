@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, element expectations, and column processing metadata per Appendix B, C & D. v1.9.0: added parsing_profiles property — reusable parser profiles keyed by profile name with capability fields per T1.195 V2. v1.8.0: removed revision_validation and filename_patterns (moved to Project Definition — I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.7.0: added column_processing property — object with column-name keys (DCC-aligned pattern per T1.184 review) for all 42 registry columns (I264, T1.183). v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110). v1.10.0 (I281 T1.223): REMOVED parsing_profiles property — superseded by core eks_setup_schema.json processing_profiles property (one-time migration, Q1). Extraction profile values now live in eks_processing_config.json#/extraction_profiles. Core schemas are the sole profile source.",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, element expectations, and column processing metadata per Appendix B, C & D. v1.9.0: added parsing_profiles property — reusable parser profiles keyed by profile name with capability fields per T1.195 V2. v1.8.0: removed revision_validation and filename_patterns (moved to Project Definition — I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.7.0: added column_processing property — object with column-name keys (DCC-aligned pattern per T1.184 review) for all 42 registry columns (I264, T1.183). v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110). v1.10.0 (I281 T1.223): REMOVED parsing_profiles property — superseded by core eks_setup_schema.json processing_profiles property (one-time migration, Q1). Extraction profile values now live in eks_processing_config.json#/extraction_profiles. Core schemas are the sole profile source. v1.11.0 (I287 T1.241): file_type_registry parser_class REMOVED (single-sourced in extraction_profiles, §16/§24); filename_profiles + file_property_patterns properties now DEPRECATED no-op shapes — values consolidated into eks_processing_config.json (filename_profiles / file_property_profiles / os_properties, T1.239).",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -52,6 +52,11 @@
                     "type": "object",
                     "description": "Multiplier per column priority tier for extraction confidence scoring",
                     "additionalProperties": { "type": "number" }
+                },
+                "default_source_quality_scores": {
+                    "type": "object",
+                    "description": "I284: global default cover source-quality map {cover_type: score}. Used by HealthScorer._score_source_quality when a document has no template-scoped source_quality_score.",
+                    "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
                 }
             },
             "required": ["dimensions", "score_tiers"],
@@ -65,18 +70,17 @@
         },
         "file_type_registry": {
             "type": "array",
-            "description": "Canonical registry of file format codes mapped to parser implementations (Appendix B B4/B5). Validated at load time for importable parser classes.",
+            "description": "Canonical registry of file format codes (Appendix B B4/B5). I287 T1.241: parser_class REMOVED — parser implementation is single-sourced in eks_processing_config.json#/extraction_profiles[].parser_class (§16/§24); SchemaLoader validates those against extraction_profile_def.",
             "items": {
                 "type": "object",
                 "properties": {
                     "extension": { "$ref": "eks_doc_base_schema.json#/definitions/file_type_code" },
                     "display_name": { "type": "string" },
-                    "parser_class": { "type": "string" },
                     "description": { "type": "string" },
                     "mime_type": { "type": "string" },
                     "format_category": { "type": "string", "enum": ["native", "print"], "description": "I279: native vs PDF-print delivery format" }
                 },
-                "required": ["extension", "display_name", "parser_class"],
+                "required": ["extension", "display_name"],
                 "additionalProperties": false
             },
             "minItems": 1
@@ -138,15 +142,13 @@
         },
         "filename_profiles": {
             "type": "object",
-            "description": "Reusable filename parsing profiles keyed by profile name. Each value follows filename_pattern_def per Appendix I §I4. Profile names referenced by Project Definition's document_profile.filename_pattern.",
+            "description": "DEPRECATED (I287 T1.241): filename parsing profiles moved to eks_processing_config.json#/filename_profiles (core processing_profiles section, T1.239). Retained as no-op shape for schema compatibility only — the doc config no longer carries values.",
             "propertyNames": { "pattern": "^[a-z_]+$" },
-            "additionalProperties": {
-                "$ref": "eks_doc_base_schema.json#/definitions/filename_pattern_def"
-            }
+            "additionalProperties": { "$ref": "eks_doc_base_schema.json#/definitions/filename_pattern_def" }
         },
         "file_property_patterns": {
             "type": "object",
-            "description": "File property extraction configuration per Appendix J §J2. Contains os-level config + per-file-type property mappings.",
+            "description": "DEPRECATED (I287 T1.241): file property extraction moved to eks_processing_config.json#/file_property_profiles + #/os_properties (core processing_profiles section, T1.239). Retained as no-op shape for schema compatibility only — the doc config no longer carries values.",
             "properties": {
                 "os_properties": {
                     "$ref": "eks_doc_base_schema.json#/definitions/file_property_os_def"
