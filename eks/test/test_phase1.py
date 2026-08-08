@@ -962,7 +962,15 @@ class TestPhase1(unittest.TestCase):
     def test_review_manager_correct_metadata(self):
         """T1.40: ManualReviewManager corrects document metadata."""
         from eks.engine.core.review_manager import ManualReviewManager
-        reviewer = ManualReviewManager(self.registry)
+        from eks.engine.core.schema_loader import SchemaLoader
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        loader.load_all()
+        reviewer = ManualReviewManager(
+            self.registry,
+            doc_config=loader.doc_config,
+            base_schema=loader.doc_base_schema,
+        )
 
         self.registry.register_document({
             "document_number": "REV-001", "revision": "A",

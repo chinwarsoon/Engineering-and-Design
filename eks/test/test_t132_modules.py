@@ -885,14 +885,14 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.12.0")  # I283 T1.230: element_type_registry 8→11 (I287 T1.241 was 1.11.0)
+        self.assertEqual(config["version"], "1.13.0")  # I286 T1.237: manual_review marker + 4 column_processing entries (I283 T1.230 was 1.12.0)
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.17.0")  # I283 T1.230: element_type_code 8→11 (I280 T1.218 was 1.16.0)
+        self.assertEqual(base["version"], "1.18.0")  # I286 T1.237: manual_review on column_processing_entry_def (I283 T1.230 was 1.17.0)
 
         core_base_path = CONFIG_DIR / "schemas" / "eks_base_schema.json"
         if not core_base_path.exists():

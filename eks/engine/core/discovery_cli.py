@@ -4,9 +4,13 @@ CLI Entry Point for Discovery Engine.
 This module provides a command-line interface for running the discovery engine
 independently, implementing the CLI Entry Point pattern per Appendix F.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Revision: 0.2
+Date: 2026-08-08
+Author: opencode
+Summary: I288 (T1.245) — processing_config read from bootstrap EKSPipelineContext
+          and forwarded to PipelineOrchestrator; fixed pre-existing missing
+          project_root in the bootstrap_pipeline() call that blocked all bootstrap.
+          0.1: Initial DiscoveryEngineCLI.
 """
 
 import argparse
@@ -134,7 +138,10 @@ Examples:
                 data_dir = project_root / data_dir
 
             # T1.99.45-48: bootstrap_pipeline now handles all init (OS, CLI, config, paths, level, data_dir, mm)
+            # I288 (T1.245): pass project_root positionally — the pre-existing
+            # call omitted it (TypeError), so the context wiring below never ran.
             boot = bootstrap_pipeline(
+                project_root,
                 args=None,
                 logger=logger,
                 skip_readiness=not parsed_args.validate,
@@ -145,6 +152,14 @@ Examples:
                 pre_generated_ddl=boot.get("pre_generated_ddl"),
             )
             _telemetry_verbose = boot["config"].get("system_parameters", {}).get("telemetry_verbose", True)
+            # I288 (T1.245): context-derived processing profiles values — read
+            # from the bootstrap EKSPipelineContext (context = single source,
+            # SSOT §24; processing_config never on the flat boot dict).
+            _bootstrap_ctx = boot.get("context")
+            if _bootstrap_ctx is not None:
+                _processing_config = _bootstrap_ctx.parameters.get("processing_config", {})
+            else:
+                _processing_config = {}
             orchestrator = PipelineOrchestrator(
                 boot["config"], boot["doc_config"], registry, logger=logger,
                 use_telemetry=False, error_manager=boot["em"], message_manager=boot["mm"],
@@ -152,6 +167,7 @@ Examples:
                 # T1.194 (I265): Inject the Project Configuration Registry from
                 # bootstrap (Appendix L D1).
                 project_config_registry=boot.get("project_config_registry"),
+                processing_config=_processing_config,
             )
 
             # Phase A performs the actual discovery (scan + register).

@@ -1,8 +1,19 @@
 """
 Manual Review Manager for EKS - Review surface for flagged documents.
 T1.40: Phase C manual review workflow.
+
+Revision: 0.2
+Date: 2026-08-08
+Author: opencode
+Summary: I286 (T1.237) - schema-driven correct_metadata: allowed_fields derived
+from doc_config.column_processing (no hardcoded set, AGENTS.md §16); manual
+source classification via manual_review marker; JSON serialization for
+json_column list values; enum (lifecycle_stage_code) / ISO date / json list
+value validation rejecting bad values; unknown/control column names rejected.
+Revision 0.1: initial T1.40 implementation.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
+from datetime import datetime, date
 from ..logging.logger import EKSLogger, log_depth
 from .health_scorer import HealthScorer
 from .structure_detector import StructureDetector
@@ -16,9 +27,11 @@ class ManualReviewManager:
     """
 
     def __init__(self, registry: Any, doc_config: Optional[Dict[str, Any]] = None,
+                 base_schema: Optional[Dict[str, Any]] = None,
                  logger: Optional[EKSLogger] = None):
         self.registry = registry
         self.doc_config = doc_config or {}
+        self.base_schema = base_schema or {}
         self.logger = logger or EKSLogger("ManualReview", level=1)
         self.scorer = HealthScorer(logger=self.logger)
         self.detector = StructureDetector(logger=self.logger)
@@ -53,17 +66,31 @@ class ManualReviewManager:
     def correct_metadata(self, doc_id: str, updates: Dict[str, Any]) -> bool:
         """
         Correct document metadata fields.
-        Allowed fields: project_title, project_number, area, discipline, department,
-        document_type, status, created_by, checked_by, approved_by, originator_company,
-        security_class, asset_tags, verified_by.
+
+        I286 (T1.237): schema-driven. The set of allowed fields is derived from
+        ``doc_config.column_processing`` (SSOT, AGENTS.md §16) — never a
+        hardcoded list. Column entries carrying ``manual_review: true`` mark
+        Manual-source columns (Appendix B §B4); derivable columns remain
+        review-allowed. Values are validated per column type: ``json_column``
+        values must be lists (serialized via ``json.dumps``), ``date_column``
+        values must parse as ISO dates, ``code_column`` entries with an
+        ``enum_reference`` (e.g. ``lifecycle_stage_code``) must be in the enum.
+        Unknown/control column names are rejected outright.
 
         Returns True if update succeeded.
         """
-        allowed_fields = {
-            "project_title", "project_number", "area", "discipline", "department",
-            "document_type", "status", "created_by", "checked_by", "approved_by",
-            "originator_company", "security_class", "asset_tags", "verified_by",
-        }
+        import duckdb, json
+
+        col_proc = self._column_processing()
+        allowed_fields = set(col_proc.keys())
+        unknown = [k for k in updates if k not in allowed_fields]
+        if unknown:
+            self.logger.warning(
+                f"Rejected unknown/control fields for {doc_id}: {sorted(unknown)}",
+                context="ManualReviewManager.correct_metadata"
+            )
+            return False
+
         filtered = {k: v for k, v in updates.items() if k in allowed_fields}
         if not filtered:
             self.logger.warning(
@@ -72,21 +99,33 @@ class ManualReviewManager:
             )
             return False
 
-        import duckdb, json
+        # Value validation + serialization (reject bad values, generalize asset_tags)
+        prepared: Dict[str, Any] = {}
+        for k, v in filtered.items():
+            entry = col_proc.get(k, {})
+            if not self._validate_field_value(k, v, entry):
+                self.logger.warning(
+                    f"Rejected invalid value for '{k}' on {doc_id}: {v!r}",
+                    context="ManualReviewManager.correct_metadata"
+                )
+                return False
+            if isinstance(v, list):
+                prepared[k] = json.dumps(v)
+            else:
+                prepared[k] = v
+
         conn = duckdb.connect(str(self.registry.db_path))
         try:
             set_parts = []
             params = []
-            for k, v in filtered.items():
-                if k == "asset_tags" and isinstance(v, list):
-                    v = json.dumps(v)
+            for k, v in prepared.items():
                 set_parts.append(f"{k} = ?")
                 params.append(v)
             params.append(doc_id)
             sql = f"UPDATE documents SET {', '.join(set_parts)} WHERE id = ?"
             conn.execute(sql, params)
             self.logger.info(
-                f"Updated metadata for {doc_id}: {list(filtered.keys())}",
+                f"Updated metadata for {doc_id}: {list(prepared.keys())}",
                 context="ManualReviewManager.correct_metadata"
             )
             return True
@@ -98,6 +137,88 @@ class ManualReviewManager:
             return False
         finally:
             conn.close()
+
+    def _column_processing(self) -> Dict[str, Any]:
+        """Return the schema-driven column_processing map.
+
+        Raises a descriptive error if ``doc_config.column_processing`` is absent
+        — the review allowlist is derived from it and must never fall back to a
+        second source of truth (AGENTS.md §16).
+        """
+        cp = self.doc_config.get("column_processing") if isinstance(self.doc_config, dict) else None
+        if not isinstance(cp, dict) or not cp:
+            raise ValueError(
+                "ManualReviewManager.correct_metadata requires "
+                "doc_config['column_processing'] (schema-driven SSOT, AGENTS.md §16). "
+                "No hardcoded allowlist fallback."
+            )
+        return cp
+
+    def _validate_field_value(self, name: str, value: Any, entry: Dict[str, Any]) -> bool:
+        """Validate a single review update value against its column config.
+
+        Rules (I286):
+        - ``json_column`` must receive a list (serialized by caller).
+        - ``date_column`` must parse as an ISO date.
+        - ``code_column`` with an ``enum_reference`` (e.g. lifecycle_stage_code)
+          must be a member of the referenced enum.
+        - all other text/numeric columns accept the raw value.
+        """
+        if isinstance(value, list):
+            return entry.get("column_type") == "json_column"
+        col_type = entry.get("column_type")
+        if col_type == "json_column":
+            return False
+        if col_type == "date_column":
+            return self._is_iso_date(value)
+        if col_type == "code_column":
+            enum_name = self._enum_reference_for(entry)
+            if not enum_name:
+                return True
+            return self._is_in_enum(value, enum_name)
+        return True
+
+    @staticmethod
+    def _is_iso_date(value: Any) -> bool:
+        """True when *value* is a date/datetime or an ISO-8601 date string."""
+        if isinstance(value, (datetime, date)):
+            return True
+        if not isinstance(value, str):
+            return False
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return True
+        except ValueError:
+            return False
+
+    def _enum_reference_for(self, entry: Dict[str, Any]) -> Optional[str]:
+        """Return the enum name referenced by a code_column entry, if any."""
+        validation = entry.get("validation")
+        if isinstance(validation, list):
+            for rule in validation:
+                if isinstance(rule, dict) and rule.get("type") == "enum_reference":
+                    ref = rule.get("reference") or rule.get("ref")
+                    if isinstance(ref, str):
+                        return ref
+        schema_ref = entry.get("schema_ref")
+        if isinstance(schema_ref, str) and schema_ref:
+            return schema_ref
+        return None
+
+    def _enum_values(self, enum_name: str) -> Optional[List[Any]]:
+        """Resolve enum values from the base schema definitions (SSOT)."""
+        defs = self.base_schema.get("definitions", {}) if isinstance(self.base_schema, dict) else {}
+        entry = defs.get(enum_name)
+        if isinstance(entry, dict) and isinstance(entry.get("enum"), list):
+            return entry["enum"]
+        return None
+
+    def _is_in_enum(self, value: Any, enum_name: str) -> bool:
+        """True when *value* is in the named enum (schema-driven, no hardcode)."""
+        enum_vals = self._enum_values(enum_name)
+        if enum_vals is None:
+            return True
+        return value in enum_vals
 
     @log_depth
     def confirm_elements(self, doc_id: str, elements: List[Dict[str, Any]]) -> int:

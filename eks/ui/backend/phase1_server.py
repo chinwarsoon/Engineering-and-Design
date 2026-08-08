@@ -3,7 +3,8 @@
 Per Appendix G §10, this server provides all Phase 1 API endpoints:
 file discovery, document CRUD, pipeline execution, and health scoring.
 
-Revision: 0.11 (T1.99.94/I126)
+Revision: 0.12 (I288/T1.246)
+- 0.12: T1.246/I288: _LogCapture gains debug()/trace()/set_level() passthrough (standard EKSLogger interface) — engine code calls logger.debug() at 14 sites, aborting every UI pipeline run with AttributeError; read-only, no API change.
 - 0.1: Initial server with all Phase 1 API endpoints
 - 0.2: T1.69–T1.76: run_id, traversal guard, checkpoint persist, ErrorManager/MessageManager activation, artifact dump
 - 0.3: T1.77: ProjectSetupValidator readiness gate, --debug/--level CLI, data_dir/recursive validation
@@ -168,6 +169,27 @@ def get_registry():
             if _registry is None:
                 _registry = DocumentRegistry(logger=_logger)
     return _registry
+
+
+_schema_loader = None
+_schema_loader_lock = threading.Lock()
+
+
+def get_doc_schema_loader():
+    """Return a lazily cached SchemaLoader exposing doc_config + doc_base_schema.
+
+    I286 (T1.237): ManualReviewManager.correct_metadata derives its review
+    allowlist from ``doc_config.column_processing`` (schema-driven SSOT) and
+    validates enum values against ``doc_base_schema.definitions``. The loader is
+    shared across requests so the schema is parsed once, not per request.
+    """
+    global _schema_loader
+    if _schema_loader is None:
+        with _schema_loader_lock:
+            if _schema_loader is None:
+                _schema_loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
+                _schema_loader.load_all()
+    return _schema_loader
 
 
 class ReusableTCPServer(HTTPServer):
@@ -488,7 +510,13 @@ class Phase1Handler(SimpleHTTPRequestHandler):
 
     def _handle_update_document(self, doc_id: str, data: Dict[str, Any]):
         def _action():
-            manager = ManualReviewManager(get_registry(), logger=_logger)
+            loader = get_doc_schema_loader()
+            manager = ManualReviewManager(
+                get_registry(),
+                doc_config=loader.doc_config,
+                base_schema=loader.doc_base_schema,
+                logger=_logger,
+            )
             return manager.correct_metadata(doc_id, data)
         ok = _with_retry(_action)
         if ok:
@@ -603,10 +631,28 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 _capture_log({"level": "WARNING", "message": msg, "context": context})
                 if _logger:
                     _logger.warning(msg, context=context)
+            def debug(self, msg, context=""):
+                # I288 (T1.246): standardized log interface — engine code calls
+                # logger.debug() at many sites; without passthrough the UI run
+                # raised AttributeError and every file failed in Phase B.
+                _capture_log({"level": "DEBUG", "message": msg, "context": context})
+                if _logger:
+                    _logger.debug(msg, context=context)
+            def trace(self, msg, context=""):
+                # I288 (T1.246): EKSLogger.trace() (level 3) passthrough.
+                _capture_log({"level": "TRACE", "message": msg, "context": context})
+                if _logger:
+                    _logger.trace(msg, context=context)
             def error(self, msg, context=""):
                 _capture_log({"level": "ERROR", "message": msg, "context": context})
                 if _logger:
                     _logger.error(msg, context=context)
+            def set_level(self, level):
+                # I288 (T1.246): mirror EKSLogger contract (self.level is an
+                # attribute consulted by engine code, e.g. logger.level >= 2).
+                _LogCapture.level = level
+                if _logger is not None and hasattr(_logger, "level"):
+                    _logger.level = level
 
         # Phase → (progress_after, current_stage) mapping
         # UI stages: scan(0), parse(1), score(2), review(3), register(4)

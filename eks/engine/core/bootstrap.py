@@ -7,10 +7,13 @@ gate, ``parse_eks_cli`` as CLI parser, ``resolve_paths`` as path resolver,
 ``detect_os`` as OS detector, and ``ErrorManager`` / ``MessageManager``
 as manager factories.
 
-Revision: 0.6
-Date: 2026-07-28
+Revision: 0.7
+Date: 2026-08-08
 Author: opencode
-Summary: 0.6: T1.163–T1.169 (I257/I258) — Replaced 7 silent 'except Exception: pass'
+Summary: 0.7: I288 (T1.244) — processing_config exposed via to_pipeline_context()
+          parameters (EKSPipelineContext = single source, SSOT §24), guarded with
+          getattr default. NOT added to to_dict().
+          0.6: T1.163–T1.169 (I257/I258) — Replaced 7 silent 'except Exception: pass'
           sites with WARNING-level self._log() calls. Error codes S-B-S-0609–S-B-S-0615
           registered in eks_error_config.json v1.5.0. Graceful degradation preserved.
 0.5:          T1.156 (I254) — Strip eks_root prefix from relative CLI
@@ -707,6 +710,11 @@ class EKSBootstrapManager(BootstrapManager):
         ctx_params["mm"] = self.message_manager
         ctx_params["pre_generated_ddl"] = self._pre_generated_ddl
         ctx_params["project_config_registry"] = self.project_config_registry
+        # I288 (T1.244): processing profiles values SSOT passed through the
+        # EKSPipelineContext ONLY (SSOT §24 — context is the single source;
+        # never duplicated on to_dict()). Value is populated at bootstrap P3
+        # (bootstrap.py:314); guarded in case SchemaLoader failed there.
+        ctx_params["processing_config"] = getattr(self, "processing_config", {}) or {}
 
         # Lazy-init managers if needed
         if self.error_manager is None and self._error_manager_factory is not None:

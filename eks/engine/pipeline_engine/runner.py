@@ -4,10 +4,14 @@ Pipeline orchestration functions for the EKS pipeline.
 Extracted from ``eks_engine_pipeline.py`` (I233).  Zero module-level runtime
 globals — all paths received as explicit parameters.
 
-Revision: 1.0
-Date: 2026-07-23
+Revision: 1.1
+Date: 2026-08-08
 Author: opencode
-Summary: I233 split — pipeline runner functions extracted from eks_engine_pipeline.py.
+Summary: I288 (T1.244–T1.245) — processing_config forwarded to PipelineOrchestrator
+          in both run_pipeline branches from EKSPipelineContext.parameters (single
+          source, SSOT §24); bootstrap_pipeline() exposes the EKSPipelineContext
+          under out["context"] for non-context callers.
+          1.0: I233 split — pipeline runner functions extracted from eks_engine_pipeline.py.
 """
 from __future__ import annotations
 
@@ -107,7 +111,22 @@ def bootstrap_pipeline(
                 "readiness",
             )
 
-    return mgr.to_dict()
+    # I288 (T1.244): return the EKSPipelineContext alongside the backward-
+    # compatible dict so non-context callers (run_pipeline non-context branch,
+    # discovery_cli) can read ``processing_config`` from ``context.parameters``
+    # — the context is the SINGLE source (SSOT §24); processing_config is never
+    # placed directly on the flat dict (which is mgr.to_dict()).
+    out = mgr.to_dict()
+    try:
+        out["context"] = mgr.to_pipeline_context()
+    except Exception as exc:
+        if logger is not None:
+            logger.warning(
+                f"bootstrap_pipeline: could not build EKSPipelineContext: {exc}",
+                context="runner.bootstrap_pipeline",
+            )
+        out["context"] = None
+    return out
 
 
 def run_pipeline(
@@ -187,6 +206,9 @@ def run_pipeline(
             # T1.194 (I265): Inject the Project Configuration Registry built
             # during bootstrap (Appendix L D1 caller-injection contract).
             project_config_registry=context.parameters.get("project_config_registry"),
+            # I288 (T1.245): processing profiles values flow through the
+            # EKSPipelineContext parameters (context = single source, SSOT §24).
+            processing_config=context.parameters.get("processing_config", {}),
         )
         orchestrator.context = context
         config = context.parameters.get("config", {})
@@ -216,6 +238,14 @@ def run_pipeline(
             )
 
         _telemetry_verbose = config.get("system_parameters", {}).get("telemetry_verbose", True)
+        # I288 (T1.245): read processing_config from the bootstrap context
+        # (context = single source, SSOT §24). boot["context"] is set by
+        # bootstrap_pipeline(); fall back to {} only if context build failed.
+        _bootstrap_ctx = boot.get("context")
+        if _bootstrap_ctx is not None:
+            _processing_config = _bootstrap_ctx.parameters.get("processing_config", {})
+        else:
+            _processing_config = {}
         orchestrator = PipelineOrchestrator(
             config, doc_config, registry, logger=logger,
             use_telemetry=False, error_manager=em, message_manager=mm,
@@ -223,6 +253,8 @@ def run_pipeline(
             # T1.194 (I265): Inject the Project Configuration Registry from
             # bootstrap to_dict() (Appendix L D1).
             project_config_registry=boot.get("project_config_registry"),
+            # I288 (T1.245): context-derived processing profiles values.
+            processing_config=_processing_config,
         )
 
         params = {**config.get("global_parameters", {}), **config.get("project_setup", {})}
