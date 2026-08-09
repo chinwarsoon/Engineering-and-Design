@@ -14,6 +14,10 @@
 - [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.3.0)
 - [`eks/config/schemas/eks_ontology_config.json`](../config/schemas/eks_ontology_config.json) — Document class hierarchy (§C4, v1.7.0)
 
+**Sub-Appendices**:
+- [Appendix B.1 — Cross-Relationship Chart](appendix_b.1_cross_relationship_chart.md) — Complete entity relationships, DB table relationship map, FK closure paths, and cross-document gap analysis
+- [Appendix B.2 — DB Table Design](appendix_b.2_db_table_design.md) — All 39 table definitions, columns, types, constraints, schema provenance, and load order
+
 **Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`. v2.1.3 (I280): §2 Structural Characteristics implemented via per-class/type `structural_profile` (carrier v2.2.0, base v1.16.0). v2.1.5 (I283): four-level Class→Type→Template→Element detection implemented — `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`), template `expected_elements` is the element-set SSOT (structural_profile = capability metadata only), cover type schema-first (detection fallback only when unavailable), all detectors gated by `expected_elements` (carrier v2.3.0, base v1.17.0, doc config v1.12.0).
 
 ---
@@ -21,6 +25,9 @@
 ## Table of Contents
 
 - [Revision History](#revision-history)
+- [Sub-Appendices](#sub-appendices)
+  - [B.1 — Cross-Relationship Chart](appendix_b.1_cross_relationship_chart.md)
+  - [B.2 — DB Table Design](appendix_b.2_db_table_design.md)
 - [B1. Overview](#b1-overview)
 - [B2. Architecture](#b2-architecture)
   - [B2.1 Unified Document Type Definition](#b21-unified-document-type-definition)

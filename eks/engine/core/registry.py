@@ -206,8 +206,50 @@ class DocumentRegistry:
             conn.execute(els_ddl)
             for idx_stmt in indexes:
                 conn.execute(idx_stmt)
+            # I290 (T1.253): persist schema-declared FK relationships manifest
+            self._create_relations_manifest(conn)
         finally:
             conn.close()
+
+    @log_depth
+    def _create_relations_manifest(self, conn) -> None:
+        """
+        Persist the schema-declared FK relationships (`registry_relations`) into
+        the `_eks_table_relations` manifest table.
+
+        I290 (T1.253): FK definitions live in
+        eks_doc_base_schema.json#/registry_relations (SSOT, AGENTS.md §16).
+        The runtime DuckDB registry does NOT emit physical FOREIGN KEY
+        constraints (targets are definition-layer tables that are not
+        materialized here; self-FKs would block the UUID migration). Instead
+        the relationships are materialized as rows of `_eks_table_relations`,
+        making the FK model queryable and keeping docs and DB in lockstep.
+        """
+        from .schema_to_ddl import SchemaToDDL
+        try:
+            if self._pre_generated_ddl and "doc_base_schema" in self._pre_generated_ddl:
+                ddl_gen = SchemaToDDL(self._pre_generated_ddl["doc_base_schema"], self.logger)
+            else:
+                loader = getattr(self.config, '_loader', None)
+                if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                    ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+                else:
+                    ddl_gen = SchemaToDDL(self._load_doc_schema())
+            stmts = ddl_gen.generate_relations_manifest_ddl()
+            for stmt in stmts:
+                conn.execute(stmt)
+            count = ddl_gen.registry_relations()
+            if count:
+                self.logger.info(
+                    f"Relations manifest: {len(count)} declared FK relationships "
+                    f"persisted to _eks_table_relations (I290/T1.253)",
+                    context="DocumentRegistry._create_relations_manifest",
+                )
+        except Exception as exc:  # nocv — manifest is advisory, never fatal
+            self.logger.warning(
+                f"FK relations manifest skipped ({exc})",
+                context="DocumentRegistry._create_relations_manifest",
+            )
 
     @log_depth
     def _migrate_schema(self):

@@ -29,32 +29,32 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_error_creation(self):
         """BootstrapError carries code, message, and phase."""
-        err = BootstrapError("P1-BOOT-READINESS", "Readiness gate failed", "readiness")
-        self.assertEqual(err.code, "P1-BOOT-READINESS")
+        err = BootstrapError("S-B-S-0603", "Readiness gate failed", "readiness")
+        self.assertEqual(err.code, "S-B-S-0603")
         self.assertEqual(err.message, "Readiness gate failed")
         self.assertEqual(err.phase, "readiness")
-        self.assertIn("[P1-BOOT-READINESS]", str(err))
+        self.assertIn("[S-B-S-0603]", str(err))
         self.assertIn("(phase: readiness)", str(err))
 
     def test_to_system_error(self):
         """to_system_error() returns (code, message) tuple."""
-        err = BootstrapError("B-CLI-001", "CLI parsing failed", "cli")
+        err = BootstrapError("B-C-S-0001", "CLI parsing failed", "cli")
         code, msg = err.to_system_error()
-        self.assertEqual(code, "B-CLI-001")
+        self.assertEqual(code, "B-C-S-0001")
         self.assertEqual(msg, "CLI parsing failed")
 
     def test_to_dict(self):
         """to_dict() serializes error to JSON-safe dict."""
-        err = BootstrapError("B-PATH-001", "Path not found", "paths")
+        err = BootstrapError("B-H-S-0001", "Path not found", "paths")
         d = err.to_dict()
-        self.assertEqual(d["code"], "B-PATH-001")
+        self.assertEqual(d["code"], "B-H-S-0001")
         self.assertEqual(d["message"], "Path not found")
         self.assertEqual(d["phase"], "paths")
 
     def test_from_system_error(self):
         """from_system_error() reconstructs from (code, message) pair."""
-        err = BootstrapError.from_system_error("B-ENV-001", "OS detection failed", "env")
-        self.assertEqual(err.code, "B-ENV-001")
+        err = BootstrapError.from_system_error("B-E-S-0001", "OS detection failed", "env")
+        self.assertEqual(err.code, "B-E-S-0001")
         self.assertEqual(err.message, "OS detection failed")
         self.assertEqual(err.phase, "env")
 
@@ -185,9 +185,9 @@ class TestBootstrapManager(unittest.TestCase):
         """_record_phase_failure marks phase as failed with error code."""
         mgr = self._basic_manager()
         mgr._record_phase_start("P2_paths")
-        mgr._record_phase_failure("P2_paths", "B-PATH-001")
+        mgr._record_phase_failure("P2_paths", "B-H-S-0001")
         self.assertEqual(mgr._phase_status["P2_paths"].status, "failed")
-        self.assertEqual(mgr._phase_status["P2_paths"].error_code, "B-PATH-001")
+        self.assertEqual(mgr._phase_status["P2_paths"].error_code, "B-H-S-0001")
 
     def test_bootstrap_all_no_hooks(self):
         """bootstrap_all() completes even without project hooks (uses defaults)."""
@@ -214,11 +214,11 @@ class TestBootstrapManager(unittest.TestCase):
         mgr._record_phase_start("P1_cli")
         mgr._record_phase_complete("P1_cli")
         mgr._record_phase_start("P2_paths")
-        mgr._record_phase_failure("P2_paths", "B-PATH-001")
+        mgr._record_phase_failure("P2_paths", "B-H-S-0002")
         summary = mgr.bootstrap_summary
         self.assertEqual(summary["status"], "failed")
         self.assertEqual(summary["failed_phase"], "P2_paths")
-        self.assertEqual(summary["error_code"], "B-PATH-001")
+        self.assertEqual(summary["error_code"], "B-H-S-0002")
 
     def test_is_bootstrapped_gate(self):
         """is_bootstrapped is False before bootstrap, True after."""
@@ -232,14 +232,14 @@ class TestBootstrapManager(unittest.TestCase):
         mgr = self._basic_manager()
         with self.assertRaises(BootstrapError) as ctx:
             _ = mgr.preload_trace
-        self.assertIn("B-BOOT-0601", ctx.exception.code)
+        self.assertIn("B-B-S-0001", ctx.exception.code)
 
     def test_to_pipeline_context_requires_bootstrap(self):
         """to_pipeline_context() raises if not bootstrapped."""
         mgr = self._basic_manager()
         with self.assertRaises(BootstrapError) as ctx:
             mgr.to_pipeline_context()
-        self.assertIn("B-CTX-001", ctx.exception.code)
+        self.assertIn("B-X-S-0001", ctx.exception.code)
 
     def test_to_pipeline_context_after_bootstrap(self):
         """to_pipeline_context() returns a context dict after bootstrap."""
@@ -312,7 +312,7 @@ class TestBootstrapManager(unittest.TestCase):
 
         with self.assertRaises(BootstrapError) as ctx:
             mgr._run_phase("P1_cli", _failing)
-        self.assertIn("P1_cli", ctx.exception.code)
+        self.assertIn("B-U-S-0001", ctx.exception.code)
         self.assertIn("unexpected", ctx.exception.message)
 
     def test_phase_status_read_only(self):
@@ -352,7 +352,7 @@ class TestBootstrapManagerPhases(unittest.TestCase):
         )
         with self.assertRaises(BootstrapError) as ctx:
             mgr.bootstrap_all()
-        self.assertIn("B-PATH-001", ctx.exception.code)
+        self.assertIn("B-H-S-0001", ctx.exception.code)
 
     def test_p2_paths_with_resolver(self):
         """P2 uses path_resolver hook when provided."""

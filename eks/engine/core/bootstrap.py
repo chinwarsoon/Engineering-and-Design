@@ -190,26 +190,26 @@ class EKSBootstrapManager(BootstrapManager):
         )
 
     # ------------------------------------------------------------------
-    # Override bootstrap_all / bootstrap_for_ui — translate B-UNK → S-B-S-06xx
+    # Override bootstrap_all / bootstrap_for_ui — translate B-U-S-00xx → S-B-S-06xx
     # ------------------------------------------------------------------
 
     def bootstrap_all(self, cli_args: Optional[List[str]] = None) -> BootstrapManager:
-        """Run all bootstrap phases for CLI mode (EKS: B-UNK-001 → S-B-S-0603)."""
+        """Run all bootstrap phases for CLI mode (EKS: B-U-S-0001 → S-B-S-0603)."""
         try:
             return super().bootstrap_all(cli_args)
         except BootstrapError as exc:
-            if exc.code == "B-UNK-001":
+            if exc.code == "B-U-S-0001":
                 raise BootstrapError("S-B-S-0603", exc.message, exc.phase)
             raise
         except Exception as exc:
             raise BootstrapError("S-B-S-0603", f"Unexpected bootstrap error: {exc}", "unknown")
 
     def bootstrap_for_ui(self, **ui_params: Any) -> BootstrapManager:
-        """Run bootstrap phases for UI mode (EKS: B-UNK-002 → S-B-S-0603)."""
+        """Run bootstrap phases for UI mode (EKS: B-U-S-0002 → S-B-S-0603)."""
         try:
             return super().bootstrap_for_ui(**ui_params)
         except BootstrapError as exc:
-            if exc.code == "B-UNK-002":
+            if exc.code == "B-U-S-0002":
                 raise BootstrapError("S-B-S-0603", exc.message, exc.phase)
             raise
         except Exception as exc:
@@ -221,7 +221,7 @@ class EKSBootstrapManager(BootstrapManager):
     # ------------------------------------------------------------------
 
     def _bootstrap_cli(self, cli_args: Optional[List[str]] = None) -> None:
-        """P1 (EKS): Parse CLI args, translate B-CLI-001 → S-B-S-0604."""
+        """P1 (EKS): Parse CLI args, translate B-C-S-0001 → S-B-S-0604."""
         self._record_phase_start("P1_cli")
         try:
             if self._cli_parser is not None:
@@ -256,7 +256,7 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0604", f"CLI parsing failed: {exc}", "cli")
 
     def _bootstrap_paths(self) -> None:
-        """P2 (EKS): Validate paths, translate B-PATH-* → S-B-S-0605."""
+        """P2 (EKS): Validate paths, translate B-H-S-00xx → S-B-S-0605."""
         self._record_phase_start("P2_paths")
         try:
             if not self.project_root.exists():
@@ -295,7 +295,7 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0605", f"Path validation failed: {exc}", "paths")
 
     def _bootstrap_registry(self) -> None:
-        """P3 (EKS): Load config, translate B-REG-001 → S-B-S-0604."""
+        """P3 (EKS): Load config, translate B-R-S-0001 → S-B-S-0604."""
         self._record_phase_start("P3_registry")
         try:
             if self._config_loader is not None:
@@ -332,7 +332,7 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0604", f"Registry loading failed: {exc}", "registry")
 
     def _bootstrap_defaults(self) -> None:
-        """P4 (EKS): Build native defaults, translate B-DEF-001 → S-B-S-0604."""
+        """P4 (EKS): Build native defaults, translate B-D-S-0001 → S-B-S-0604."""
         self._record_phase_start("P4_defaults")
         try:
             gp = self.config.get("global_paths", {}) if isinstance(self.config, dict) else {}
@@ -352,7 +352,7 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0604", f"Defaults building failed: {exc}", "defaults")
 
     def _bootstrap_fallback(self) -> None:
-        """P5 (EKS): Validate fallback, translate B-FALL-001 → S-B-S-0604."""
+        """P5 (EKS): Validate fallback, translate B-A-S-0001 → S-B-S-0604."""
         self._record_phase_start("P5_fallback")
         try:
             self._record_phase_complete("P5_fallback")
@@ -362,7 +362,7 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0604", f"Fallback validation failed: {exc}", "fallback")
 
     def _bootstrap_schema(self) -> None:
-        """P7 (EKS): Resolve schema, validate DDL pre-flight, translate B-SCH-001 → S-B-S-0604.
+        """P7 (EKS): Resolve schema, validate DDL pre-flight, translate B-K-S-0001 → S-B-S-0604.
         
         T1.99.191 (I225): Runs SchemaToDDL pre-flight validation to catch
         schema-drift errors before the pipeline starts, rather than waiting

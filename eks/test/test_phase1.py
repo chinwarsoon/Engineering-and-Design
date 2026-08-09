@@ -1587,6 +1587,62 @@ class TestPhase1(unittest.TestCase):
             if reg_path.exists():
                 reg_path.unlink()
 
+    def test_registry_relations_manifest(self):
+        """T1.253 (I290): Schema-declared FK relationships persisted to _eks_table_relations."""
+        from eks.engine.core.schema_to_ddl import SchemaToDDL
+        schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
+        ddl_gen = SchemaToDDL(schema)
+        relations = ddl_gen.registry_relations()
+        self.assertGreaterEqual(len(relations), 6,
+                                "I290: at least the 6 declared relations must exist")
+        names = {r["relation_name"] for r in relations}
+        for required in ["fk_doc_type_composite", "fk_supersedes", "fk_superseded_by",
+                         "fk_project_code", "fk_discipline", "fk_file_type"]:
+            self.assertIn(required, names)
+
+        pre_generated = {
+            "documents_ddl": ddl_gen.generate_documents_ddl(),
+            "elements_ddl": ddl_gen.generate_document_elements_ddl(),
+            "indexes": ddl_gen.generate_indexes(),
+            "doc_base_schema": schema,
+        }
+        reg_path = _PROJECT_ROOT / "test_output" / "test_relations_manifest.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        try:
+            reg = DocumentRegistry(
+                db_path=str(reg_path),
+                pre_generated_ddl=pre_generated,
+            )
+            reg.list_documents()
+            import duckdb as _duckdb
+            conn = _duckdb.connect(str(reg_path))
+            try:
+                tables = {r[0] for r in conn.execute(
+                    "SELECT table_name FROM information_schema.tables"
+                ).fetchall()}
+                self.assertIn("_eks_table_relations", tables,
+                              "I290: relations manifest table must be created")
+                rows = conn.execute(
+                    "SELECT relation_name FROM _eks_table_relations"
+                ).fetchall()
+                row_names = {r[0] for r in rows}
+                for n in names:
+                    self.assertIn(n, row_names,
+                                  f"I290: declared relation {n} missing from manifest")
+            finally:
+                conn.close()
+        finally:
+            if reg_path.exists():
+                reg_path.unlink()
+
+    def test_documents_has_project_code(self):
+        """T1.253 (I290) — documents table DDL declares nullable project_code for composite FK."""
+        from eks.engine.core.schema_to_ddl import SchemaToDDL
+        schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
+        ddl = SchemaToDDL(schema).generate_documents_ddl()
+        self.assertIn("project_code", ddl)
+
     def test_schema_version_tracking(self):
         """T1.99.191 (I225): Schema version hash recorded and updated on schema change."""
         from eks.engine.core.schema_to_ddl import SchemaToDDL

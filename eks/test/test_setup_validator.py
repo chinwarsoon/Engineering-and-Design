@@ -6,7 +6,7 @@ Tests cover:
 - get_readiness_status() returns YES/NO
 - get_missing_items() returns correct paths
 - Config-driven validation from schema
-- P1-SETUP-* error code attachment preserved
+- canonical S-X-X-XXXX error code attachment preserved
 - Backward compatibility with old flat-array config format
 """
 
@@ -202,17 +202,17 @@ class TestProjectSetupValidator(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_folder_missing_entries_carry_error_code(self):
-        """Folder validation missing entries should carry P1-SETUP-F001."""
+        """Folder validation missing entries should carry S-F-S-0207."""
         result = self.validator.validate_all(auto_create=False)
         folder_results = result["folders"]
         if folder_results.get("missing"):
             entry = folder_results["missing"][0]
             self.assertIn("path", entry)
             self.assertIn("error_code", entry)
-            self.assertEqual(entry["error_code"], "P1-SETUP-F001")
+            self.assertEqual(entry["error_code"], "S-F-S-0207")
 
     def test_file_missing_entries_carry_error_code(self):
-        """File validation missing entries should carry P1-SETUP-F001/F002."""
+        """File validation missing entries should carry S-F-S-0208."""
         result = self.validator.validate_all(auto_create=False)
         file_results = result["files"]
         if file_results.get("missing"):
@@ -242,30 +242,30 @@ class TestProjectSetupValidator(unittest.TestCase):
             env = result["environment"]
             self.assertIn("error_code", env)
             if not env["eks_yml_exists"]:
-                self.assertEqual(env["error_code"], "P1-SETUP-F003")
+                self.assertEqual(env["error_code"], "S-F-S-0209")
         finally:
             if existed:
                 eks_yml.touch()
 
     def test_dependency_missing_entries_carry_error_code(self):
-        """Dependency missing entries should carry P1-SETUP-D001."""
+        """Dependency missing entries should carry S-E-S-0106."""
         result = self.validator.validate_all(auto_create=False)
         deps = result["dependencies"]
         if deps.get("missing"):
             entry = deps["missing"][0]
             self.assertIn("package", entry)
             self.assertIn("error_code", entry)
-            self.assertEqual(entry["error_code"], "P1-SETUP-D001")
+            self.assertEqual(entry["error_code"], "S-E-S-0106")
 
     def test_output_path_unwritable_entries_carry_error_code(self):
-        """Output path unwritable entries should carry P1-SETUP-O001."""
+        """Output path unwritable entries should carry S-F-S-0210."""
         result = self.validator.validate_all(auto_create=True)
         outs = result["output_paths"]
         if outs.get("unwritable"):
             entry = outs["unwritable"][0]
             self.assertIn("path", entry)
             self.assertIn("error_code", entry)
-            self.assertEqual(entry["error_code"], "P1-SETUP-O001")
+            self.assertEqual(entry["error_code"], "S-F-S-0210")
 
     def test_error_codes_summary_at_top_level(self):
         """validate_all() should include an error_codes summary array."""

@@ -28,11 +28,14 @@ class BootstrapError(Exception):
     compatibility with DCC's ``system_error_print()`` / ``BaseErrorManager``.
 
     Error code format is project-prefix-aware:
-    - EKS:  ``P1-BOOT-*``  (registered in ``eks_error_config.json``)
+    - EKS:  ``S-*-S-*``  /  ``P{phase}-{module}-{id}``  (registered in ``eks_error_config.json``)
     - DCC:  ``S-*-S-*``    (legacy format)
 
+    Universal bootstrap codes follow the canonical ``B-{cat}-S-{id4}`` format
+    (registered in ``eks_error_config.json``, e.g. ``B-H-S-0001``).
+
     Attributes:
-        code:    Error code string (e.g. ``"P1-BOOT-READINESS"``).
+        code:    Error code string (e.g. ``"S-B-S-0603"``).
         message: Human-readable error message.
         phase:   Bootstrap phase name (e.g. ``"readiness"``, ``"cli"``).
     """

@@ -25,6 +25,7 @@
 | **1.0** | **2026-07-19** | **CodeBuddy** | **Full re-sync to match config/code. D3: added A/AI category, F/D module codes, PROP function code, ERROR severity. D4: 61 real codes (replaced 45 fabricated). D5: 50 real codes (replaced 65 fabricated); P5 codes added. D6: 49 real messages (replaced 42 fabricated). D7: tiers updated (6/16/13), source quality bonus, timestamp drift. D8: Phase A/B/C states added. D9: new implementation files. D10: fixed duplicate references.** |
 | **2.0** | **2026-07-27** | **opencode** | **Added output architecture, verbosity control, debugging, and known gaps (D9–D13). Updated D1 with 4-channel overview. Renumbered D9→D14, D10→D15.** |
 | **2.1** | **2026-07-31** | **opencode** | **T1.195 (I265): Added S-C-S-0901–0904 Project Definition config system errors (D4), P1-C-V-0001–0003 data errors (D5), 4 PDEF messages (D6), updated error_config to v1.7.0 (128 codes), message_config to v1.2.0 (52 messages), and Config category ranges.** |
+| **2.2** | **2026-08-08** | **opencode** | **I289 (T1.251): Retired legacy hybrid formats (`P1-BOOT-{reason}`, `P1-SETUP-{type}{id}`, `B-{module}-{id}`) from documentation — canonical-only `S-{cat}-S-{id4}` / `B-{cat}-S-{id4}` / `P{phase}-{module}-{id4}` per review directive 2026-08-08.** |
 
 ---
 
@@ -121,7 +122,7 @@ P  3  -  E  -  E  -  0001
 
 ### System Errors
 
-**Format**: `S-{category}-S-{id}`
+**Format**: `S-{category}-S-{id4}`
 
 ```
 S  -  F  -  S  -  0201
@@ -149,7 +150,7 @@ B  -  C  -  S  -  0001
 
 **Example**: `B-C-S-0001` = Bootstrap, CLI category, System, error #1
 
-**Note**: All error codes now follow the `X-X-X-XXXX` pattern. Previously used hybrid formats (`P1-SETUP-{type}{id}` and `P1-BOOT-{reason}`) were absorbed into standard `S-{cat}-S-{id4}` ranges during I112 standardization (v2.0).
+**Note** (I289, review directive 2026-08-08): All error codes now follow the canonical `X-X-X-XXXX` pattern with 4-digit IDs. Retired hybrid formats: `P1-SETUP-{type}{id}`, `P1-BOOT-{reason}`, `B-{module}-{id}` (incl. dynamic `B-{phase_id}-ERR`), and `S-{cat}-S-{id}` (non-4-digit). Only `S-{cat}-S-{id4}`, `B-{cat}-S-{id4}`, and `P{phase}-{module}-{function}-{id4}` are permitted.
 
 ---
 

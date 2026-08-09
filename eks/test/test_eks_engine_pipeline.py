@@ -312,56 +312,56 @@ class TestI107BootstrapCompleteness(TestCase):
         ):
             with self.assertRaises(BootstrapError) as ctx:
                 bootstrap_pipeline(_ROOT, args=[], logger=_SilentLogger())
-            self.assertEqual(ctx.exception.code, "P1-BOOT-READINESS")
+            self.assertEqual(ctx.exception.code, "S-B-S-0603")
             self.assertEqual(ctx.exception.phase, "readiness")
             self.assertIn("readiness gate failed", str(ctx.exception))
 
     def test_bootstrap_error_has_code_and_phase(self):
         """BootstrapError carries code, message, and phase attributes (I111)."""
         from common.library.bootstrap import BootstrapError
-        err = BootstrapError("P1-BOOT-READINESS", "Test message", "readiness")
-        self.assertEqual(err.code, "P1-BOOT-READINESS")
+        err = BootstrapError("S-B-S-0603", "Test message", "readiness")
+        self.assertEqual(err.code, "S-B-S-0603")
         self.assertEqual(err.message, "Test message")
         self.assertEqual(err.phase, "readiness")
-        self.assertIn("P1-BOOT-READINESS", str(err))
+        self.assertIn("S-B-S-0603", str(err))
         self.assertIn("Test message", str(err))
 
     def test_bootstrap_error_to_system_error(self):
         """BootstrapError.to_system_error() returns (code, message) tuple (I111)."""
         from common.library.bootstrap import BootstrapError
-        err = BootstrapError("P1-BOOT-OS", "OS detection failed", "env")
+        err = BootstrapError("S-B-S-0606", "OS detection failed", "env")
         code, msg = err.to_system_error()
-        self.assertEqual(code, "P1-BOOT-OS")
+        self.assertEqual(code, "S-B-S-0606")
         self.assertEqual(msg, "OS detection failed")
 
     def test_bootstrap_error_to_dict(self):
         """BootstrapError.to_dict() returns serializable dict (I111)."""
         from common.library.bootstrap import BootstrapError
-        err = BootstrapError("P1-BOOT-CONFIG", "Config load failed", "registry")
+        err = BootstrapError("S-B-S-0604", "Config load failed", "registry")
         d = err.to_dict()
-        self.assertEqual(d["code"], "P1-BOOT-CONFIG")
+        self.assertEqual(d["code"], "S-B-S-0604")
         self.assertEqual(d["message"], "Config load failed")
         self.assertEqual(d["phase"], "registry")
 
     def test_bootstrap_error_from_system_error(self):
         """BootstrapError.from_system_error() reconstructs from (code, message) pair (I111)."""
         from common.library.bootstrap import BootstrapError
-        err = BootstrapError.from_system_error("P1-BOOT-PATHS", "Path validation failed", "paths")
-        self.assertEqual(err.code, "P1-BOOT-PATHS")
+        err = BootstrapError.from_system_error("S-B-S-0605", "Path validation failed", "paths")
+        self.assertEqual(err.code, "S-B-S-0605")
         self.assertEqual(err.message, "Path validation failed")
         self.assertEqual(err.phase, "paths")
 
     def test_bootstrap_error_registered_in_catalog(self):
-        """All P1-BOOT-* codes are registered in eks_error_config.json (T1.99.62)."""
+        """All S-B-S-0xxx codes are registered in eks_error_config.json (T1.99.62)."""
         from eks.engine.core.error_manager import ErrorManager
         config_dir = _ROOT / "eks" / "config"
         em = ErrorManager(config_dir=config_dir)
         for code in (
-            "P1-BOOT-READINESS",
-            "P1-BOOT-CONFIG",
-            "P1-BOOT-PATHS",
-            "P1-BOOT-OS",
-            "P1-BOOT-CTX",
+            "S-B-S-0603",
+            "S-B-S-0604",
+            "S-B-S-0605",
+            "S-B-S-0606",
+            "S-B-S-0607",
         ):
             entry = em.get_system_error(code)
             self.assertIsNotNone(entry, f"{code} not found in error catalog")

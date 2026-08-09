@@ -129,7 +129,7 @@ The default phase order mirrors DCC's mature P1–P8 sequence:
 | 3 | `P3_registry` | Registry Loading | `_bootstrap_registry` | Load project config via injected `config_loader` (e.g., `ConfigRegistry` SSOT) |
 | 4 | `P4_defaults` | Native Defaults Building | `_bootstrap_defaults` | Build native defaults from `config.global_paths` (data_dir, output_dir, etc.) |
 | 5 | `P5_fallback` | Fallback Validation | `_bootstrap_fallback` | Validate fallback files and directories (project-specific; no-op in base) |
-| 6 | `P6_env` | Environment Testing | `_bootstrap_env` | Detect OS via injected `os_detector`; test dependencies via injected `env_tester` (L20) — if `ready=False`, raises `BootstrapError("P1-BOOT-ENV", ...)` with missing-package guidance |
+| 6 | `P6_env` | Environment Testing | `_bootstrap_env` | Detect OS via injected `os_detector`; test dependencies via injected `env_tester` (L20) — if `ready=False`, raises `BootstrapError("B-E-S-0002", ...)` with missing-package guidance |
 | 7 | `P7_schema` | Schema Resolution | `_bootstrap_schema` | Resolve schema paths and load schema definitions (project-specific; no-op in base) |
 | 8 | `P8_params` | Parameters Resolution | `_bootstrap_params` | Merge CLI + Schema + Native into `effective_parameters` with precedence: CLI > Schema > Native |
 
@@ -233,7 +233,7 @@ Located in `common/library/bootstrap/errors.py`. A structured exception carrying
 ```python
 class BootstrapError(Exception):
     def __init__(self, code: str, message: str, phase: str = "unknown"):
-        self.code = code       # e.g. "P1-BOOT-READINESS", "B-CLI-001"
+        self.code = code       # e.g. "S-B-S-0603", "B-C-S-0001"
         self.message = message  # Human-readable description
         self.phase = phase      # Bootstrap phase name
 
@@ -252,20 +252,22 @@ class BootstrapError(Exception):
 
 | Project | Prefix | Example | Registered In |
 |---------|--------|---------|---------------|
-| **EKS** | `P1-BOOT-*` | `P1-BOOT-READINESS` | `eks_error_config.json` |
-| **DCC** | `S-*-S-*` | `S-A-S-0001` | DCC error catalog (legacy) |
-| **Universal** | `B-*` | `B-CLI-001`, `B-PATH-001`, `B-CTX-001` | Built into manager |
+| **EKS** | `S-B-S-{id4}` | `S-B-S-0603` | `eks_error_config.json` |
+| **Universal** | `B-{cat}-S-{id4}` | `B-C-S-0001`, `B-H-S-0001`, `B-X-S-0001` | `eks_error_config.json` (registered) |
+| **DCC** | `S-{cat}-S-{id4}` | `S-A-S-0001` | DCC error catalog |
 
-### EKS-Specific P1-BOOT-* Codes
+Legacy formats (`P1-BOOT-*`, `P1-SETUP-{type}{id}`, `B-{module}-{id}`) are retired per review directive 2026-08-08 (I289). All codes follow the canonical `X-X-X-XXXX` pattern.
+
+### EKS-Specific Bootstrap Codes (S-B-S-{id4})
 
 | Code | Name | Phase | Message |
 |------|------|-------|---------|
-| `P1-BOOT-READINESS` | `BOOT_READINESS_FAILED` | readiness | Bootstrap readiness gate failed — project setup not ready |
-| `P1-BOOT-CONFIG` | `BOOT_CONFIG_FAILED` | config | Bootstrap config loading failed — unable to load project configuration |
-| `P1-BOOT-PATHS` | `BOOT_PATHS_FAILED` | paths | Bootstrap path resolution failed — invalid or missing project paths |
-| `P1-BOOT-OS` | `BOOT_OS_DETECTION_FAILED` | env | Bootstrap OS detection failed — unable to determine operating system |
-| `P1-BOOT-ENV` | `BOOT_ENVIRONMENT_FAILED` | env | Bootstrap environment check failed — required dependencies missing; run "conda activate eks" |
-| `P1-BOOT-CTX` | `BOOT_CONTEXT_FAILED` | context | Bootstrap context creation failed — must bootstrap before creating PipelineContext |
+| `S-B-S-0603` | `READINESS_GATE_FAILED` | readiness | Bootstrap readiness gate failed — project setup not ready |
+| `S-B-S-0604` | `BOOT_CONFIG_LOAD_FAILED` | config | Bootstrap config loading failed — unable to load project configuration |
+| `S-B-S-0605` | `BOOT_PATH_RESOLUTION_FAILED` | paths | Bootstrap path resolution failed — invalid or missing project paths |
+| `S-B-S-0606` | `BOOT_OS_DETECTION_FAILED` | env | Bootstrap OS detection failed — unable to determine operating system |
+| `S-B-S-0608` | `BOOT_ENVIRONMENT_FAILED` | env | Bootstrap environment check failed — required dependencies missing; run "conda activate eks" |
+| `S-B-S-0607` | `BOOT_CONTEXT_CREATION_FAILED` | context | Bootstrap context creation failed — must bootstrap before creating PipelineContext |
 
 All 6 codes are:
 - Severity: `FATAL`
@@ -292,7 +294,7 @@ All 6 codes are:
 | `error_manager_factory` | `ErrorManagerFactory` | `None` | Callable: `(**kwargs) -> Any` |
 | `message_manager_factory` | `MessageManagerFactory` | `None` | Callable: `(**kwargs) -> Any` |
 | `os_detector` | `OsDetector` | `None` | Callable: `() -> str` |
-| `env_tester` | `EnvTester` | `None` | Callable: `(Dict) -> Dict[str, Any]` — dependency checker (L20). Called in P6 after OS detection; if `ready=False`, raises `BootstrapError("B-ENV-002", ...)` |
+| `env_tester` | `EnvTester` | `None` | Callable: `(Dict) -> Dict[str, Any]` — dependency checker (L20). Called in P6 after OS detection; if `ready=False`, raises `BootstrapError("B-E-S-0002", ...)` |
 | `phase_registry` | `BootstrapPhaseRegistry` | `None` | Custom phase registry (default: 8-phase DCC) |
 | `logger` | `Any` | `None` | Logger instance |
 
@@ -389,9 +391,9 @@ EKSBootstrapManager(
 
 | Phase | Override | Reason |
 |-------|----------|--------|
-| **P6 (`_bootstrap_env`)** | Uses `detect_os()` for OS detection; then calls L20 `test_environment(deps)` via `env_tester` hook to verify all schema-driven dependencies; raises `P1-BOOT-ENV` with missing-package guidance ("Run: conda activate eks") if `ready=False` | EKS-specific OS detection + dependency testing with project-prefix error codes |
+| **P6 (`_bootstrap_env`)** | Uses `detect_os()` for OS detection; then calls L20 `test_environment(deps)` via `env_tester` hook to verify all schema-driven dependencies; raises `BootstrapError("B-E-S-0002" → EKS `S-B-S-0608`) with missing-package guidance ("Run: conda activate eks") if `ready=False` | EKS-specific OS detection + dependency testing with project-prefix error codes |
 | **P8 (`_bootstrap_params`)** | EKS precedence: `level` resolved as CLI > Schema > Native with debug override; `data_dir` resolved as CLI > Schema (`resolve_paths`) > Native, anchored under `eks_root` | EKS-specific parameter merging and path anchoring |
-| **Readiness Gate** | Uses `ProjectSetupValidator` with `skip_readiness` flag; raises `P1-BOOT-READINESS` | EKS-specific project setup validation |
+| **Readiness Gate** | Uses `ProjectSetupValidator` with `skip_readiness` flag; raises `S-B-S-0603` | EKS-specific project setup validation |
 | **`to_dict()`** | Lazy-inits `ErrorManager`/`MessageManager`, resolves `data_dir` from effective params | Backward-compat with legacy `bootstrap_pipeline()` callers |
 | **`to_pipeline_context()`** | Returns `EKSPipelineContext` (L06 subclass) with `EKSPaths`, `EKSData`, `EKSState`, `EKSTelemetry` | EKS-specific context with schema/config registries |
 
@@ -439,7 +441,7 @@ EKSPipelineContext (extends BasePipelineContext, L06)
 ```
 EKSBootstrapManager.to_pipeline_context()
   │
-  ├── Guard: _bootstrapped == True (else raise P1-BOOT-CTX)
+  ├── Guard: _bootstrapped == True (else raise S-B-S-0607 / B-X-S-0001)
   │
   ├── Build EKSPaths from resolved_paths
   ├── Build EKSData (empty)
@@ -455,8 +457,8 @@ EKSBootstrapManager.to_pipeline_context()
 
 ### Context Gating
 
-- `to_pipeline_context()` raises `P1-BOOT-CTX` (EKS) / `B-CTX-001` (universal) if `_bootstrapped == False`
-- `preload_trace` property raises `B-BOOT-0601` if not bootstrapped
+- `to_pipeline_context()` raises `S-B-S-0607` (EKS) / `B-X-S-0001` (universal) if `_bootstrapped == False`
+- `preload_trace` property raises `B-B-S-0001` if not bootstrapped
 - These gates enforce the contract: **bootstrap must complete before context is available**
 
 ---
@@ -504,34 +506,36 @@ Built into `BootstrapManager` for any project:
 
 | Code | Phase | Condition |
 |------|-------|-----------|
-| `B-CLI-001` | P1 (cli) | CLI parsing failed |
-| `B-PATH-001` | P2 (paths) | Project root does not exist |
-| `B-PATH-002` | P2 (paths) | Path validation failed (unexpected) |
-| `B-REG-001` | P3 (registry) | Registry loading failed |
-| `B-DEF-001` | P4 (defaults) | Defaults building failed |
-| `B-FALL-001` | P5 (fallback) | Fallback validation failed |
-| `B-ENV-001` | P6 (env) | Environment testing failed |
-| `B-SCH-001` | P7 (schema) | Schema resolution failed |
-| `B-PAR-001` | P8 (params) | Parameters resolution failed (CLI) |
-| `B-PAR-002` | P8 (params) | Parameters resolution failed (UI) |
-| `B-BOOT-0601` | traces | Accessing preload_trace before bootstrap |
-| `B-CTX-001` | context | Calling to_pipeline_context() before bootstrap |
-| `B-UNK-001` | unknown | Unexpected error in bootstrap_all() |
-| `B-UNK-002` | unknown | Unexpected error in bootstrap_for_ui() |
-| `B-{phase_id}-ERR` | any | Phase raised non-BootstrapError exception |
+| `B-C-S-0001` | P1 (cli) | CLI parsing failed |
+| `B-H-S-0001` | P2 (paths) | Project root does not exist |
+| `B-H-S-0002` | P2 (paths) | Path validation failed (unexpected) |
+| `B-R-S-0001` | P3 (registry) | Registry loading failed |
+| `B-D-S-0001` | P4 (defaults) | Defaults building failed |
+| `B-A-S-0001` | P5 (fallback) | Fallback validation failed |
+| `B-E-S-0001` | P6 (env) | Environment testing failed |
+| `B-E-S-0002` | P6 (env) | Required dependencies missing |
+| `B-K-S-0001` | P7 (schema) | Schema resolution failed |
+| `B-M-S-0001` | P8 (params) | Parameters resolution failed (CLI) |
+| `B-M-S-0002` | P8 (params) | Parameters resolution failed (UI) |
+| `B-B-S-0001` | traces | Accessing preload_trace before bootstrap |
+| `B-X-S-0001` | context | Calling to_pipeline_context() before bootstrap |
+| `B-U-S-0001` | unknown | Unexpected error in bootstrap_all() / `_run_phase()` |
+| `B-U-S-0002` | unknown | Unexpected error in bootstrap_for_ui() |
 
-### EKS-Specific Error Codes (P1-BOOT-*)
+### EKS-Specific Error Codes (S-B-*)
 
-Registered in `eks/config/schemas/eks_error_config.json` under `bootstrap_p1` range:
+Registered in `eks/config/schemas/eks_error_config.json` under the `S-B-S` bootstrap range:
 
 | Code | Name | Category | Severity | stops_pipeline |
 |------|------|----------|----------|----------------|
-| `P1-BOOT-READINESS` | `BOOT_READINESS_FAILED` | Bootstrap | FATAL | true |
-| `P1-BOOT-CONFIG` | `BOOT_CONFIG_FAILED` | Bootstrap | FATAL | true |
-| `P1-BOOT-PATHS` | `BOOT_PATHS_FAILED` | Bootstrap | FATAL | true |
-| `P1-BOOT-OS` | `BOOT_OS_DETECTION_FAILED` | Bootstrap | FATAL | true |
-| `P1-BOOT-ENV` | `BOOT_ENVIRONMENT_FAILED` | Bootstrap | FATAL | true |
-| `P1-BOOT-CTX` | `BOOT_CONTEXT_FAILED` | Bootstrap | FATAL | true |
+| `S-B-S-0601` | BOOT_NOT_COMPLETED | Bootstrap | FATAL | true |
+| `S-B-S-0602` | PRIOR_PHASE_INCOMPLETE | Bootstrap | FATAL | true |
+| `S-B-S-0603` | READINESS_GATE_FAILED | Bootstrap | FATAL | true |
+| `S-B-S-0604` | BOOT_CONFIG_LOAD_FAILED | Bootstrap | FATAL | true |
+| `S-B-S-0605` | BOOT_PATH_RESOLUTION_FAILED | Bootstrap | FATAL | true |
+| `S-B-S-0606` | BOOT_OS_DETECTION_FAILED | Bootstrap | FATAL | true |
+| `S-B-S-0607` | BOOT_CONTEXT_CREATION_FAILED | Bootstrap | FATAL | true |
+| `S-B-S-0608` | BOOT_ENVIRONMENT_FAILED | Bootstrap | FATAL | true |
 
 ### Error Manager Integration
 
@@ -604,7 +608,7 @@ The first `common.library` call path is `test_environment()` in bootstrap P6, en
 
 ### Error Handling in main()
 
-- Bootstrap failures raise `BootstrapError` with `P1-BOOT-*` codes (propagated from `bootstrap_all()`)
+- Bootstrap failures raise `BootstrapError` with canonical codes (`S-B-S-0603`–`0608` EKS; `B-{cat}-S-{id4}` universal) propagated from `bootstrap_all()`
 - Top-level `except Exception` catches pipeline failures
 - Errors logged via `UniversalLogger.error()` and printed to `stderr`
 - Returns exit code 1 on failure
@@ -703,7 +707,7 @@ Built after `to_pipeline_context()`:
 ```
 
 Access via:
-- `mgr.preload_trace` — raises `B-BOOT-0601` if not bootstrapped
+- `mgr.preload_trace` — raises `B-B-S-0001` if not bootstrapped
 - `mgr.postload_trace` — `None` if `to_pipeline_context()` not yet called
 
 ---
@@ -817,7 +821,7 @@ Including 6 bootstrap-specific tests:
 | **Dual-mode (CLI + UI)** | Both entry paths exist in production: `console_scripts` for CLI, HTTP backend for UI. They share the same bootstrap core. |
 | **Backward-compatible `to_dict()`** | Existing callers (`phase1_server.py`, tests) depend on the legacy dict shape. `to_dict()` preserves this contract without breaking changes. |
 | **Structured `BootstrapError`** | `(code, message, phase)` tuple provides full context for error managers. `to_system_error()` bridges to DCC's legacy `system_error_print()`. |
-| **Project-prefix error codes** | EKS uses `P1-BOOT-*` registered in `eks_error_config.json`; universal codes use `B-*`. Each project's error catalog is the SSOT. |
+| **Project-prefix error codes** | EKS uses `S-B-S-*` registered in `eks_error_config.json`; universal codes use `B-{cat}-S-{id4}`. Each project's error catalog is the SSOT. |
 | **Lazy manager initialization** | `ErrorManager` and `MessageManager` are created lazily (on first `to_dict()` or `to_pipeline_context()` call) to avoid circular imports and unnecessary instantiation. |
 | **ConfigRegistry singleton reset** | When `config_dir` changes between bootstrap calls, the singleton is reset to avoid stale config. |
 | **Traces for debugging** | Preload and postload traces capture system state at two critical points, enabling RCA without re-running bootstrap. |
@@ -1016,7 +1020,7 @@ main(args)                                                    [F2, entry point]
   │     └── return self
   │
   ├── EKSBootstrapManager.to_pipeline_context()               [D12]
-  │     ├── guard: _bootstrapped == True                      (else → P1-BOOT-CTX)
+  │     ├── guard: _bootstrapped == True                      (else → S-B-S-0607)
   │     ├── EKSPaths(...)                                     [E dataclass]
   │     ├── EKSData()                                         [E dataclass]
   │     ├── EKSState(status="INITIALIZED", ...)               [E dataclass]
@@ -1101,7 +1105,7 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 - **Purpose**: Structured exception constructor for bootstrap failures.
 - **Parameter flow**: `code` → `self.code`; `message` → `self.message`; `phase` → `self.phase`. Calls `super().__init__()` with formatted string `[code] message (phase: phase)`.
 - **Error handling**: None — pure data carrier.
-- **Tracing**: Error code is project-prefix-aware (EKS: `P1-BOOT-*`, DCC: `S-*-S-*`, universal: `B-*`).
+- **Tracing**: Error code is project-prefix-aware (EKS: `S-B-S-*`, DCC: `S-*-S-*`, universal: `B-{cat}-S-{id4}`).
 
 **A2. `BootstrapError.to_system_error()`**
 - **Purpose**: Bridge to DCC's legacy `system_error_print()` / L10 `BaseErrorManager`.
@@ -1173,7 +1177,7 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 
 **C7. `preload_trace` (property)**
 - **Purpose**: Access pre-context trace snapshot.
-- **Error handling**: Raises `BootstrapError("B-BOOT-0601", ...)` if not bootstrapped.
+- **Error handling**: Raises `BootstrapError("B-B-S-0001", ...)` if not bootstrapped.
 
 **C8. `postload_trace` (property)**
 - **Purpose**: Access post-context trace snapshot. Returns `None` if `to_pipeline_context()` not yet called.
@@ -1185,18 +1189,18 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 - **Purpose**: Execute all 8 bootstrap phases in sequence. Returns self for chaining.
 - **Parameter flow**: `cli_args` → P1 CLI parsing → populates `cli_args`, `parsed`, `debug_mode`, `cli_overrides_provided`, `project_root`, `config_dir`.
 - **Calling sequence**: P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → set `_bootstrapped = True` → return self.
-- **Error handling**: Each phase wrapped in `_run_phase()` which catches `BootstrapError` (re-raises) and generic `Exception` (wraps in `BootstrapError("B-UNK-001", ...)`).
+- **Error handling**: Each phase wrapped in `_run_phase()` which catches `BootstrapError` (re-raises) and generic `Exception` (wraps in `BootstrapError("B-U-S-0001", ...)`).
 - **Tracing**: `_bootstrap_start_time` recorded at entry. Each phase logs via `_log()`.
 
 **C11. `bootstrap_for_ui(**ui_params)` — PRIMARY ENTRY POINT (UI)**
 - **Purpose**: Run bootstrap skipping CLI parsing (P1) and fallback validation (P5). UI params set directly as `cli_args`.
 - **Parameter flow**: `**ui_params` → `self.cli_args`, `self.cli_overrides_provided = bool(ui_params)`, `self.debug_mode = ui_params.get("debug_mode", False)`.
 - **Calling sequence**: P2 → P3 → P4 → P6 → P7 → P8 (via `_bootstrap_params_for_ui`).
-- **Error handling**: Same pattern as `bootstrap_all()`; unexpected errors wrapped in `BootstrapError("B-UNK-002", ...)`.
+- **Error handling**: Same pattern as `bootstrap_all()`; unexpected errors wrapped in `BootstrapError("B-U-S-0002", ...)`.
 
 **C12. `to_pipeline_context()`**
 - **Purpose**: Convert bootstrapped state to a pipeline context object.
-- **Error handling**: Raises `BootstrapError("B-CTX-001", ...)` if `_bootstrapped == False`.
+- **Error handling**: Raises `BootstrapError("B-X-S-0001", ...)` if `_bootstrapped == False`.
 - **Returns**: Default is a dict with all resolved state. Subclasses (EKS) override to return typed context objects.
 
 **C13. `_build_context()`**
@@ -1210,40 +1214,40 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 **C15. `_bootstrap_cli(cli_args)` — Phase P1**
 - **Purpose**: Parse CLI args via injected `_cli_parser`. Handles both `CliResult` (L18, with `.namespace`) and plain namespace returns.
 - **Parameter flow**: `cli_args` → `_cli_parser(cli_args)` → extracts `cli_args` (via `vars()`), `parsed`, `cli_overrides_provided`, `project_root`, `config_dir`. Determines `debug_mode` from `verbose`/`level`.
-- **Error handling**: Raises `BootstrapError("B-CLI-001", ...)` on failure.
+- **Error handling**: Raises `BootstrapError("B-C-S-0001", ...)` on failure.
 
 **C16. `_bootstrap_paths(cli_args)` — Phase P2**
 - **Purpose**: Validate `project_root` exists, resolve canonical paths via injected `_path_resolver`.
 - **Parameter flow**: `project_root` → existence check → `_path_resolver(project_root, config)` → `self.resolved_paths`. Falls back to simple defaults if no resolver.
-- **Error handling**: `BootstrapError("B-PATH-001")` if root missing; `BootstrapError("B-PATH-002")` for unexpected errors.
+- **Error handling**: `BootstrapError("B-H-S-0001")` if root missing; `BootstrapError("B-H-S-0002")` for unexpected errors.
 
 **C17. `_bootstrap_registry()` — Phase P3**
 - **Purpose**: Load project config via injected `_config_loader`.
-- **Error handling**: `BootstrapError("B-REG-001")` on failure.
+- **Error handling**: `BootstrapError("B-R-S-0001")` on failure.
 
 **C18. `_bootstrap_defaults()` — Phase P4**
 - **Purpose**: Build native defaults from `config.global_paths`.
-- **Error handling**: `BootstrapError("B-DEF-001")` on failure.
+- **Error handling**: `BootstrapError("B-D-S-0001")` on failure.
 
 **C19. `_bootstrap_fallback()` — Phase P5**
 - **Purpose**: Validate fallback files (no-op in base; subclasses override).
-- **Error handling**: `BootstrapError("B-FALL-001")` on failure.
+- **Error handling**: `BootstrapError("B-A-S-0001")` on failure.
 
 **C20. `_bootstrap_env()` — Phase P6**
 - **Purpose**: Detect OS via injected `_os_detector`.
-- **Error handling**: `BootstrapError("B-ENV-001")` on failure.
+- **Error handling**: `BootstrapError("B-E-S-0001")` on failure.
 
 **C21. `_bootstrap_schema()` — Phase P7**
 - **Purpose**: Resolve schemas (no-op in base; subclasses override).
-- **Error handling**: `BootstrapError("B-SCH-001")` on failure.
+- **Error handling**: `BootstrapError("B-K-S-0001")` on failure.
 
 **C22. `_bootstrap_params()` — Phase P8 (CLI)**
 - **Purpose**: Merge CLI + Schema + Native into `effective_parameters`. Precedence: CLI > Schema > Native.
-- **Error handling**: `BootstrapError("B-PAR-001")` on failure.
+- **Error handling**: `BootstrapError("B-M-S-0001")` on failure.
 
 **C23. `_bootstrap_params_for_ui(**ui_params)` — Phase P8 (UI)**
 - **Purpose**: Merge UI + Schema + Native. UI values get highest precedence.
-- **Error handling**: `BootstrapError("B-PAR-002")` on failure.
+- **Error handling**: `BootstrapError("B-M-S-0002")` on failure.
 
 **C24. `_run_readiness_gate()`**
 - **Purpose**: Run project-setup readiness validation via injected `_readiness_validator_factory`.
@@ -1293,8 +1297,8 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 
 **D8. `_bootstrap_env()` — P6 override**
 - **Purpose**: EKS-specific OS detection via L12 `detect_os()` + dependency testing via L20 `test_environment()`.
-- **Parameter flow**: 1) `detect_os()` → `self.os_info`. 2) Extract `dependencies` from `self.config` (from `eks_config.json`). 3) Call `test_environment(deps)` → `self._env_test_results`. 4) If `ready=False`, raise `BootstrapError("P1-BOOT-ENV", ...)` with missing-package names + "Run: conda activate eks" guidance.
-- **Error handling**: Raises `BootstrapError("P1-BOOT-OS", ...)` on OS detection failure; raises `BootstrapError("P1-BOOT-ENV", ...)` on dependency failure.
+- **Parameter flow**: 1) `detect_os()` → `self.os_info`. 2) Extract `dependencies` from `self.config` (from `eks_config.json`). 3) Call `test_environment(deps)` → `self._env_test_results`. 4) If `ready=False`, raise `BootstrapError("S-B-S-0608", ...)` with missing-package names + "Run: conda activate eks" guidance.
+- **Error handling**: Raises `BootstrapError("S-B-S-0606", ...)` on OS detection failure; raises `BootstrapError("S-B-S-0608", ...)` on dependency failure.
 
 **D9. `_bootstrap_params()` — P8 override**
 - **Purpose**: EKS-specific parameter merging with `level` and `data_dir` resolution.
@@ -1302,7 +1306,7 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
   - `level`: CLI `--level` > Schema `log_level` > Native (1). CLI `--debug` → level = 3.
   - `data_dir`: CLI `--data-dir` > Schema `resolve_paths` > Native. CLI absolute → as-is; CLI relative → anchored under `project_root / eks_root`.
   - Other params: CLI > Schema > Native precedence.
-- **Error handling**: Raises `BootstrapError("P1-BOOT-PARAMS", ...)` on failure.
+- **Error handling**: Raises `BootstrapError("S-B-S-0604", ...)` on failure.
 
 **D10. `_run_readiness_gate()` — override**
 - **Purpose**: EKS-specific readiness gate via `ProjectSetupValidator`.
@@ -1318,7 +1322,7 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 - **Purpose**: Build typed `EKSPipelineContext` (L06 subclass).
 - **Returns**: `EKSPipelineContext` with `EKSPaths`, `EKSData`, `EKSState(status="INITIALIZED")`, `EKSTelemetry`, `config_registry`, `schema_registry`.
 - **Lazy init**: Creates `ErrorManager`/`MessageManager` if needed, injects into `ctx_params`.
-- **Error handling**: Raises `BootstrapError("P1-BOOT-CTX", ...)` if not bootstrapped.
+- **Error handling**: Raises `BootstrapError("S-B-S-0607", ...)` if not bootstrapped.
 
 ### H.19.5 EKSPipelineContext (E1–E13)
 
@@ -1351,39 +1355,39 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 **F1. `bootstrap_pipeline(project_root, args, logger, skip_readiness, debug, use_config_registry, auto_create)`**
 - **Purpose**: Thin backward-compatible wrapper around `EKSBootstrapManager`. Delegates all logic to L19.
 - **Parameter flow**: Creates `EKSBootstrapManager` → `bootstrap_all(args)` → `to_dict()`.
-- **Error handling**: Readiness gate failure raises `BootstrapError("P1-BOOT-READINESS", ...)`.
+- **Error handling**: Readiness gate failure raises `BootstrapError("S-B-S-0603", ...)`.
 - **Status**: Thin wrapper — all logic delegated to universal manager (T1.99.58).
 
 **F2. `main(args=None)`**
 - **Purpose**: `console_scripts` entry point — full DCC-faithful pipeline orchestration.
 - **Parameter flow**: 12-step chain (see §H.12): discover root → bootstrap → context → EngineInput → run_pipeline → EngineOutput → exit code.
-- **Error handling**: Bootstrap failures propagate as `BootstrapError("P1-BOOT-*")`. Top-level `except Exception` logs via `UniversalLogger`, prints to `stderr`, returns exit code 1.
+- **Error handling**: Bootstrap failures propagate as `BootstrapError("S-B-S-*")`. Top-level `except Exception` logs via `UniversalLogger`, prints to `stderr`, returns exit code 1.
 - **Returns**: `0` on success, `1` on failure (suitable for `sys.exit`).
 
 ### H.19.7 Error Handling Summary
 
 | Function | Error Raised | Error Code | Trigger Condition |
 |----------|-------------|------------|-------------------|
-| `bootstrap_pipeline` [F1] | `BootstrapError` | `P1-BOOT-READINESS` | Readiness gate returns `False` |
-| `_bootstrap_cli` [C15] | `BootstrapError` | `B-CLI-001` | CLI parsing fails |
-| `_bootstrap_paths` [C16] | `BootstrapError` | `B-PATH-001` | `project_root` does not exist |
-| `_bootstrap_paths` [C16] | `BootstrapError` | `B-PATH-002` | Unexpected path resolution error |
-| `_bootstrap_registry` [C17] | `BootstrapError` | `B-REG-001` | Config loading fails |
-| `_bootstrap_defaults` [C18] | `BootstrapError` | `B-DEF-001` | Defaults building fails |
-| `_bootstrap_fallback` [C19] | `BootstrapError` | `B-FALL-001` | Fallback validation fails |
-| `_bootstrap_env` [D8] (EKS) | `BootstrapError` | `P1-BOOT-OS` | OS detection fails |
-| `_bootstrap_env` [D8] (EKS) | `BootstrapError` | `P1-BOOT-ENV` | Dependency check fails — required packages missing |
-| `_bootstrap_env` [C20] (base) | `BootstrapError` | `B-ENV-001` | OS detection fails (universal) |
-| `_bootstrap_schema` [C21] | `BootstrapError` | `B-SCH-001` | Schema resolution fails |
-| `_bootstrap_params` [D9] (EKS) | `BootstrapError` | `P1-BOOT-PARAMS` | Parameter resolution fails |
-| `_bootstrap_params` [C22] (base) | `BootstrapError` | `B-PAR-001` | Parameter resolution fails (universal) |
-| `_bootstrap_params_for_ui` [C23] | `BootstrapError` | `B-PAR-002` | UI parameter resolution fails |
-| `preload_trace` [C7] | `BootstrapError` | `B-BOOT-0601` | Accessed before bootstrap complete |
-| `to_pipeline_context` [C12] | `BootstrapError` | `B-CTX-001` | Called before bootstrap (universal) |
-| `to_pipeline_context` [D12] (EKS) | `BootstrapError` | `P1-BOOT-CTX` | Called before bootstrap (EKS) |
-| `bootstrap_all` [C10] | `BootstrapError` | `B-UNK-001` | Unexpected exception in any phase |
-| `bootstrap_for_ui` [C11] | `BootstrapError` | `B-UNK-002` | Unexpected exception in UI mode |
-| `_run_phase` [C27] | `BootstrapError` | `B-{phase_id}-ERR` | Phase raises non-BootstrapError exception |
+| `bootstrap_pipeline` [F1] | `BootstrapError` | `S-B-S-0603` | Readiness gate returns `False` |
+| `_bootstrap_cli` [C15] | `BootstrapError` | `B-C-S-0001` | CLI parsing fails |
+| `_bootstrap_paths` [C16] | `BootstrapError` | `B-H-S-0001` | `project_root` does not exist |
+| `_bootstrap_paths` [C16] | `BootstrapError` | `B-H-S-0002` | Unexpected path resolution error |
+| `_bootstrap_registry` [C17] | `BootstrapError` | `B-R-S-0001` | Config loading fails |
+| `_bootstrap_defaults` [C18] | `BootstrapError` | `B-D-S-0001` | Defaults building fails |
+| `_bootstrap_fallback` [C19] | `BootstrapError` | `B-A-S-0001` | Fallback validation fails |
+| `_bootstrap_env` [D8] (EKS) | `BootstrapError` | `S-B-S-0606` | OS detection fails |
+| `_bootstrap_env` [D8] (EKS) | `BootstrapError` | `S-B-S-0608` | Dependency check fails — required packages missing |
+| `_bootstrap_env` [C20] (base) | `BootstrapError` | `B-E-S-0001` | OS detection fails (universal) |
+| `_bootstrap_schema` [C21] | `BootstrapError` | `B-K-S-0001` | Schema resolution fails |
+| `_bootstrap_params` [D9] (EKS) | `BootstrapError` | `B-M-S-0001` | Parameter resolution fails |
+| `_bootstrap_params` [C22] (base) | `BootstrapError` | `B-M-S-0001` | Parameter resolution fails (universal) |
+| `_bootstrap_params_for_ui` [C23] | `BootstrapError` | `B-M-S-0002` | UI parameter resolution fails |
+| `preload_trace` [C7] | `BootstrapError` | `B-B-S-0001` | Accessed before bootstrap complete |
+| `to_pipeline_context` [C12] | `BootstrapError` | `B-X-S-0001` | Called before bootstrap (universal) |
+| `to_pipeline_context` [D12] (EKS) | `BootstrapError` | `B-X-S-0001` | Called before bootstrap (EKS) |
+| `bootstrap_all` [C10] | `BootstrapError` | `B-U-S-0001` | Unexpected exception in any phase |
+| `bootstrap_for_ui` [C11] | `BootstrapError` | `B-U-S-0002` | Unexpected exception in UI mode |
+| `_run_phase` [C27] | `BootstrapError` | `B-U-S-0001` | Phase raises non-BootstrapError exception |
 
 ---
 
@@ -1393,4 +1397,4 @@ Per AGENTS.md §17, this section provides full details for each function: purpos
 |----------|------|--------|---------|
 | 0.1 | 2026-07-17 | opencode | Initial appendix — comprehensive bootstrap module design summary for I108–I111 (T1.99.50–T1.99.63) |
 | 0.2 | 2026-07-17 | opencode | Added §H.18 Function List & I/O Table (78 functions across 7 modules, call graphs for CLI/UI/legacy paths, I/O table) and §H.19 Function Details (purpose, parameter flow, error handling, tracing per function) per AGENTS.md §14.7–§14.8 and §17 |
-| 0.3 | 2026-07-17 | opencode | I114 updates: §H.4 P6 description + env_tester; §H.7 constructor params + EnvTester type alias + _env_test_results state; §H.8 hook mappings + P6 override; §H.11 P1-BOOT-ENV error code; §H.12 lazy-import design + early verbosity parse in main() flow; §H.19.4 D8 + §H.19.7 error table. T1.99.80 v2 reflected throughout. |
+| **0.4** | **2026-08-08** | **opencode** | **I289 (T1.251): Swept all legacy error-code references — `P1-BOOT-*` → `S-B-S-0603`–`0608`; universal `B-CLI-001`/`B-PATH-*`/`B-REG-001`/`B-DEF-001`/`B-FALL-001`/`B-ENV-*`/`B-SCH-001`/`B-PAR-*`/`B-BOOT-0601`/`B-CTX-001`/`B-UNK-*`/`B-{phase_id}-ERR` → canonical `B-{cat}-S-{id4}` family (`B-C-S-0001`..`B-U-S-0002`). Tables, format docs, flow diagrams, H.19 error table, and revision history updated.** |

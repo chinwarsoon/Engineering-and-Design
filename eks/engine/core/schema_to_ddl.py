@@ -114,6 +114,77 @@ class SchemaToDDL:
         ]
 
     @log_depth
+    def registry_relations(self) -> List[Dict[str, Any]]:
+        """
+        Return the schema-declared FK relationships for the runtime `documents`
+        registry (GROUP 11).
+
+        I290 (T1.253): FK relationships are declared as schema metadata in
+        eks_doc_base_schema.json#/registry_relations (SSOT, AGENTS.md §16).
+        Runtime ENTITY does NOT emit physical DuckDB FOREIGN KEY constraints:
+          (a) definition-layer targets (project_doc_type, discipline, file_type,
+              project_definition) are not materialized in the runtime registry DB —
+              DuckDB rejects FK DDL referencing a missing table;
+          (b) self-FKs (supersedes/superseded_by) would block PK UPDATEs performed
+              by _migrate_ids_to_uuid (DuckDB reports the referenced key still
+              referenced by a FK in the same session).
+        Referential integrity is enforced by the validation layer instead.
+        """
+        relations = self.schema.get("registry_relations", [])
+        return relations or []
+
+    @log_depth
+    def generate_relations_manifest_ddl(self) -> List[str]:
+        """
+        Generate the `_eks_table_relations` manifest table (one row per declared
+        FK relationship) plus its INSERT statements.
+
+        I290 (T1.253): the manifest makes the schema-declared relationships
+        queryable at runtime (which FKs exist, their candidate-key shape, and
+        whether they are declared-only), and mirrors ``registry_relations``
+        exactly so the docs and the DB cannot drift.
+        """
+        relations = self.registry_relations()
+        if not relations:
+            return []
+        stmts = [
+            "CREATE TABLE IF NOT EXISTS _eks_table_relations ("
+            "    relation_name VARCHAR PRIMARY KEY,"
+            "    source_table VARCHAR NOT NULL,"
+            "    source_columns VARCHAR NOT NULL,"
+            "    target_table VARCHAR NOT NULL,"
+            "    target_columns VARCHAR NOT NULL,"
+            "    relation_type VARCHAR NOT NULL,"
+            "    declared_only BOOLEAN NOT NULL DEFAULT TRUE,"
+            "    description VARCHAR"
+            ")"
+        ]
+        import json as _json
+
+        def _sql(strlit):
+            return "'" + str(strlit).replace("'", "''") + "'"
+
+        for rel in relations:
+            stmts.append(
+                "INSERT OR REPLACE INTO _eks_table_relations "
+                "(relation_name, source_table, source_columns, target_table, "
+                " target_columns, relation_type, declared_only, description) "
+                "VALUES ("
+                + ", ".join([
+                    _sql(rel.get("relation_name")),
+                    _sql(rel.get("source_table", "documents")),
+                    _sql(_json.dumps(rel.get("source_columns", []))),
+                    _sql(rel.get("target_table")),
+                    _sql(_json.dumps(rel.get("target_columns", []))),
+                    _sql(rel.get("relation_type", "simple")),
+                    "TRUE" if rel.get("declared_only", True) else "FALSE",
+                    _sql(rel.get("description", "")),
+                ])
+                + ")"
+            )
+        return stmts
+
+    @log_depth
     def generate_migration_ddl(self, table_name: str, existing_columns: set) -> List[str]:
         """
         Generate ALTER TABLE ADD COLUMN statements for columns that exist
@@ -135,7 +206,7 @@ class SchemaToDDL:
             # — matches generate_documents_ddl() behavior so that columns added
             # via ALTER TABLE get the same nullability as columns created via
             # CREATE TABLE.
-            always_nullable = {"project_title", "project_number", "area", "discipline", "department"}
+            always_nullable = {"project_title", "project_number", "area", "discipline", "department", "project_code"}
             required_fields = required_fields - always_nullable
         elif table_name == "document_elements":
             el_def = self.definitions.get("document_element_def", {})

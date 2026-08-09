@@ -245,7 +245,7 @@ class BootstrapManager:
         """Get preload trace data (available after bootstrap completes)."""
         if not self._bootstrapped:
             raise BootstrapError(
-                "B-BOOT-0601",
+                "B-B-S-0001",
                 "Bootstrap must be completed before accessing preload trace",
                 "traces",
             )
@@ -319,7 +319,7 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            raise BootstrapError("B-UNK-001", f"Unexpected bootstrap error: {exc}", "unknown")
+            raise BootstrapError("B-U-S-0001", f"Unexpected bootstrap error: {exc}", "unknown")
 
     # ------------------------------------------------------------------
     # bootstrap_for_ui — UI mode (skips CLI parsing)
@@ -378,7 +378,7 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            raise BootstrapError("B-UNK-002", f"Unexpected bootstrap error (UI): {exc}", "unknown")
+            raise BootstrapError("B-U-S-0002", f"Unexpected bootstrap error (UI): {exc}", "unknown")
 
     # ------------------------------------------------------------------
     # to_pipeline_context
@@ -400,7 +400,7 @@ class BootstrapManager:
         """
         if not self._bootstrapped:
             raise BootstrapError(
-                "B-CTX-001",
+                "B-X-S-0001",
                 "Must bootstrap before creating PipelineContext",
                 "context",
             )
@@ -501,8 +501,8 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P1_cli", "B-CLI-001")
-            raise BootstrapError("B-CLI-001", f"CLI parsing failed: {exc}", "cli")
+            self._record_phase_failure("P1_cli", "B-C-S-0001")
+            raise BootstrapError("B-C-S-0001", f"CLI parsing failed: {exc}", "cli")
 
     # ==========================================================================
     # Phase P2: Path Validation
@@ -523,7 +523,7 @@ class BootstrapManager:
         try:
             if not self.project_root.exists():
                 raise BootstrapError(
-                    "B-PATH-001",
+                    "B-H-S-0001",
                     f"Project root does not exist: {self.project_root}",
                     "paths",
                 )
@@ -548,11 +548,11 @@ class BootstrapManager:
             self._log(f"Bootstrap Phase P2: Paths resolved: {len(self.resolved_paths)} paths")
 
         except BootstrapError:
-            self._record_phase_failure("P2_paths", "B-PATH-001")
+            self._record_phase_failure("P2_paths", "B-H-S-0001")
             raise
         except Exception as exc:
-            self._record_phase_failure("P2_paths", "B-PATH-002")
-            raise BootstrapError("B-PATH-002", f"Path validation failed: {exc}", "paths")
+            self._record_phase_failure("P2_paths", "B-H-S-0002")
+            raise BootstrapError("B-H-S-0002", f"Path validation failed: {exc}", "paths")
 
     # ==========================================================================
     # Phase P3: Registry Loading
@@ -581,8 +581,8 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P3_registry", "B-REG-001")
-            raise BootstrapError("B-REG-001", f"Registry loading failed: {exc}", "registry")
+            self._record_phase_failure("P3_registry", "B-R-S-0001")
+            raise BootstrapError("B-R-S-0001", f"Registry loading failed: {exc}", "registry")
 
     # ==========================================================================
     # Phase P4: Native Defaults Building
@@ -609,8 +609,8 @@ class BootstrapManager:
             self._log(f"Bootstrap Phase P4: Native defaults: {len(self.native_defaults)} parameters")
 
         except Exception as exc:
-            self._record_phase_failure("P4_defaults", "B-DEF-001")
-            raise BootstrapError("B-DEF-001", f"Defaults building failed: {exc}", "defaults")
+            self._record_phase_failure("P4_defaults", "B-D-S-0001")
+            raise BootstrapError("B-D-S-0001", f"Defaults building failed: {exc}", "defaults")
 
     # ==========================================================================
     # Phase P5: Fallback Validation
@@ -627,8 +627,8 @@ class BootstrapManager:
             self._record_phase_complete("P5_fallback")
             self._log("Bootstrap Phase P5: Fallback validation passed")
         except Exception as exc:
-            self._record_phase_failure("P5_fallback", "B-FALL-001")
-            raise BootstrapError("B-FALL-001", f"Fallback validation failed: {exc}", "fallback")
+            self._record_phase_failure("P5_fallback", "B-A-S-0001")
+            raise BootstrapError("B-A-S-0001", f"Fallback validation failed: {exc}", "fallback")
 
     # ==========================================================================
     # Phase P6: Environment Testing
@@ -661,7 +661,7 @@ class BootstrapManager:
                     errors = self._env_test_results.get("errors", [])
                     missing = ", ".join(errors) if errors else "unknown packages"
                     raise BootstrapError(
-                        "B-ENV-002",
+                        "B-E-S-0002",
                         f"Required dependencies missing: {missing}",
                         "env",
                     )
@@ -672,8 +672,8 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P6_env", "B-ENV-001")
-            raise BootstrapError("B-ENV-001", f"Environment testing failed: {exc}", "env")
+            self._record_phase_failure("P6_env", "B-E-S-0001")
+            raise BootstrapError("B-E-S-0001", f"Environment testing failed: {exc}", "env")
 
     # ==========================================================================
     # Phase P7: Schema Resolution
@@ -734,8 +734,8 @@ class BootstrapManager:
             self._log(f"Bootstrap Phase P8: Parameters resolved: {len(self.effective_parameters)}")
 
         except Exception as exc:
-            self._record_phase_failure("P8_params", "B-PAR-001")
-            raise BootstrapError("B-PAR-001", f"Parameters resolution failed: {exc}", "params")
+            self._record_phase_failure("P8_params", "B-M-S-0001")
+            raise BootstrapError("B-M-S-0001", f"Parameters resolution failed: {exc}", "params")
 
     def _bootstrap_params_for_ui(self, **ui_params: Any) -> None:
         """
@@ -751,8 +751,8 @@ class BootstrapManager:
             self._log(f"Bootstrap Phase P8 (UI): Parameters resolved: {len(self.effective_parameters)}")
 
         except Exception as exc:
-            self._record_phase_failure("P8_params", "B-PAR-002")
-            raise BootstrapError("B-PAR-002", f"UI parameters resolution failed: {exc}", "params")
+            self._record_phase_failure("P8_params", "B-M-S-0002")
+            raise BootstrapError("B-M-S-0002", f"UI parameters resolution failed: {exc}", "params")
 
     # ==========================================================================
     # Readiness gate — subclasses override
@@ -812,9 +812,9 @@ class BootstrapManager:
             self._record_phase_failure(phase_id, exc.code)
             raise
         except Exception as exc:
-            self._record_phase_failure(phase_id, f"B-{phase_id}-ERR")
+            self._record_phase_failure(phase_id, "B-U-S-0001")
             raise BootstrapError(
-                f"B-{phase_id}-ERR",
+                "B-U-S-0001",
                 f"Phase {phase_id} failed: {exc}",
                 phase_id,
             ) from exc

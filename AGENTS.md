@@ -632,10 +632,12 @@ Every error code must complete a full lifecycle across 5+ sources:
 5. **Resolve** — all code consumers (ErrorManager, BootstrapManager, pipeline orchestrator, test suite) must be able to resolve the code at runtime.
 
 **Error code format conventions:**
-- `S-{cat}-S-{id}` — system/infrastructure errors (e.g., `S-B-S-0601`)
-- `P{phase}-{module}-{id}` — data pipeline errors (e.g., `P1-SETUP-FOLDERS`)
-- `P1-BOOT-{reason}` — bootstrap/setup hybrid errors (e.g., `P1-BOOT-READINESS`)
-- `B-{module}-{id}` — universal bootstrap errors (e.g., `B-CLI-001`, `B-{phase_id}-ERR`)
+
+All error codes must follow the canonical `X-X-X-XXXX` pattern with 4-digit IDs (review directive 2026-08-08; I289). Legacy formats (`P1-BOOT-{reason}`, `P1-SETUP-{type}{id}`, `B-{module}-{id}`, `S-{cat}-S-{id}`) are retired:
+
+- `S-{cat}-S-{id4}` — system/infrastructure errors (e.g., `S-B-S-0603`)
+- `B-{cat}-S-{id4}` — universal bootstrap errors (e.g., `B-C-S-0001`, `B-H-S-0001`)
+- `P{phase}-{module}-{id4}` — data pipeline / phase errors (e.g., `P1-SETUP-FOLDERS` if used must carry 4-digit suffix)
 
 **Cross-source validation checklist:** When adding or changing any error code, verify:
 - [ ] Code exists in `error_config.json` (registered with all metadata fields)
