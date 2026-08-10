@@ -827,7 +827,7 @@ The database schema columns map to the unified document type definition structur
 | Column | Type | Nullable | Default | Source | Description |
 | :----- | :--- | :------: | :------ | :----: | :---------- |
 | `asset_tags` | VARCHAR | YES | NULL | Auto | JSON-serialized list of asset tags. Detected by StructureDetector regex from cover page / title block. Python lists auto-serialized via `json.dumps()` on write. |
-| `page_count` | INTEGER | YES | NULL | Auto | Total pages (from parser metadata: pdf page count) |
+| `page_count` | INTEGER | YES | NULL | Auto | **[SSOT]** Total pages (from parser metadata: pdf page count). Single source of truth for page count across EKS. `health_score` only checks if this field is populated (Tier 2 scoring — no copy); `total_sheets` uses this as fallback (priority-chain derived column). I296. |
 
 ### Quality (4 columns)
 
@@ -877,7 +877,7 @@ The database schema columns map to the unified document type definition structur
 | `contract_package` | VARCHAR | YES | NULL | Manual | Procurement contract package grouping. T1.99.146. |
 | `issued_date` | VARCHAR | YES | NULL | Manual | Formal issue/submission date to client (ISO 8601). T1.99.146. |
 | `responsible_engineer` | VARCHAR | YES | NULL | Manual | Engineer accountable for the document. T1.99.146. |
-| `total_sheets` | INTEGER | YES | NULL | Auto | Total sheets in multi-sheet drawing set. Defaults to `page_count` if not explicitly set. T1.99.146. |
+| `total_sheets` | INTEGER | YES | NULL | Auto | Total sheets in multi-sheet drawing set. **Derived column** (Priority-3 per AGENTS.md §8): calculated by ColumnProcessor priority chain (detected sheet count → `page_count` fallback → NULL). Reads from `page_count` SSOT — does not store independently. T1.99.146 / I296. |
 | `language` | VARCHAR | YES | `'en'` | System | ISO 639-1 language code. Default `en`. T1.99.146. |
 | `vendor_name` | VARCHAR | YES | NULL | Manual | Equipment vendor name for vendor-supplied documents. T1.99.146. |
 

@@ -1,10 +1,14 @@
 """
 EKS Health Scorer - 6-dimension per-document health scoring.
 
-Revision: 0.3
-Date: 2026-08-07
-Author: CodeBuddy
-Summary: 0.3: I284 — schema-driven type-aware health scoring. Tier sets and
+Revision: 0.4
+Date: 2026-08-10
+Author: opencode
+Summary: 0.4: I294 (T1.257) — score_batch() now returns a ``doc_scores`` array
+         carrying each document's documents.id UUID (plus flattened dimension
+         scores) so the orchestrator can persist per-document rows to the
+         runtime health_score table at Phase B end.
+0.3: I284 — schema-driven type-aware health scoring. Tier sets and
          weights are read from column_processing (scoring_tier) and
          health_scoring.weight_tiers instead of module-level hardcoded
          frozensets. COVER_TYPE_SOURCE_SCORES migrated to
@@ -483,6 +487,13 @@ class HealthScorer:
                 class_id=doc.get("class_id") or doc.get("document_class"),
                 template_id=doc.get("template_id"),
             )
+            # I294 (T1.257): carry the registry documents.id UUID so the runtime
+            # health_score table can be populated with FK-aligned document identity
+            # (declared_only FK → documents.id). Falls back to document_number only
+            # when the doc row carries no id (pre-registration scoring).
+            score_result["_doc_id"] = doc.get("id") or doc.get("document_number") or doc_id
+            score_result["_class_id"] = doc.get("class_id") or doc.get("document_class")
+            score_result["_template_id"] = doc.get("template_id")
             doc_scores.append(score_result)
 
         avg_health = sum(s["health_score"] for s in doc_scores) / len(doc_scores) if doc_scores else 0.0
@@ -494,4 +505,25 @@ class HealthScorer:
                 "partial": sum(1 for s in doc_scores if s["extract_status"] == "partial"),
                 "failed": sum(1 for s in doc_scores if s["extract_status"] == "failed"),
             },
+            # I294 (T1.257): per-document rows carrying the documents.id UUID
+            # (or fallback key) — consumed by store_health_score() at Phase B end.
+            # Dimensions are flattened to their scalar .score so they map 1:1
+            # onto the DOUBLE dim_* columns (score() returns nested dicts).
+            "doc_scores": [
+                {
+                    "document_id": s.get("_doc_id"),
+                    "class_id": s.get("_class_id"),
+                    "template_id": s.get("_template_id"),
+                    "health_score": s.get("health_score", 0.0),
+                    "extract_status": s.get("extract_status"),
+                    "dimensions": {
+                        k: (v.get("score", v) if isinstance(v, dict) else v)
+                        for k, v in (s.get("dimensions") or {}).items()
+                    },
+                    "missing_columns": s.get("missing_columns", []),
+                    "tier1_populated": (s.get("tier1_fields") or {}).get("populated", 0),
+                    "tier1_total": (s.get("tier1_fields") or {}).get("total", 0),
+                }
+                for s in doc_scores
+            ],
         }

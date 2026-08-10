@@ -1,9 +1,9 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_ontology_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_ontology_config.json",
-  "version": "1.7.0",
+  "version": "1.9.0",
   "title": "EKS ISO 15926-Aligned Dynamic Ontology",
-  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Expanded with Document hierarchy and lifecycle relationships. v1.7.0 (I282 T1.226): DataSheet renamed to Datasheet and promoted to a top-level Document subclass (D1 — Datasheet separate from Specification); added Calculation, Register, Procedure Document subclasses per Appendix C §C4.",
+  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. v1.9.0 (I305 T1.268): relationships extended 16→18 — added REFERENCES_ASSET (inverse REFERENCED_ASSET_BY) and HAS_FORMAT (inverse FORMAT_OF) to resolve pre-existing §24 drift; all 7 §B4.1 trigger relation names now registered. v1.8.0 (I300 T1.263): relationships extended 15→16 — added HAS_STAGE (inverse STAGE_OF) to close the 7th §B4.1 trigger rule (lifecycle_stage). v1.7.0 (I282 T1.226): DataSheet renamed to Datasheet and promoted to a top-level Document subclass (D1 — Datasheet separate from Specification); added Calculation, Register, Procedure Document subclasses per Appendix C §C4.",
   "classes": [
     { 
       "name": "ISO15926_Entity", 
@@ -135,6 +135,9 @@
     { "name": "SUPPLEMENTS", "inverse": "SUPPLEMENTED_BY", "transitive": true, "description": "Links Annexes/Addendums to primary docs." },
     { "name": "REFERENCES_DOC", "inverse": "REFERENCED_BY_DOC", "transitive": true, "description": "Cross-reference found in document text." },
     { "name": "PRODUCED_BY", "inverse": "ORIGINATED", "transitive": false, "description": "Links document to Originating company." },
-    { "name": "FEEDS_FROM", "transitive": false, "description": "Legacy material or energy feed relationship." }
+    { "name": "FEEDS_FROM", "transitive": false, "description": "Legacy material or energy feed relationship." },
+    { "name": "HAS_STAGE", "inverse": "STAGE_OF", "transitive": false, "description": "Links a document to its document lifecycle stage (I300/T1.263 — triggers column lifecycle_stage; closes the 7th §B4.1 rule)." },
+    { "name": "REFERENCES_ASSET", "inverse": "REFERENCED_ASSET_BY", "transitive": false, "description": "Links a document that references an asset via asset_tags (I305/T1.268 — triggers column asset_tags; resolves §24 drift)." },
+    { "name": "HAS_FORMAT", "inverse": "FORMAT_OF", "transitive": false, "description": "Links a document to its file format via file_type (I305/T1.268 — triggers column file_type; resolves §24 drift)." }
   ]
 }

@@ -42,3 +42,6 @@ Continue  opencode -s ses_01f543d7bffeOh7RjrkIeFdKQP
 
 EKS phase 1 issue i290 review
 Continue  opencode -s ses_01aac97b9ffeTPZLk0PeaS3RnV
+
+Update EKS issues i293-i295, i300 & verify logs
+Continue  opencode -s ses_015396ecaffe6W4LFgrnvZ6G1G

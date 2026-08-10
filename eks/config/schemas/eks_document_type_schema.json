@@ -2,8 +2,8 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/schemas/eks_document_type_schema.json",
   "title": "EKS Document Type Schema",
-  "description": "Single runtime SSOT for EKS document classification (I282/I285). Four sections: document_classes (8 top-level classes, extendable), document_types (B3.1 type tree, extendable), document_family (sub-discipline groupings per D6), project_document_types (per-project local-code bindings), document_templates (structural template registry). v2.3.0 (I283 T1.230): twrp_drawing/twrp_pandid expected_elements extended with title_block/grid/signature_block (8 elements) per the four-level Class→Type→Template→Element detection model; threshold 4→5. v2.2.0 (I280 T1.219): B3.2 structural_profile populated on all 8 document_classes + 28 document_types; class-level extraction_profile_ref added (resolves to eks_processing_config.json extraction_profiles ids per I281). v2.1.0 (I282 T1.227): document_type_concepts REMOVED (D4) — replaced by document_classes/document_types/document_family; bindings migrated concept_id→class_id (values live ONLY here per SSOT §9/§16 + I031 precedent; base holds shape only). v2.0.0 restructured from the v1.0.0 flat document_types list per I279 T1.214.",
-  "version": "2.3.0",
+  "description": "Single runtime SSOT for EKS document classification (I282/I285). Four sections: document_classes (8 top-level classes, extendable), document_types (B3.1 type tree, extendable), document_family (sub-discipline groupings per D6), project_document_types (per-project local-code bindings), document_templates (structural template registry). v2.3.1 (I303 T1.266): twrp_spec_c expected_elements populated [section,table,image], threshold 0→3; template_elements total 24→27. v2.3.0 (I283 T1.230): twrp_drawing/twrp_pandid expected_elements extended with title_block/grid/signature_block (8 elements) per the four-level Class→Type→Template→Element detection model; threshold 4→5. v2.2.0 (I280 T1.219): B3.2 structural_profile populated on all 8 document_classes + 28 document_types; class-level extraction_profile_ref added (resolves to eks_processing_config.json extraction_profiles ids per I281). v2.1.0 (I282 T1.227): document_type_concepts REMOVED (D4) — replaced by document_classes/document_types/document_family; bindings migrated concept_id→class_id (values live ONLY here per SSOT §9/§16 + I031 precedent; base holds shape only). v2.0.0 restructured from the v1.0.0 flat document_types list per I279 T1.214.",
+  "version": "2.3.1",
   "type": "object",
   "additionalProperties": false,
   "required": ["document_classes", "document_types", "document_family", "project_document_types", "document_templates"],
@@ -95,8 +95,8 @@
       "label": "TWRP Specification (no-cover) Template",
       "cover_type": "C",
       "source_quality_score": { "A": 0.7, "B": 0.6, "C": 0.3, "D": 0.6, "E": 0.7, "F": 0.0 },
-      "expected_elements": [],
-      "threshold": 0,
+      "expected_elements": ["section", "table", "image"],
+      "threshold": 3,
       "detection": { "native": "embedded_structure", "print": "page1_ocr" }
     },
     "twrp_datasheet_e": {

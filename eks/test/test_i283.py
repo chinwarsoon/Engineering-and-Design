@@ -90,8 +90,11 @@ class TestI283Schema(unittest.TestCase):
                              f"{tid} expected_elements")
             self.assertEqual(tpl["threshold"], 5, f"{tid} threshold")
 
-    def test_spec_template_empty_expected(self):
-        self.assertEqual(self.carrier["document_templates"]["twrp_spec_c"]["expected_elements"], [])
+    def test_spec_template_has_3_elements(self):
+        """I303: twrp_spec_c expected_elements = [section, table, image] — never zero."""
+        self.assertEqual(self.carrier["document_templates"]["twrp_spec_c"]["expected_elements"],
+                         ["section", "table", "image"])
+        self.assertEqual(self.carrier["document_templates"]["twrp_spec_c"]["threshold"], 3)
 
     def test_loader_projects_templates(self):
         tpl = self.loader.doc_config["document_templates"]["twrp_drawing"]
@@ -123,8 +126,10 @@ class TestI283ColumnProcessor(unittest.TestCase):
         self.assertEqual(self.processor.resolve_expected_element_types("DWG"),
                          FULL_DRAWING_ELEMENTS)
 
-    def test_expected_element_types_spec_empty(self):
-        self.assertEqual(self.processor.resolve_expected_element_types("SPC"), set())
+    def test_expected_element_types_spec_has_3(self):
+        """I303: SPC (twrp_spec_c) now has section/table/image expected."""
+        self.assertEqual(self.processor.resolve_expected_element_types("SPC"),
+                         {"section", "table", "image"})
 
     def test_cover_type_c_discards_cover_method(self):
         methods = self.processor.resolve_extraction_methods("SPC", "print")
@@ -242,7 +247,7 @@ class TestI283HealthScoring(unittest.TestCase):
 
     def test_expected_elements_map_derived_from_templates(self):
         self.assertEqual(self.scorer._expected_elements_by_type["A"], FULL_DRAWING_ELEMENTS)
-        self.assertEqual(self.scorer._expected_elements_by_type["C"], set())
+        self.assertEqual(self.scorer._expected_elements_by_type["C"], {"section", "table", "image"})
 
     def test_structural_dimension_uses_template_set(self):
         doc = {"document_type": "DWG"}
@@ -258,12 +263,13 @@ class TestI283HealthScoring(unittest.TestCase):
         self.assertEqual(struct["detected"], 4)
         self.assertEqual(struct["score"], 0.5)
 
-    def test_structural_dimension_no_cover(self):
+    def test_structural_dimension_spec_c_score(self):
+        """I303: spec C now has 3 expected elements — 0/3 detected → score 0.0."""
         doc = {"document_type": "SPC"}
         result = self.scorer.score(doc, structural_elements=[], cover_type="C")
         struct = result["dimensions"]["structural_completeness"]
-        self.assertEqual(struct["score"], 1.0,
-                         "no-cover (C) template expects nothing → structural score 1.0")
+        self.assertEqual(struct["score"], 0.0,
+                         "spec C has 3 expected elements, 0 detected → structural score 0.0")
 
 
 if __name__ == "__main__":

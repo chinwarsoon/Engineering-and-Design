@@ -6,10 +6,16 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 
-Revision: 1.0
-Date: 2026-07-31
+Revision: 1.1
+Date: 2026-08-10
 Author: opencode
-Summary: 1.0: T1.194 (I265) — ProjectConfigurationRegistry injection per Appendix L
+Summary: 1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — wired runtime GROUP 11
+          persistence: _sync_batch_run insert/update at Phase A/B/C boundaries
+          (batch_run stage stats), persist_batch_health stores score_batch()
+          per-doc rows + aggregate (health_score/health_batch keyed on run_id),
+          persist_document_references populates document_reference junction
+          from references_documents JSON at Phase B end.
+1.0: T1.194 (I265) — ProjectConfigurationRegistry injection per Appendix L
           caller-injection contract (D1). The orchestrator is the Phase B *caller*:
           it holds the injected registry, resolves each file's committed project
           identity, fetches the config slice, and passes project_code + slice to
@@ -43,6 +49,7 @@ Summary: 1.0: T1.194 (I265) — ProjectConfigurationRegistry injection per Appen
      _after() closure; checkpoint unused by resume logic; context held in-memory.
 """
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -421,6 +428,67 @@ class PipelineOrchestrator(BaseEngine):
             return False
 
     @log_depth
+    def _batch_run_id(self) -> str:
+        """
+        Resolve the current batch_run run_id (I293/T1.256).
+
+        Priority: self.logger.run_id (set by the phase server to the job UUID)
+        > a uuid persisted on this orchestrator instance for the run. Returns
+        an empty string when no run context exists (unit-level scoring only).
+        """
+        return str(getattr(self.logger, 'run_id', '') or '')
+
+    @log_depth
+    def _sync_batch_run(self, phase: str, summary: Dict[str, Any]) -> None:
+        """
+        Update the batch_run row with phase-boundary stage statistics (I293).
+
+        Called after each phase summary is computed. Inserts the row on the
+        first call for the run (Phase A registered count) then updates stage
+        stats at each boundary. Never raises — failures are logged so batch
+        tracking never breaks the pipeline.
+        """
+        run_id = self._batch_run_id()
+        if not run_id:
+            self.logger.warning(
+                "batch_run sync skipped — no run_id on logger (pipeline not "
+                "invoked via phase server)",
+                context="PipelineOrchestrator._sync_batch_run",
+            )
+            return
+        try:
+            if self.registry.get_batch(run_id) is None:
+                self.registry.insert_batch(
+                    run_id,
+                    data_dir=str(getattr(self, '_last_root_dir', '') or ''),
+                    status="running",
+                )
+            if phase == "A":
+                self.registry.update_batch(
+                    run_id, current_stage="A",
+                    phase_a_discovered=summary.get("discovered", 0),
+                    phase_a_valid=summary.get("valid", 0),
+                )
+            elif phase == "B":
+                self.registry.update_batch(
+                    run_id, current_stage="B",
+                    phase_b_total=summary.get("total", 0),
+                    phase_b_success=summary.get("success", 0),
+                    phase_b_failed=summary.get("failed", 0),
+                )
+            elif phase == "C":
+                self.registry.update_batch(
+                    run_id, current_stage="complete",
+                    phase_c_flagged=summary.get("flagged", 0),
+                    status="success",
+                )
+        except Exception as e:
+            self.logger.warning(
+                f"batch_run sync failed for phase {phase}: {e}",
+                context="PipelineOrchestrator._sync_batch_run",
+            )
+
+    @log_depth
     def run_phase_a(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
         """
         Phase A: Scan project directory and register placeholder documents.
@@ -432,6 +500,7 @@ class PipelineOrchestrator(BaseEngine):
             - unknown: count of files with unrecognized extensions
             - registered: count of new placeholder documents registered
         """
+        self._last_root_dir = root_dir
         # T1.72: Construct DiscoveryInput contract
         inp = DiscoveryInput(
             run_id=str(getattr(self.logger, 'run_id', '')),
@@ -482,6 +551,9 @@ class PipelineOrchestrator(BaseEngine):
             "unknown": len(unknown),
             "registered": registered,
         }
+        
+        # T1.256 (I293): record Phase A boundary stats in batch_run
+        self._sync_batch_run("A", summary)
         
         if self.use_telemetry:
             self._forward_telemetry("A", details=summary, doc_count=registered)
@@ -608,8 +680,29 @@ class PipelineOrchestrator(BaseEngine):
             batch_health = self.scorer.score_batch(all_docs)
             summary["avg_document_health"] = batch_health["avg_document_health"]
             summary["batch_health"] = batch_health
+            # T1.257 (I294): Persist per-document health rows + batch aggregate.
+            # score_batch() now returns doc_scores carrying the documents.id UUID;
+            # rows are written keyed on run_id so multiple runs stay isolated.
+            run_id = self._batch_run_id()
+            if run_id and batch_health.get("doc_scores"):
+                doc_scores = self.persist_batch_health(run_id, batch_health)
+                summary["health_docs_persisted"] = doc_scores
         except Exception as e:
             self.logger.warning(f"Batch health scoring failed: {e}", context="run_phase_b")
+
+        # T1.258 (I295): populate document_reference junction from the
+        # references_documents JSON column (extracted during Phase B parsing).
+        try:
+            refs_stored = self.persist_document_references()
+            summary["document_references"] = refs_stored
+        except Exception as e:
+            self.logger.warning(
+                f"document_reference population failed: {e}",
+                context="run_phase_b",
+            )
+
+        # T1.256 (I293): record Phase B boundary stats in batch_run
+        self._sync_batch_run("B", summary)
         
         if self.use_telemetry:
             self._forward_telemetry("B", details=summary, doc_count=success + partial)
@@ -689,6 +782,9 @@ class PipelineOrchestrator(BaseEngine):
             "documents": flagged,
         }
         
+        # T1.256 (I293): record Phase C boundary stats + finalize batch_run
+        self._sync_batch_run("C", summary)
+        
         if self.use_telemetry:
             self._forward_telemetry("C", details=summary, doc_count=len(flagged))
             self.save_checkpoint("C")
@@ -758,6 +854,16 @@ class PipelineOrchestrator(BaseEngine):
                     phase,
                     checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
                 )
+            # I298 (T1.261): persist checkpoint snapshot to DB alongside filesystem JSON
+            if job_id is not None and self.registry:
+                try:
+                    state_json = self._serialize_pipeline_state(phase)
+                    self.registry.insert_checkpoint(job_id, phase, state_json)
+                except Exception as e:
+                    self.logger.warning(
+                        f"DB checkpoint write failed (non-fatal): {e}",
+                        context="run_full_pipeline._after",
+                    )
 
         try:
             phase_a = self.run_phase_a(root_dir, recursive=recursive)
@@ -803,11 +909,62 @@ class PipelineOrchestrator(BaseEngine):
             if self.message_manager:
                 self.message_manager.show("STATUS_PIPELINE_COMPLETE")
 
+            # I299 (T1.262): flush pipeline event log to DB at completion
+            if job_id is not None and self.registry:
+                try:
+                    events = self._collect_pipeline_events(
+                        job_id, {"phase_a": phase_a, "phase_b": phase_b, "phase_c": phase_c}
+                    )
+                    self.registry.insert_events(job_id, events)
+                except Exception as e:
+                    self.logger.warning(
+                        f"DB event log flush failed (non-fatal): {e}",
+                        context="run_full_pipeline",
+                    )
+
             return summary
         except Exception as e:
             if self.error_manager:
                 self.error_manager.handle_system_error("S-R-S-0408", detail=f"Pipeline failed: {e}")
             raise
+
+    def _serialize_pipeline_state(self, phase: str) -> str:
+        """
+        I298 (T1.261): serialise current pipeline context state to JSON for DB
+        checkpoint persistence. Captures the context state if available, otherwise
+        a minimal phase snapshot.
+        """
+        import json as _json
+        state = {"phase": phase, "timestamp": datetime.now().isoformat()}
+        if self.context and hasattr(self.context, 'state'):
+            state["status"] = str(getattr(self.context.state, 'status', 'IN_PROGRESS'))
+        try:
+            return _json.dumps(state, default=str)
+        except Exception:
+            return _json.dumps(state)
+
+    def _collect_pipeline_events(self, job_id: str,
+                                  summary: dict) -> list:
+        """
+        I299 (T1.262): collect structured pipeline run-level events for DB
+        persistence. Captures phase outcomes and gate results.
+        """
+        ts = datetime.now().isoformat()
+        events = [
+            {
+                "timestamp": ts, "level": "INFO", "category": "pipeline",
+                "context": job_id, "module": "pipeline_orchestrator",
+                "message": "Pipeline completed successfully",
+            },
+        ]
+        for p in ("phase_a", "phase_b", "phase_c"):
+            if p in summary:
+                events.append({
+                    "timestamp": ts, "level": "INFO", "category": p,
+                    "context": job_id, "module": "pipeline_orchestrator",
+                    "message": f"{p} result: {summary[p]}",
+                })
+        return events
 
     @log_depth
     def _resolve_phase_b_files(self, root_dir: Path, recursive: bool = True) -> List[Dict[str, Any]]:
@@ -1232,6 +1389,100 @@ class PipelineOrchestrator(BaseEngine):
                 pages[page_num]["images"].append(content)
 
         return [pages[pn] for pn in sorted(pages.keys())] if pages else [{"text": "", "tables": [], "images": []}]
+
+    @log_depth
+    def persist_batch_health(self, run_id: str, batch_health: Dict[str, Any]) -> int:
+        """
+        Persist a health_batch aggregate + per-document health_score rows (I294).
+
+        Consumes the per-doc rows produced by ``HealthScorer.score_batch()``
+        (each carrying the registry documents.id UUID) and the aggregate dict.
+        Returns the number of per-document rows persisted.
+        """
+        persisted = 0
+        for srow in batch_health.get("doc_scores", []):
+            document_id = srow.get("document_id")
+            if not document_id:
+                continue
+            try:
+                self.registry.store_health_score(run_id, document_id, srow)
+                persisted += 1
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to persist health score for doc {document_id}: {e}",
+                    context="PipelineOrchestrator.persist_batch_health",
+                )
+        try:
+            self.registry.store_health_batch(run_id, batch_health)
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to persist health batch aggregate: {e}",
+                context="PipelineOrchestrator.persist_batch_health",
+            )
+        self.logger.info(
+            f"Persisted {persisted} health score row(s) + batch aggregate for run {run_id}",
+            context="PipelineOrchestrator.persist_batch_health",
+        )
+        return persisted
+
+    @log_depth
+    def persist_document_references(self) -> int:
+        """
+        Populate the document_reference junction from the references_documents
+        JSON column at Phase B end (I295).
+
+        Each references_documents entry references another document by
+        document_number → resolved to the target document's UUID id and stored
+        as a ``references`` relation. Returns the number of junction rows stored.
+        """
+        import json as _json
+        stored = 0
+        all_docs = self.registry.list_documents(latest_only=False)
+        # Build document_number → UUID lookup so references resolve reliably.
+        doc_by_number: Dict[str, str] = {}
+        for row in all_docs:
+            num = row.get("document_number")
+            if num and row.get("id"):
+                doc_by_number.setdefault(str(num), str(row["id"]))
+
+        for source_doc in all_docs:
+            source_id = str(source_doc.get("id") or "")
+            if not source_id:
+                continue
+            refs_raw = source_doc.get("references_documents")
+            if not refs_raw:
+                continue
+            if isinstance(refs_raw, str):
+                try:
+                    refs = _json.loads(refs_raw)
+                except Exception:
+                    refs = []
+            elif isinstance(refs_raw, list):
+                refs = refs_raw
+            else:
+                refs = []
+            if not isinstance(refs, list):
+                continue
+            for ref in refs:
+                if not ref:
+                    continue
+                target_id = doc_by_number.get(str(ref).strip())
+                if not target_id or target_id == source_id:
+                    continue
+                try:
+                    self.registry.store_document_reference(source_id, target_id, "references")
+                    stored += 1
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to store document_reference {source_id}→{ref}: {e}",
+                        context="PipelineOrchestrator.persist_document_references",
+                    )
+        if stored:
+            self.logger.info(
+                f"Stored {stored} document_reference junction row(s)",
+                context="PipelineOrchestrator.persist_document_references",
+            )
+        return stored
 
     def _update_doc_status(self, file_path: str, status: str,
                            doc_id: str,

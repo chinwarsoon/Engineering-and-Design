@@ -885,7 +885,7 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.13.0")  # I286 T1.237: manual_review marker + 4 column_processing entries (I283 T1.230 was 1.12.0)
+        self.assertEqual(config["version"], "1.14.0")  # I300 T1.263: ontology_triggers 6→7 (lifecycle_stage→HAS_STAGE) (I286 T1.237 was 1.13.0)
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/eks_project_definition_setup_schema.json",
+  "title": "EKS Project Definition Setup Schema",
+  "description": "Project definition schema structure with properties (references base definitions). Per AGENTS.md §9 3-tier compliance: base → setup → config. Created I304/T1.267.",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://eks.engineering/schemas/eks_base_schema.json" }
+  ],
+  "properties": {
+    "project_definition": {
+      "type": "object",
+      "description": "Per-project definition entries keyed by project code",
+      "additionalProperties": {
+        "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_definition_entry_def"
+      }
+    }
+  },
+  "required": ["project_definition"],
+  "additionalProperties": false
+}

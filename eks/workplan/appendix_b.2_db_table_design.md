@@ -11,12 +11,15 @@
 | 1.1 | 2026-08-09 | AI Assistant | Added schema-to-table mapping, field provenance, SSOT compliance |
 | 1.2 | 2026-08-09 | AI Assistant | Added project definition (GROUP 9), asset system (GROUP 10), reference tables (department/discipline/facility/project_code) |
 | 1.3 | 2026-08-09 | AI Assistant | Renamed to Appendix B.2; relationship map + FK paths moved to B.1 |
+| 1.6 | 2026-08-10 | AI Assistant | I300 (T1.263): ontology_relation 15→16 (HAS_STAGE added), ontology_trigger 6→7 (lifecycle_stage→HAS_STAGE), TABLE SUMMARY T17/T18 + schema-to-table counts updated; §24 follow-up noted for REFERENCES_ASSET/HAS_FORMAT drift |
+| 1.7 | 2026-08-10 | AI Assistant | I298–I299, I301–I305 batch: (I302) version banners B.1 v1.1→v1.5, B.2 v1.2→v1.6; (I303) template_elements 44→27, twrp_spec_c populated [section,table,image], carrier v2.3.1; (I304) eks_project_definition_setup_schema.json v1.0.0 created, config $schema repointed; (I305) ontology relations 16→18 (REFERENCES_ASSET + HAS_FORMAT added, §24 drift resolved), T17 16→18; (I298/I299/I301) GROUP 12 pipeline runtime tables added (pipeline_checkpoint, pipeline_event_log, export_artifact), TABLE SUMMARY T40-T42, load order 48→51; GAP-011 §24 resolved, GAP-013–015 RESOLVED, GAP-012 promoted P3→P1 |
+| 1.5 | 2026-08-10 | AI Assistant | I293/I294/I295 re-scoped 2026-08-10 against runtime code: `batch_run`/`health_score`/`health_batch` are CREATE tasks (tables don't exist in runtime DB — GROUP 11 mapping updated to "CREATE tracked by I293/T1.256, I294/T1.257"); `document_reference` junction added to GROUP 11 (I295/T1.258); supersedes self-ref already delivered as declared_only `fk_supersedes` (I290) — dropped from I295 scope |
 | 1.4 | 2026-08-10 | AI Assistant | I291 (T1.254): added GROUP 11 "RUNTIME TABLES" family (documents, document_elements, batch_run, health_score, health_batch) with document_elements shape (id UUID PK, created_at DEFAULT now(), element_seq); load-order position 43/44 documented (renumber deferred to I297/T1.260) |
 
 ```
 ================================================================================
                  EKS DEFINITION DATABASE — FULL TABLE LAYOUT
-                           v1.2 / 2026-08-09
+                           v1.6 / 2026-08-10
 ================================================================================
 ```
 
@@ -597,12 +600,15 @@ as excluded. This is an intentional placeholder (column not yet classified for s
 | relation_name | relation | ontology_triggers.{key} |
 | priority | priority | ontology_triggers.{key} |
 
-**Purpose:** The ontology layer maps ISO 15926 class hierarchy (35 classes, 15 relations)
+**Purpose:** The ontology layer maps ISO 15926 class hierarchy (35 classes, 18 relations)
 into graph edges. Triggers bind ontology relations to data columns — when a column is
 populated, the corresponding graph edge is created. Two-schema split: classes/relations in
 `eks_ontology_config.json`, trigger bindings in `eks_doc_config.json` (because triggers need
 column references). Schema SSOT: `eks_ontology_config.json` + `eks_doc_config.json`
-§ontology_triggers.
+§ontology_triggers. I300/T1.263: relationships 15→16 (added `HAS_STAGE`, inverse `STAGE_OF`,
+binding `lifecycle_stage` — the 7th §B4.1 rule). I305/T1.268: relationships 16→18 (added 
+`REFERENCES_ASSET`, inverse `REFERENCED_ASSET_BY`, and `HAS_FORMAT`, inverse `FORMAT_OF`);
+all 7 §B4.1 trigger relation names now registered — §24 drift resolved.
 
 
 ### GROUP 6: PROCESSING PROFILES (4 tables)
@@ -853,7 +859,7 @@ pipeline run that reads schema-driven config at execution time.
 
 ### GROUP 9: PROJECT DEFINITION (4 tables)
 
-**3-Tier:** `eks_base_schema.json` (definitions) → *(setup not present in project_definition path)* → `eks_project_definition_config.json` (values)
+**3-Tier:** `eks_base_schema.json` (definitions) → `eks_project_definition_setup_schema.json` (v1.0.0, I304/T1.267) → `eks_project_definition_config.json` (values)
 
 This group captures per-engineering-project configuration — distinct from GROUP 1's `project`
 table which holds system-level runtime metadata. The project_definition stores engineering
@@ -1144,7 +1150,10 @@ These are out of scope for the definition-layer table design but are noted for c
 
 I291 (T1.254): canonical family for tables created and populated **during pipeline execution** —
 **not** loaded from schema config. Members: `documents`, `document_elements`, `batch_run`,
-`health_score`, `health_batch` (+ additions tracked by I293/I294/I297/I298/I299/I301).
+`health_score`, `health_batch`, `document_reference` (I295) (+ additions tracked by
+I293/I294/I297/I298/I299/I301). RE-SCOPED 2026-08-10 (I293/I294/I295): `batch_run`,
+`health_score`, `health_batch`, `document_reference` are CREATE tasks — none of these
+runtime tables or their CRUD methods exist yet in the engine.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -1189,15 +1198,36 @@ element_type→element_type.element_type). Enforced in the validation layer.
 |:---------|:-------------|:------------|
 | `documents` | `eks_doc_base_schema.json` → `document_metadata_def` + `project_metadata_def` | SchemaToDDL.generate_documents_ddl() — runtime ingest via register_document() |
 | `document_elements` | `eks_doc_base_schema.json` → `document_element_def` | SchemaToDDL.generate_document_elements_ddl() — runtime ingest via store_elements() (StructureDetector.detect() output) |
-| `batch_run` | *(no schema)* | Runtime — `insert_batch()` (I293 expansion) |
-| `health_score` | *(no schema)* | Runtime — `health_scorer.py` (I294 FK fix) |
-| `health_batch` | *(no schema)* | Runtime — `score_batch()` aggregation |
+| `document_reference` | *(no schema)* | Runtime — junction (source/target doc id, 10-type relation enum); CREATE tracked by I295/T1.258 |
+| `batch_run` | *(no schema)* | Runtime — CREATE tracked by I293/T1.256 (stage-stat columns + insert_batch/update_batch CRUD) — RE-SCOPED 2026-08-10 |
+| `health_score` | *(no schema)* | Runtime — CREATE tracked by I294/T1.257 (document_id UUID declared_only FK→documents.id) — RE-SCOPED 2026-08-10 |
+| `health_batch` | *(no schema)* | Runtime — CREATE tracked by I294/T1.257 — `score_batch()` aggregation |
+
+
+### GROUP 12: PIPELINE RUNTIME TABLES (checkpoint, events, export artifacts)
+
+These tables persist pipeline execution metadata alongside the GROUP 11 tables.
+They are created by `_init_db()` via SchemaToDDL and populated during pipeline runtime.
+
+| DB Table | Schema Source | Load Method | Issue / Task |
+|:---------|:-------------|:------------|:-------------|
+| `pipeline_checkpoint` | *(no schema)* | Runtime — `insert_checkpoint()` at each phase boundary (I298/T1.261) | GROUP 12 |
+| `pipeline_event_log` | *(no schema)* | Runtime — `insert_events()` flush at pipeline completion (I299/T1.262) | GROUP 12 |
+| `export_artifact` | *(no schema)* | Runtime — `insert_artifact()` after each export file generation (I301/T1.264) | GROUP 12 |
+
+**GROUP 12 SCHEMA SOURCE MAPPING**
+
+| DB Table | Schema Source | Load Method |
+|:---------|:-------------|:------------|
+| `pipeline_checkpoint` | *(no schema)* | Runtime — `insert_checkpoint(job_id, phase, state_json)` at each phase boundary (see `run_full_pipeline._after()`) |
+| `pipeline_event_log` | *(no schema)* | Runtime — `insert_events(job_id, events)` flush at pipeline completion (see `run_full_pipeline` → `_collect_pipeline_events()`) |
+| `export_artifact` | *(no schema)* | Runtime — `insert_artifact(job_id, artifact_type, file_path, row_count)` after each export in `_handle_export()` |
 
 
 ## COMPLETE TABLE RELATIONSHIP MAP
 
 > **Moved to [Appendix B.1 — Cross-Relationship Chart §11](appendix_b.1_cross_relationship_chart.md).**
-> The full DB-level relationship map (all FK connections across all 39 tables) is maintained in Appendix B.1 as the single source of truth for cross-table relationships. This avoids duplication and drift between documents.
+> The full DB-level relationship map (all FK connections across all 42 tables) is maintained in Appendix B.1 as the single source of truth for cross-table relationships. This avoids duplication and drift between documents.
 
 
 ## TABLE SUMMARY
@@ -1223,8 +1253,8 @@ element_type→element_type.element_type). Enforced in the validation layer.
 │ T09  │ document_template             │   6  │ standalone                        │
 │ T10  │ template_source_quality       │  36  │ → document_template               │
 │ T11  │ element_type                  │  11  │ standalone                        │
-│ J01  │ template_elements             │  44  │ → template + element_type         │
-│ J02  │ element_by_cover_type         │  33  │ → element_type                    │
+│ J01  │ template_elements             │  27  │ → template + element_type         │
+│ J02  │ element_by_cover_type         │  30  │ → element_type                    │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T12  │ data_column                   │  42  │ standalone                        │
 │ J03  │ column_class                  │ 336  │ → data_column + doc_class         │
@@ -1233,9 +1263,9 @@ element_type→element_type.element_type). Enforced in the validation layer.
 │ T15  │ score_weight_tier             │   3  │ standalone                        │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T16  │ ontology_class                │  35  │ self-ref (subClassOf)             │
-│ T17  │ ontology_relation             │  15  │ standalone                        │
+│ T17  │ ontology_relation             │  18  │ standalone                        │
 │ J04  │ onto_class_fragment           │  12  │ → ontology_class                  │
-│ T18  │ ontology_trigger              │   6  │ → data_column,ontology_relation   │
+│ T18  │ ontology_trigger              │   7  │ → data_column,ontology_relation   │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T19  │ filename_profile              │   2  │ standalone                        │
 │ T20  │ file_property_profile         │   5  │ → extraction_profile              │
@@ -1261,9 +1291,15 @@ element_type→element_type.element_type). Enforced in the validation layer.
 │ T37  │ asset_fragment_field          │ 210  │ → asset_fragment                  │
 │ T38  │ asset_column_normalization    │  80  │ → asset_type                      │
 │ T39  │ asset_trigger                 │  18  │ → asset_type,ontology_relation    │
+├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
+│——    │ **GROUP 12 — PIPELINE RUNTIME** (I298/I299/I301)                  │
+├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
+│ T40  │ pipeline_checkpoint           │   N  │ → batch_run_(job_id)             │
+│ T41  │ pipeline_event_log            │   N  │ → batch_run_(job_id)             │
+│ T42  │ export_artifact              │   N  │ → batch_run_(job_id)             │
 └──────┴───────────────────────────────┴──────┴──────────────────────────────────┘
 
-                  39 Tables (36 definition + 10 junction + 2 output)
+                  42 Tables (39 definition + 3 pipeline runtime)
                   ~1,500 definition rows at rest
 ```
 
@@ -1311,7 +1347,7 @@ eks/config/schemas/
 │   ├── health_scoring.dimensions[]   →  score_dimension       (6 rows)
 │   ├── health_scoring.score_tiers[]  →  score_tier            (5 rows)
 │   ├── health_scoring.weight_tiers{} →  score_weight_tier     (3 rows)
-│   └── ontology_triggers{}           →  ontology_trigger      (6 rows)
+│   └── ontology_triggers{}           →  ontology_trigger      (7 rows)
 │
 ├── eks_document_type_schema.json ─────────────────────────────────────────────────
 │   ├── document_classes[]            →  doc_class             (8 rows)
@@ -1331,7 +1367,7 @@ eks/config/schemas/
 ├── eks_ontology_config.json ──────────────────────────────────────────────────────
 │   ├── classes[]                     →  ontology_class        (35 rows)
 │   ├── classes[].fragments[]         →  onto_class_fragment   (junction)
-│   └── relationships[]               →  ontology_relation     (15 rows)
+│   └── relationships[]               →  ontology_relation     (16 rows)
 │
 ├── eks_processing_config.json ────────────────────────────────────────────────────
 │   ├── filename_profiles[]           →  filename_profile      (2 rows)
@@ -1438,13 +1474,17 @@ eks/config/schemas/
 41. asset_column_normalization  (FK → asset_type)
 42. asset_trigger       (FK → asset_type, ontology_relation)
 --- runtime tables (populated during pipeline execution) ---
-43. batch_run           (FK → project)
-44. health_score        (FK → batch_run, doc_class, document_template)
-45. health_batch        (FK → batch_run)
+43. documents           (GROUP 11; FK → doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition)  ← I290
+44. document_elements   (GROUP 11; FK → documents.id, element_type)                                                                                            ← I291
+45. document_reference  (GROUP 11; FK → documents.id × 2: source_doc_id, target_doc_id)                                                                       ← I295
+46. batch_run           (FK → project)                                                                                                                         ← was 43
+47. health_score        (FK → batch_run, doc_class, document_template, documents)                                                                              ← was 44
+48. health_batch        (FK → batch_run)                                                                                                                       ← was 45
+--- pipeline runtime tables (GROUP 12) ---
+49. pipeline_checkpoint (GROUP 12; populated at phase boundaries by I298/T1.261)                                                                                   ← new
+50. pipeline_event_log   (GROUP 12; flushed at pipeline completion by I299/T1.262)                                                                                  ← new
+51. export_artifact      (GROUP 12; tracked after each export by I301/T1.264)                                                                                       ← new
 ```
 
-> **I291 (T1.254) — load-order position:** `documents` (all definition-table FKs
-> satisfied) and `document_elements` (FK → documents.id + element_type) belong at steps
-> **43/44** of this runtime block. Full renumbering (batch_run→45, health_score→46,
-> health_batch→47) is executed by **I297/T1.260**; position documented here per T1.254.
+> **Runtime Table load-order notes** (I297/T1.260 RESOLVED 2026-08-10): Load order expanded from 45→48 steps to include all GROUP 11 runtime tables. `documents` (I290) inserted at step 43 — all 8 FK targets (doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition) verified loaded before registry. `document_elements` (I291) at step 44 — FK→documents+element_type satisfied. `document_reference` (I295) at step 45 — FK→documents (source_doc_id, target_doc_id) satisfied. Runtime group renumbered: batch_run 43→46, health_score 44→47, health_batch 45→48. **I298/I299/I301 (2026-08-10)**: GROUP 12 tables added at steps 49-51 — no FK dependencies, populated during pipeline execution. Load order 48→51, code execution in `registry.py _init_db()` already creates these tables. Documentation-only alignment.
 

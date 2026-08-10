@@ -168,8 +168,8 @@ class TestI280B32Carrier(unittest.TestCase):
         self.assertTrue(isometric["structural_profile"]["drawing_based"])
 
     def test_carrier_version_bumped(self):
-        """Carrier version bumped to 2.3.0 for the I283 expected_elements extension."""
-        self.assertEqual(self.carrier["version"], "2.3.0")
+        """Carrier version bumped to 2.3.1 for I303 spec_c expected_elements + I286 GAP-003."""
+        self.assertEqual(self.carrier["version"], "2.3.1")
 
 
 class TestI280B32Helper(unittest.TestCase):

@@ -1,0 +1,81 @@
+%% Revision: 1.1
+%% Date: 2026-08-10
+%% Author: GitHub Copilot
+%% Summary: 1.1: Add purpose callouts beside each Phase 1 workflow block.
+
+flowchart TD
+    START([CLI or Phase 1 server request]) --> PRELOAD["Preload infrastructure\nDiscover repo root and guard imports"]
+    PRELOAD --> READY{"Infrastructure ready?"}
+    READY -->|No| FATAL["Print FATAL errors\nExit 1"]
+    READY -->|Yes| BOOT["EKSBootstrapManager.bootstrap_all(args)"]
+
+    subgraph BOOTSTRAP["Bootstrap and readiness"]
+        BOOT --> CLI["P1: Parse CLI and verbosity"]
+        CLI --> PATHS["P2: Resolve project and data paths"]
+        PATHS --> CONFIG["P3: Load config registry and settings"]
+        CONFIG --> DEFAULTS["P4-P5: Apply defaults and validate fallbacks"]
+        DEFAULTS --> ENV["P6-P8: Check environment, schemas, and parameters"]
+        ENV --> GATE["Project setup readiness gate"]
+    end
+    BOOT_PURPOSE{{"Purpose: establish trusted paths, configuration, dependencies, and runtime readiness before processing data."}}
+    BOOT_PURPOSE -.-> CLI
+
+    GATE --> CONTEXT["Build pipeline context"]
+    CONTEXT --> DISPATCH["run_pipeline(phase=full or selected phase)"]
+
+    subgraph PHASE_A["Phase A: Discovery"]
+        DISPATCH --> SCAN["Scan data_dir\nHonor recursive flag"]
+        SCAN --> INVENTORY["Validate discovered files\nClassify valid and unknown inputs"]
+        INVENTORY --> REGISTER["Register document placeholders\nin DuckDB DocumentRegistry"]
+        REGISTER --> A_SUMMARY["Phase A summary"]
+    end
+    A_PURPOSE{{"Purpose: inventory input files, validate them, and create registry placeholders for downstream processing."}}
+    A_PURPOSE -.-> SCAN
+
+    A_SUMMARY --> A_GATE{"A to B gate:\nregistry has file paths?"}
+    A_GATE -->|No| A_WARN["Record warning or blocked transition"]
+    A_GATE -->|Yes| LOAD["Resolve Phase B files\nPrefer registry file list"]
+    A_WARN --> LOAD
+
+    subgraph PHASE_B["Phase B: Extraction and health scoring"]
+        LOAD --> FILES{"More files?"}
+        FILES -->|Yes| ROUTE["Route file to parser"]
+        ROUTE --> PARSE["Parse content and metadata"]
+        PARSE --> DETECT["Detect structure and elements"]
+        DETECT --> SCORE["Calculate health score and confidence"]
+        SCORE --> PERSIST["Persist properties, elements, status, and scores"]
+        PERSIST --> FILES
+        FILES -->|No| B_SUMMARY["Phase B summary"]
+    end
+    B_PURPOSE{{"Purpose: parse each registered file, detect document structure, score health, and persist extraction results."}}
+    B_PURPOSE -.-> ROUTE
+
+    PARSE -.->|Per-file failure| FILE_FAIL["Record failed result\nand continue batch"]
+    FILE_FAIL --> FILES
+
+    B_SUMMARY --> B_GATE{"B to C gate:\nextraction scores exist?"}
+    B_GATE -->|No| B_WARN["Record warning or blocked transition"]
+    B_GATE -->|Yes| REVIEW_INPUT["Find flagged and clean documents"]
+    B_WARN --> REVIEW_INPUT
+
+    subgraph PHASE_C["Phase C: Review and final state"]
+        REVIEW_INPUT --> REVIEW["Review flagged documents\nReview or lock clean documents"]
+        REVIEW --> REVIEW_PERSIST["Persist review, lock, and score state"]
+        REVIEW_PERSIST --> C_SUMMARY["Phase C summary"]
+    end
+    C_PURPOSE{{"Purpose: route flagged and clean documents through review, locking, and final state persistence."}}
+    C_PURPOSE -.-> REVIEW
+
+    C_SUMMARY --> RESULT["Return summary, context, errors, and telemetry"]
+    RESULT --> CHECKPOINT["Write checkpoint and pipeline_output.json"]
+    CHECKPOINT --> DEBUG["Write debug_log.json when available"]
+    DEBUG --> OUTPUT([Human summary or JSON output])
+
+    classDef phase fill:#17324d,stroke:#4ea1d3,color:#ffffff
+    classDef gate fill:#49351f,stroke:#e0a458,color:#ffffff
+    classDef error fill:#4b2024,stroke:#e06c75,color:#ffffff
+    classDef purpose fill:#263238,stroke:#9ccc65,color:#ffffff,stroke-dasharray: 5 5
+    class PHASE_A,PHASE_B,PHASE_C phase
+    class READY,A_GATE,B_GATE gate
+    class FATAL,A_WARN,B_WARN,FILE_FAIL error
+    class BOOT_PURPOSE,A_PURPOSE,B_PURPOSE,C_PURPOSE purpose

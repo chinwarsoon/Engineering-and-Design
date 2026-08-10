@@ -2,10 +2,14 @@
 Schema-to-DDL for EKS - Auto-generate SQL DDL from JSON schema definitions.
 T1.36: Replaces hard-coded DDL in registry.py with schema-driven generation.
 
-Revision: 1.0
+Revision: 1.1
 Date: 2026-08-10
 Author: opencode
-Summary: 1.0: T1.254 (I291) — generate_document_elements_ddl() emits `id VARCHAR PRIMARY
+Summary: 1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added runtime-table DDL
+          generators generate_batch_run_ddl(), generate_health_score_ddl(),
+          generate_health_batch_ddl(), generate_document_reference_ddl()
+          (GROUP 11 pipeline-execution tables).
+1.0: T1.254 (I291) — generate_document_elements_ddl() emits `id VARCHAR PRIMARY
           KEY` + `created_at TIMESTAMP NOT NULL DEFAULT now()` (+ optional element_seq);
           generate_migration_ddl() skips the id PK (DuckDB cannot ALTER-add a PK) but
           adds `created_at TIMESTAMP NOT NULL DEFAULT now()`.
@@ -117,6 +121,167 @@ class SchemaToDDL:
                 {col_lines}
             )"""
         return ddl
+
+    @log_depth
+    def generate_batch_run_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `batch_run` table (GROUP 11).
+
+        I293 (T1.256): pipeline-execution table — one row per run. Column set
+        covers the 6 definition-layer columns plus the 8 stage-statistics
+        columns (job_id, data_dir, current_stage, phase_a_discovered,
+        phase_a_valid, phase_b_total, phase_b_success, phase_b_failed,
+        phase_c_flagged). Runtime-generated (no base-schema definition).
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS batch_run ("
+            "    run_id VARCHAR PRIMARY KEY,"
+            "    job_id VARCHAR,"
+            "    project_code VARCHAR,"
+            "    data_dir VARCHAR,"
+            "    current_stage VARCHAR,"
+            "    phase_a_discovered INTEGER DEFAULT 0,"
+            "    phase_a_valid INTEGER DEFAULT 0,"
+            "    phase_b_total INTEGER DEFAULT 0,"
+            "    phase_b_success INTEGER DEFAULT 0,"
+            "    phase_b_failed INTEGER DEFAULT 0,"
+            "    phase_c_flagged INTEGER DEFAULT 0,"
+            "    started_at VARCHAR,"
+            "    finished_at VARCHAR,"
+            "    status VARCHAR,"
+            "    doc_count INTEGER DEFAULT 0"
+            ")"
+        )
+
+    @log_depth
+    def generate_health_score_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `health_score` table (GROUP 8/11).
+
+        I294 (T1.257): per-document health result, one row per doc per run.
+        `document_id` is the registry UUID (declared_only FK → documents.id,
+        enforced at validation layer — no physical FK DDL per I290 precedent).
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS health_score ("
+            "    id VARCHAR PRIMARY KEY,"
+            "    run_id VARCHAR,"
+            "    document_id VARCHAR,"
+            "    class_id VARCHAR,"
+            "    template_id VARCHAR,"
+            "    health_score DOUBLE,"
+            "    extract_status VARCHAR,"
+            "    dim_completeness DOUBLE,"
+            "    dim_extraction DOUBLE,"
+            "    dim_structural DOUBLE,"
+            "    dim_source DOUBLE,"
+            "    dim_xref DOUBLE,"
+            "    dim_consistency DOUBLE,"
+            "    missing_columns JSON,"
+            "    tier1_populated INTEGER,"
+            "    tier1_total INTEGER,"
+            "    scored_at VARCHAR"
+            ")"
+        )
+
+    @log_depth
+    def generate_health_batch_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `health_batch` table (GROUP 8/11).
+
+        I294 (T1.257): per-run aggregate produced by ``HealthScorer.score_batch()``.
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS health_batch ("
+            "    run_id VARCHAR PRIMARY KEY,"
+            "    avg_document_health DOUBLE,"
+            "    total_documents INTEGER,"
+            "    status_success INTEGER DEFAULT 0,"
+            "    status_partial INTEGER DEFAULT 0,"
+            "    status_failed INTEGER DEFAULT 0"
+            ")"
+        )
+
+    @log_depth
+    def generate_document_reference_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `document_reference` junction
+        (GROUP 11).
+
+        I295 (T1.258): M:N relationships between registry documents. Both
+        endpoints are declared_only FKs → documents.id (validation-layer
+        enforcement; no physical FK DDL per I290 precedent).
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS document_reference ("
+            "    id VARCHAR PRIMARY KEY,"
+            "    source_doc_id VARCHAR NOT NULL,"
+            "    target_doc_id VARCHAR NOT NULL,"
+            "    relation_type VARCHAR NOT NULL,"
+            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
+            ")"
+        )
+
+    @log_depth
+    def generate_pipeline_checkpoint_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `pipeline_checkpoint` table
+        (GROUP 12).
+
+        I298 (T1.261): persists pipeline phase-state snapshots for restore/audit
+        alongside filesystem JSON. job_id + phase is the natural unique key.
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS pipeline_checkpoint ("
+            "    id VARCHAR PRIMARY KEY,"
+            "    job_id VARCHAR NOT NULL,"
+            "    phase VARCHAR NOT NULL,"
+            "    state JSON NOT NULL,"
+            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
+            ")"
+        )
+
+    @log_depth
+    def generate_pipeline_event_log_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `pipeline_event_log` table
+        (GROUP 12).
+
+        I299 (T1.262): structured event/debug log for cross-run querying
+        (replaces filesystem-only debug_log.json).
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS pipeline_event_log ("
+            "    id VARCHAR PRIMARY KEY,"
+            "    job_id VARCHAR NOT NULL,"
+            "    timestamp TIMESTAMP NOT NULL DEFAULT now(),"
+            "    level VARCHAR NOT NULL,"
+            "    category VARCHAR,"
+            "    context VARCHAR,"
+            "    module VARCHAR,"
+            "    message TEXT NOT NULL"
+            ")"
+        )
+
+    @log_depth
+    def generate_export_artifact_ddl(self) -> str:
+        """
+        Generate CREATE TABLE DDL for the runtime `export_artifact` table
+        (GROUP 12).
+
+        I301 (T1.264): tracks pipeline export artifacts (CSV/XLSX) linking
+        jobs to output files.
+        """
+        return (
+            "CREATE TABLE IF NOT EXISTS export_artifact ("
+            "    id VARCHAR PRIMARY KEY,"
+            "    job_id VARCHAR NOT NULL,"
+            "    artifact_type VARCHAR NOT NULL,"
+            "    file_path VARCHAR NOT NULL,"
+            "    row_count INTEGER DEFAULT 0,"
+            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
+            ")"
+        )
 
     @log_depth
     def generate_indexes(self) -> List[str]:

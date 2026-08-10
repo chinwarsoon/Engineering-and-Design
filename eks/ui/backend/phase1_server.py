@@ -619,6 +619,9 @@ class Phase1Handler(SimpleHTTPRequestHandler):
 
         class _LogCapture:
             level = _log_level
+            # I293 (T1.256): carry job run_id so the orchestrator's _batch_run_id()
+            # resolves it from the same logger instance the pipeline is given.
+            run_id = job_id
             def status(self, msg, context=""):
                 _capture_log({"level": "STATUS", "message": msg, "context": context})
                 if _logger:
@@ -885,6 +888,21 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             # Serve file
             with open(file_path, "rb") as f:
                 file_data = f.read()
+
+            # I301 (T1.264): track export artifact in DB
+            try:
+                reg = get_registry()
+                if reg:
+                    active_jobs = sorted(
+                        [jid for jid, state in _job_state.items()
+                         if state.get("status") in ("completed", "running")],
+                        reverse=True,
+                    )
+                    export_job_id = active_jobs[0] if active_jobs else "manual_export"
+                    reg.insert_artifact(export_job_id, phase, str(file_path),
+                                        row_count=0)
+            except Exception:
+                pass  # non-fatal; artifact tracking best-effort
 
             self.send_response(200)
             self._set_cors()
