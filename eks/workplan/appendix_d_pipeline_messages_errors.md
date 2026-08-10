@@ -1,7 +1,7 @@
 # Appendix D — Pipeline Messages & Error Codes
 
-**Version**: 2.1
-**Last Updated**: 2026-07-31
+**Version**: 2.3
+**Last Updated**: 2026-08-10
 **Phase**: 1 — Foundation (schema) / 3 (runtime)
 **Status**: ✅ Tested — full re-sync with config v1.3.0 + code v1.2 (D1–D8); D9–D13 added to document output routing, verbosity, and debugging features found in implementation
 **Source of Truth**:
@@ -26,6 +26,7 @@
 | **2.0** | **2026-07-27** | **opencode** | **Added output architecture, verbosity control, debugging, and known gaps (D9–D13). Updated D1 with 4-channel overview. Renumbered D9→D14, D10→D15.** |
 | **2.1** | **2026-07-31** | **opencode** | **T1.195 (I265): Added S-C-S-0901–0904 Project Definition config system errors (D4), P1-C-V-0001–0003 data errors (D5), 4 PDEF messages (D6), updated error_config to v1.7.0 (128 codes), message_config to v1.2.0 (52 messages), and Config category ranges.** |
 | **2.2** | **2026-08-08** | **opencode** | **I289 (T1.251): Retired legacy hybrid formats (`P1-BOOT-{reason}`, `P1-SETUP-{type}{id}`, `B-{module}-{id}`) from documentation — canonical-only `S-{cat}-S-{id4}` / `B-{cat}-S-{id4}` / `P{phase}-{module}-{id4}` per review directive 2026-08-08.** |
+| **2.3** | **2026-08-10** | **opencode** | **I291 (T1.254): D7.10 `document_elements` schema enriched — added `id` (UUID PK), `created_at` (TIMESTAMP NOT NULL DEFAULT now()), `element_seq`; `doc_id`/`element_type` documented as declared_only FK relations (fk_element_doc → documents.id, fk_element_type → element_type.element_type); three element types added (title_block, grid, signature_block).** |
 
 ---
 
@@ -879,13 +880,16 @@ Each document in `document_registry` can have multiple structural elements store
 
 | Column | Type | Nullable | Description |
 |--------|------|:--------:|-------------|
-| `doc_id` | VARCHAR | NO | FK → `document_registry.doc_id` |
-| `element_type` | VARCHAR | NO | Type of structural element |
+| `id` | VARCHAR (UUID) | NO | I291 (T1.254): surrogate UUID primary key (system-generated at store time) |
+| `doc_id` | VARCHAR (UUID) | NO | FK → `documents.id` (registry UUID PK; SSOT per I291 Q2 — D7.10 `document_registry.doc_id` and I294 health_score converge on it); declared_only relation `fk_element_doc` |
+| `element_type` | VARCHAR | NO | FK → `element_type.element_type` (11-code enum; declared_only relation `fk_element_type`); validated by `store_elements()` |
 | `element_id` | VARCHAR | YES | Page number or location identifier |
 | `title` | VARCHAR | YES | Heading, field name, or section title |
 | `content` | VARCHAR | YES | Raw text or JSON (for complex structures) |
 | `confidence` | DOUBLE | YES | 0.0–1.0 extraction confidence |
 | `source` | VARCHAR | NO | Extraction method: `regex`, `ocr`, `heuristic`, `manual` |
+| `created_at` | TIMESTAMP | NO | I291 (T1.254): row creation timestamp, DEFAULT now() |
+| `element_seq` | INTEGER | YES | I291 (T1.254): optional 0-based intra-document ordering |
 
 **Element types**:
 
@@ -899,6 +903,9 @@ Each document in `document_registry` can have multiple structural elements store
 | `link` | Regex on URLs/file paths | JSON: {url, text, type} | Skip | Reference edges |
 | `legend` | Page location + heuristic | Text block | Skip | Legend nodes |
 | `note` | Page 1 annotations | Text block | Skip | Annotation nodes |
+| `title_block` | I283: drawing-frame title block detection | JSON fields | Frame anchor | Title-block nodes |
+| `grid` | I283: drawing grid detection | Coordinates | Skip | Grid nodes |
+| `signature_block` | I283: signature block detection | JSON fields | Skip | Signature nodes |
 
 **CRUD operations** (in `registry.py`):
 

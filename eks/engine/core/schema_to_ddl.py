@@ -1,6 +1,14 @@
 """
 Schema-to-DDL for EKS - Auto-generate SQL DDL from JSON schema definitions.
 T1.36: Replaces hard-coded DDL in registry.py with schema-driven generation.
+
+Revision: 1.0
+Date: 2026-08-10
+Author: opencode
+Summary: 1.0: T1.254 (I291) — generate_document_elements_ddl() emits `id VARCHAR PRIMARY
+          KEY` + `created_at TIMESTAMP NOT NULL DEFAULT now()` (+ optional element_seq);
+          generate_migration_ddl() skips the id PK (DuckDB cannot ALTER-add a PK) but
+          adds `created_at TIMESTAMP NOT NULL DEFAULT now()`.
 """
 import json
 from pathlib import Path
@@ -83,6 +91,8 @@ class SchemaToDDL:
         """
         Generate CREATE TABLE DDL for the document_elements table from
         document_element_def.
+        I291 (T1.254): id UUID PRIMARY KEY + created_at TIMESTAMP NOT NULL
+        DEFAULT now() (+ optional element_seq) via a schema-driven ruleset.
         """
         self.logger.status("Generating document_elements table DDL from schema definition")
 
@@ -90,8 +100,14 @@ class SchemaToDDL:
         props = el_def.get("properties", {})
         required_fields = set(el_def.get("required", []))
 
-        columns = []
+        columns = ["id VARCHAR PRIMARY KEY"]
         for col_name, col_schema in props.items():
+            if col_name == "id":
+                continue  # PK already emitted above (surrogate UUID)
+            if col_name == "created_at":
+                # I291 (T1.254): runtime timestamp, schema format date-time.
+                columns.append("created_at TIMESTAMP NOT NULL DEFAULT now()")
+                continue
             col_def = self._resolve_column(col_name, col_schema, required_fields)
             columns.append(col_def)
 
@@ -218,6 +234,19 @@ class SchemaToDDL:
         stmts = []
         for col_name, col_schema in all_props.items():
             if col_name not in existing_columns:
+                if col_name == "id":
+                    # I291 (T1.254): id is the surrogate UUID PK — a DuckDB
+                    # ALTER TABLE ADD COLUMN cannot add a PRIMARY KEY constraint
+                    # to a populated table; existing rows get it only on
+                    # re-CREATE. Skip for migration (PK is create-time only).
+                    continue
+                if col_name == "created_at":
+                    # I291 (T1.254): match CREATE-TABLE nullability/default.
+                    stmts.append(
+                        "ALTER TABLE document_elements ADD COLUMN "
+                        "created_at TIMESTAMP NOT NULL DEFAULT now()"
+                    )
+                    continue
                 col_def = self._resolve_column(col_name, col_schema, required_fields)
                 stmts.append(f"ALTER TABLE {table_name} ADD COLUMN {col_def}")
                 self.logger.info(f"Migration: Adding column '{col_name}' to {table_name}")

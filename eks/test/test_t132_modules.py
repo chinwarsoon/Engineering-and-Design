@@ -892,7 +892,7 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.19.0")  # I290 T1.253: registry_relations + project_code (I286 T1.237 was 1.18.0)
+        self.assertEqual(base["version"], "1.20.0")  # I291 T1.254: document_element_def shape + 2 declared_only relations (I290 T1.253 was 1.19.0)
 
         core_base_path = CONFIG_DIR / "schemas" / "eks_base_schema.json"
         if not core_base_path.exists():

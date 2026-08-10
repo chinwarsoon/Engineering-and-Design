@@ -7,6 +7,7 @@
 |:---------|:-----|:-------|:--------|
 | 1.0 | 2026-08-09 | AI Assistant | Initial: entity relationship chart (10 layers) |
 | 1.1 | 2026-08-09 | AI Assistant | Merged DB table relationship map, FK closure paths, and cross-document gap analysis |
+| 1.2 | 2026-08-10 | AI Assistant | I291 (T1.254): GAP-002 (document_elements enrichment) IMPLEMENTED — summary updated (P1 6→5, active 14→13) |
 
 ```
 ================================================================================
@@ -984,7 +985,7 @@ eks/config/schemas/
 | ID | Title | Severity | Description |
 |:---|:------|:---------|:------------|
 | GAP-001 | `document_registry` core table missing | 🔴 P0 | Appendix B §B4 defines 54 columns across 11 groups in DuckDB `eks_registry.db`. All 48 tables in `db_table_design.md` have zero correspondence. 54 FK-capable fields (document_type → project_doc_type.local_code, file_type → file_type.extension, discipline → discipline.discipline_code, supersedes/superseded_by → self-ref FK) require explicit FK declaration on creation. |
-| GAP-002 | `document_elements` runtime table missing | 🔴 P0 | Appendix B §B5.8–B5.11 defines full CRUD API (store, get, get_by_type, delete). Appendix D §D7.10 defines schema: doc_id, element_type, element_id, title, content, confidence, source. `element_type` table (GROUP 3, 11 types) exists — but no runtime data table to store actual detection results. |
+| GAP-002 | `document_elements` runtime enrichment (table exists) | 🟡 P1 | **IMPLEMENTED 2026-08-10 (I291/T1.254, ✅)**: the `document_elements` table, CRUD (`registry.py:501–563`), and `StructureDetector.detect()` → `store_elements()` wiring (`pipeline_orchestrator.py:1026`) already exist. Delivered: GROUP 11 "RUNTIME TABLES" doc entry (appendix_b.2), surrogate `id` UUID PK + `created_at TIMESTAMP NOT NULL DEFAULT now()` (+ optional `element_seq`) in DDL, declared_only FK relations `fk_element_doc`/`fk_element_type` (I290 pattern, materialized in `_eks_table_relations`), `element_type` 11-code enum validation in `store_elements`, and `test/test_i291.py` (detect→store→query round-trip + negative + empty/cover-C set + delete). eks_doc_base_schema.json v1.19.0→v1.20.0. Original gap basis: Appendix B §B5.8–B5.11 defines full CRUD API (store, get, get_by_type, delete). Appendix D §D7.10 defines schema: doc_id, element_type, element_id, title, content, confidence, source. `element_type` table (GROUP 3, 11 types) exists — no runtime register/FK consumer for detected data. |
 | GAP-003 | Appendix B §B3.2 stale path + §B3.4 element_expectations alignment | 🔴 P0 | §B3.2 correctly records removal of `document_type_registry` from v1.9.0. §B3.4 references `eks_document_type_schema.json` → `document_templates[].expected_elements`. `element_by_cover_type` junction (GROUP 3, 33 rows: A/B/C/D/E/F × 11 elements) must match §B3.4 "Expected By Cover Type" column. |
 
 ### 🟡 P1 — Major Gaps
@@ -1018,11 +1019,11 @@ eks/config/schemas/
 
 | Priority | Count | New Tables Needed |
 |:---------|:-----|:------------------|
-| 🔴 P0 | 3 | `document_registry`, `document_element` |
-| 🟡 P1 | 5 | expand `batch_run`, `document_reference` junction, `document_supersedes` junction |
+| 🔴 P0 | 1 | — (GAP-003 verification only; GAP-001 `document_registry` RESOLVED I290; GAP-002 enrichment IMPLEMENTED I291) |
+| 🟡 P1 | 5 | expand `batch_run`; `document_reference` junction; `document_supersedes` junction |
 | 🟡 P2 | 3 | `pipeline_checkpoint`, `pipeline_event_log` |
 | 🟢 P3 | 4 | `export_artifact` + cross-source alignment verification |
-| **Total** | **15** | **~8 new tables + batch_run expansion + FK migrations** |
+| **Total** | **13 active** (of 15; GAP-001 resolved I290, GAP-002 enrichment IMPLEMENTED I291) | **~7 new tables + batch_run expansion + FK migrations** |
 
 
 ================================================================================

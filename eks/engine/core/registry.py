@@ -2,10 +2,15 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 0.9
-Date: 2026-08-03
+Revision: 1.0
+Date: 2026-08-10
 Author: opencode
-Summary: 0.9: T1.200/T1.201 (I274) -- removed hardcoded COLUMN_ALLOWLIST fallback;
+Summary: 1.0: T1.254 (I291) — store_elements() now injects surrogate UUID `id`, validates
+          element_type against the 11-code enum (ValueError otherwise) via new cached
+          _element_type_codes(), and validates doc_id existence (declared_only
+          fk_element_doc enforcement); _element_type_codes() reads valid codes from the
+          schema-driven element_type registry.
+0.9: T1.200/T1.201 (I274) -- removed hardcoded COLUMN_ALLOWLIST fallback;
           _get_column_allowlist() now resolves doc base schema via schema-driven
           paths (CWD-independent) and raises a descriptive error on absence.
 0.8: T1.99.191 (I225) — added pre_generated_ddl param to reuse bootstrap
@@ -499,18 +504,41 @@ class DocumentRegistry:
 
     @log_depth
     def store_elements(self, doc_id: str, elements: List[Dict[str, Any]]) -> int:
-        """Insert structural elements for a document. Returns count inserted."""
+        """
+        Insert structural elements for a document. Returns count inserted.
+        I291 (T1.254): (a) surrogate UUID id injected per element;
+        (b) element_type validated against the 11-code enum
+        (fk_element_type declared_only — validation-layer enforcement, no
+        physical DuckDB FK); (c) doc_id existence enforced (fk_element_doc
+        declared_only — writes to unknown documents are rejected).
+        """
+        valid_types = self._element_type_codes()
         conn = duckdb.connect(str(self.db_path))
         try:
             count = 0
             for el in elements:
+                el_type = el.get("element_type", "unknown")
+                if el_type not in valid_types:
+                    raise ValueError(
+                        f"Unknown element_type '{el_type}' for document {doc_id} — "
+                        f"expected one of {sorted(valid_types)} (I291/T1.254)"
+                    )
+                exists = conn.execute(
+                    "SELECT COUNT(*) FROM documents WHERE id = ?", [doc_id]
+                ).fetchone()[0]
+                if not exists:
+                    raise ValueError(
+                        f"Cannot store elements: document {doc_id} not found in "
+                        f"documents table (fk_element_doc declared_only, I291/T1.254)"
+                    )
                 conn.execute("""
                     INSERT INTO document_elements
-                    (doc_id, element_type, element_id, title, content, confidence, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (id, doc_id, element_type, element_id, title, content, confidence, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, [
+                    str(uuid.uuid4()),
                     doc_id,
-                    el.get("element_type", "unknown"),
+                    el_type,
                     el.get("element_id"),
                     el.get("title"),
                     el.get("content"),
@@ -522,6 +550,26 @@ class DocumentRegistry:
             return count
         finally:
             conn.close()
+
+    def _element_type_codes(self) -> set:
+        """Cached set of valid element_type codes (I291/T1.254, fk_element_type)."""
+        if getattr(self, "_element_type_codes_cache", None) is not None:
+            return self._element_type_codes_cache
+        try:
+            schema = SchemaToDDL.load_doc_base_schema(self._resolve_doc_base_config_dir())
+            codes = set(schema["definitions"]["element_type_code"]["enum"])
+        except Exception:
+            loader = getattr(self.config, '_loader', None)
+            if loader and hasattr(loader, "doc_base_schema"):
+                codes = set(
+                    loader.doc_base_schema.get("definitions", {}).get(
+                        "element_type_code", {}
+                    ).get("enum", [])
+                )
+            else:
+                codes = set()
+        self._element_type_codes_cache = codes
+        return codes
 
     @log_depth
     def get_elements(self, doc_id: str) -> List[Dict[str, Any]]:
