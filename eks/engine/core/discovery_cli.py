@@ -4,10 +4,13 @@ CLI Entry Point for Discovery Engine.
 This module provides a command-line interface for running the discovery engine
 independently, implementing the CLI Entry Point pattern per Appendix F.
 
-Revision: 0.2
-Date: 2026-08-08
+Revision: 0.3
+Date: 2026-08-12
 Author: opencode
-Summary: I288 (T1.245) — processing_config read from bootstrap EKSPipelineContext
+Summary: 0.3: I311 (T1.298) — added --db-check/--db-apply/--db-force args;
+          --db-check short-circuits via the migration gate (exit 0); mode
+          transferred into DocumentRegistry (U292).
+0.2: I288 (T1.245) — processing_config read from bootstrap EKSPipelineContext
           and forwarded to PipelineOrchestrator; fixed pre-existing missing
           project_root in the bootstrap_pipeline() call that blocked all bootstrap.
           0.1: Initial DiscoveryEngineCLI.
@@ -99,6 +102,9 @@ Examples:
             action="store_true",
             help="Enable verbose output"
         )
+        # I311 (T1.298): migration-gate flags — same surface as the main CLI.
+        from eks.engine.pipeline_engine.cli import add_db_migration_args
+        add_db_migration_args(self.parser)
     
     def run(self, args: Optional[list] = None) -> EngineOutput:
         """
@@ -147,9 +153,18 @@ Examples:
                 skip_readiness=not parsed_args.validate,
                 debug=parsed_args.verbose,
             )
+            # I311 (T1.298): --db-check runs the migration gate read-only and exits.
+            from eks.engine.pipeline_engine.cli import resolve_db_migration_mode, run_db_check_only
+            db_mode = resolve_db_migration_mode(parsed_args)
+            if db_mode == "check":
+                _resolved = boot["resolved_paths"]
+                db_path = Path(_resolved.get("output_dir", project_root / "eks" / "output")) / "eks_registry.db"
+                sys.exit(run_db_check_only(db_path, _resolved.get("config_dir"), logger))
+            db_apply_mode = db_mode if db_mode in ("apply", "force") else None
             registry = DocumentRegistry(
                 logger=logger,
                 pre_generated_ddl=boot.get("pre_generated_ddl"),
+                migration_mode=db_apply_mode,
             )
             _telemetry_verbose = boot["config"].get("system_parameters", {}).get("telemetry_verbose", True)
             # I288 (T1.245): context-derived processing profiles values — read

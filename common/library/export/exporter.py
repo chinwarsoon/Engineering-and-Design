@@ -11,11 +11,15 @@ Error codes (S-DE-* range):
     S-DE-003 — Output directory not writable
     S-DE-004 — File exists and overwrite disabled
 
-Revision: 0.1
-Date: 2026-07-18
+Revision: 0.2
+Date: 2026-08-13
 Author: opencode
-Summary: Initial implementation — export_to_csv (BOM UTF-8, DictWriter),
-         export_to_excel (auto-column-width, bold+frozen headers),
+Summary: v0.2 (I309 T1.288): added export_to_workbook — single workbook
+         export with optional per-sheet column control (columns: Dict[sheet, cols]).
+         export_multi_sheet now delegates to export_to_workbook (single
+         implementation, backward-compatible signature).
+         v0.1 (2026-07-18): Initial implementation — export_to_csv (BOM UTF-8,
+         DictWriter), export_to_excel (auto-column-width, bold+frozen headers),
          export_multi_sheet (multi-sheet workbook).
 """
 
@@ -213,9 +217,42 @@ class DataExporter:
     ) -> Path:
         """Write multiple sheets into a single ``.xlsx`` workbook.
 
+        Backward-compatible alias for :meth:`export_to_workbook` — delegates
+        to the single implementation (I309 T1.288). Columns are derived from
+        the first row of each sheet unless per-sheet columns are supplied via
+        :meth:`export_to_workbook`.
+
         Args:
             sheets: dict mapping sheet name → list of row dicts.
             path: Output file path (``.xlsx``).
+
+        Returns:
+            The resolved output ``path``.
+
+        Raises:
+            DataExportError: S-DE-002 (write failure), S-DE-003 (dir not writable),
+                             S-DE-004 (overwrite guard).
+        """
+        return self.export_to_workbook(sheets, path)
+
+    def export_to_workbook(
+        self,
+        sheets: Dict[str, List[Dict[str, Any]]],
+        path: Path,
+        columns: Optional[Dict[str, List[str]]] = None,
+    ) -> Path:
+        """Write multiple named worksheets into a single ``.xlsx`` workbook.
+
+        Each key of *sheets* becomes one worksheet; the worksheet title is the
+        dict key (schema-driven: pipeline passes ``view.sheet_name`` from
+        eks_export_view_config.json, I309 T1.289).
+
+        Args:
+            sheets: dict mapping worksheet title → list of row dicts.
+            path: Output file path (``.xlsx``).
+            columns: Optional per-sheet column control — dict mapping worksheet
+                     title → ordered column list. When a sheet has no entry,
+                     columns are derived from the first row's keys.
 
         Returns:
             The resolved output ``path``.
@@ -252,21 +289,24 @@ class DataExporter:
                 else:
                     ws = wb.create_sheet(title=sname)
 
-                columns = list(rows[0].keys()) if rows else []
+                if columns is not None and sname in columns:
+                    sheet_columns = list(columns[sname])
+                else:
+                    sheet_columns = list(rows[0].keys()) if rows else []
 
                 # Header row — bold + frozen
-                for col_idx, col_name in enumerate(columns, start=1):
+                for col_idx, col_name in enumerate(sheet_columns, start=1):
                     cell = ws.cell(row=1, column=col_idx, value=col_name)
                     cell.font = Font(bold=True)
                 ws.freeze_panes = "A2"
 
                 # Data rows
                 for row_idx, row in enumerate(rows, start=2):
-                    for col_idx, col_name in enumerate(columns, start=1):
+                    for col_idx, col_name in enumerate(sheet_columns, start=1):
                         ws.cell(row=row_idx, column=col_idx, value=row.get(col_name))
 
                 # Auto-column-width
-                for col_idx in range(1, len(columns) + 1):
+                for col_idx in range(1, len(sheet_columns) + 1):
                     max_width = 0
                     for row in ws.iter_rows(
                         min_col=col_idx, max_col=col_idx,
@@ -319,4 +359,15 @@ def export_multi_sheet(
     overwrite: bool = True,
 ) -> Path:
     """Standalone multi-sheet export — see :meth:`DataExporter.export_multi_sheet`."""
-    return DataExporter(overwrite=overwrite).export_multi_sheet(sheets, path)
+    return DataExporter(overwrite=overwrite).export_to_workbook(sheets, path)
+
+
+def export_to_workbook(
+    sheets: Dict[str, List[Dict[str, Any]]],
+    path: Path,
+    columns: Optional[Dict[str, List[str]]] = None,
+    overwrite: bool = True,
+) -> Path:
+    """Standalone workbook export with per-sheet column control — see
+    :meth:`DataExporter.export_to_workbook`."""
+    return DataExporter(overwrite=overwrite).export_to_workbook(sheets, path, columns=columns)

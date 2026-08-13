@@ -10,12 +10,13 @@
 | 1.2 | 2026-08-10 | AI Assistant | I291 (T1.254): GAP-002 (document_elements enrichment) IMPLEMENTED — summary updated (P1 6→5, active 14→13) |
 | 1.5 | 2026-08-10 | AI Assistant | I292/I296/I297 RESOLVED (T1.255/T1.259/T1.260): GAP-003 (element_by_cover_type 33→30 corrected), GAP-007 (page_count SSOT declared — 1 actual copy, not 3), GAP-008 (load order 45→48 steps, documents@43/document_elements@44/document_reference@45/batch_run@46/health_score@47/health_batch@48); Summary P0 1→0, P1 2→0, active 9→6 |
 | 1.6 | 2026-08-10 | AI Assistant | I298–I305 batch RESOLVED: (I302) version banners B.1 v1.1→v1.5, B.2 v1.2→v1.6, GAP-013 corrected; (I303) template_elements 44→27, twrp_spec_c populated, carrier v2.3.1, GAP-014 RESOLVED; (I304) eks_project_definition_setup_schema.json created, GAP-015 RESOLVED; (I305) ontology 16→18 (REFERENCES_ASSET + HAS_FORMAT), §24 drift resolved, GAP-011 fully closed; (I298/I299/I301) GROUP 12 pipeline runtime tables + CRUD + orchestrator/server wiring, GAP-009/GAP-010/GAP-012 in-progress (code delivered, tests T1.261/T1.262/T1.264 remaining) |
+| 1.7 | 2026-08-13 | AI Assistant | I308 (T1.282–T1.286): **export view model** documented — 3 persistent DuckDB views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) rendered by `generate_view_ddl()` from `eks_export_view_config.json` v1.1.0 (view_id = `export_artifact.artifact_type`, is_latest filter, schema-driven file/sheet names, formats); `documents.flag_reason` materialized; GAP-016 (two-tier gap) RESOLVED — closed-not-opened, DB is the materialized view, Summary of 15→16; banner v1.5→v1.7 |
 | 1.3 | 2026-08-10 | AI Assistant | I293/I294/I295/I300 re-scope notes added to GAP-004/005/006/011 (tables don't exist in runtime DB — CREATE tasks; supersedes self-ref dropped from I295; ontology_trigger config verified at 6 rows, missing lifecycle_stage→HAS_STAGE) |
 
 ```
 ================================================================================
                     EKS COMPLETE CROSS-RELATIONSHIP CHART
-                              v1.5 / 2026-08-10
+                              v1.7 / 2026-08-13
 ================================================================================
 ```
 
@@ -1017,6 +1018,7 @@ eks/config/schemas/
 | GAP-013 | Version number consistency risk | 🟢 P3 | B.1 banner v1.1→v1.5, B.2 banner v1.2→v1.6 (I302). Stale GAP refs corrected: eks_doc_config.json v1.14.0, carrier eks_document_type_schema.json v2.3.0. GROUP 2 `document_type` = 28 types — must match carrier v2.3.0 count. |
 | GAP-014 | `template_source_quality` vs §B3.4 template count alignment | 🟢 P3 | GROUP 3: 6 templates × 6 cover types = 36 rows ✅. `template_elements` = 27 rows (8+8+3+3+2+3 per carrier v2.3.1). twrp_spec_c populated [section,table,image] per I303 — elements 24→27, threshold 0→3. |
 | GAP-015 | `project_definition` missing `_setup_schema.json` | 🟢 P3 | **RESOLVED I304/T1.267**: `eks_project_definition_setup_schema.json` v1.0.0 created — references `eks_base_schema.json#/definitions/project_definition_entry_def`. B.2 GROUP 9 3-tier note updated. |
+| GAP-016 | Two-tier definition gap (DB = "JSON-only definition layer" vs materialized view) | 🟢 P3 | **RESOLVED I308/T1.272 (2026-08-13, closed-not-opened)**: the DB **is** the materialized view — all 53 tables are materialized DuckDB objects driven by `eks_db_config.json`; the 3 persistent export views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) are projections over materialized tables rendered from `eks_export_view_config.json` v1.1.0. "JSON-only definition layer" language removed project-wide (§24 grep clean). Final verification tracked by I313/T1.305. |
 
 ### Summary
 
@@ -1025,8 +1027,8 @@ eks/config/schemas/
 | 🔴 P0 | 0 | — (GAP-001/002/003 RESOLVED: document_registry I290, document_elements I291, §B3.2/B3.4 verification I292) |
 | 🟡 P1 | 1 | `export_artifact` (GAP-012, promoted P3→P1 by I301 directive). I298/I299 are medium-severity but remain P2 per GAP table. |
 | 🟡 P2 | 2 | `pipeline_checkpoint` (GAP-009/I298), `pipeline_event_log` (GAP-010/I299). GAP-011 `ontology_trigger` IMPLEMENTED (I300+I305). |
-| 🟢 P3 | 0 | — (GAP-013/I302, GAP-014/I303, GAP-015/I304 all RESOLVED 2026-08-10) |
-| **Total** | **3 active** (of 15; GAP-001–008, GAP-011, GAP-013–015 RESOLVED/IMPLEMENTED) | **3 new tables: pipeline_checkpoint + pipeline_event_log + export_artifact** |
+| 🟢 P3 | 0 | — (GAP-013/I302, GAP-014/I303, GAP-015/I304 RESOLVED 2026-08-10; GAP-016/I308 RESOLVED 2026-08-13 — two-tier gap closed-not-opened) |
+| **Total** | **3 active** (of 16; GAP-001–008, GAP-011, GAP-013–016 RESOLVED/IMPLEMENTED) | **3 new tables: pipeline_checkpoint + pipeline_event_log + export_artifact** |
 
 
 ================================================================================

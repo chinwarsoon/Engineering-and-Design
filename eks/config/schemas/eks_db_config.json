@@ -1,0 +1,3717 @@
+{
+  "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
+  "$id": "https://eks.engineering/configs/eks_db_config.json",
+  "version": "1.1.0",
+  "title": "EKS DB-Layer Table Configuration",
+  "description": "Schema-driven DB-layer table values SSOT (I307 T1.277). Actual VALUES for all 53 tables live here per AGENTS.md \u00c2\u00a79/\u00c2\u00a716 (base/setup hold shape only). Each db_tables[] entry declares table_name, group_id, source_config_ref/source_path/transform, id_strategy (uuid5 namespace + natural key), ordered columns (id PK + DuckDB type + unique/nullable/default/JSON marker), and physical FK pairs (I306 Q1).",
+  "db_tables": [
+    {
+      "table_name": "project",
+      "group_id": 1,
+      "title": "Project",
+      "description": "System-level project metadata (GROUP 1). Loaded 1:1 from eks_config.json project_metadata.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK (uuid5 namespace eks:project)."
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "source_path": "project_metadata.project_code",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "project_metadata.project_name"
+        },
+        {
+          "name": "created_at",
+          "column_type": "VARCHAR",
+          "source_path": "project_metadata.created_date"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project",
+        "natural_key_columns": [
+          "project_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_config.json",
+      "source_path": "project_metadata",
+      "transform": "1:1-unpack"
+    },
+    {
+      "table_name": "discipline",
+      "group_id": 1,
+      "title": "Discipline",
+      "description": "Engineering discipline lookup (GROUP 1). Loaded from eks_discipline_schema.json disciplines[].",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "discipline_code",
+          "column_type": "VARCHAR",
+          "source_path": "code",
+          "unique": true,
+          "comment": "Natural key (2-char)."
+        },
+        {
+          "name": "discipline_name",
+          "column_type": "VARCHAR",
+          "source_path": "name"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:discipline",
+        "natural_key_columns": [
+          "discipline_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_discipline_schema.json",
+      "source_path": "disciplines",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "department",
+      "group_id": 1,
+      "title": "Department",
+      "description": "Department lookup (GROUP 1). Loaded from eks_department_schema.json departments[]; optional FK to discipline.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "department_code",
+          "column_type": "VARCHAR",
+          "source_path": "code",
+          "unique": true,
+          "comment": "Natural key (2-char)."
+        },
+        {
+          "name": "department_name",
+          "column_type": "VARCHAR",
+          "source_path": "name"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "discipline_code",
+          "column_type": "VARCHAR",
+          "source_path": "discipline_code"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:department",
+        "natural_key_columns": [
+          "department_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_department_schema.json",
+      "source_path": "departments",
+      "transform": "array-of-objects",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_department_discipline",
+          "column": "discipline_code",
+          "target_table": "discipline",
+          "target_column": "discipline_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "facility",
+      "group_id": 1,
+      "title": "Facility",
+      "description": "Facility/location lookup (GROUP 1). Loaded from eks_facility_schema.json facilities[].",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "facility_code",
+          "column_type": "VARCHAR",
+          "source_path": "code",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "facility_name",
+          "column_type": "VARCHAR",
+          "source_path": "name"
+        },
+        {
+          "name": "facility_type",
+          "column_type": "VARCHAR",
+          "source_path": "facility_type"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:facility",
+        "natural_key_columns": [
+          "facility_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_facility_schema.json",
+      "source_path": "facilities",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "project_code",
+      "group_id": 1,
+      "title": "Project Code",
+      "description": "Project code lookup (GROUP 1). Loaded from eks_project_code_schema.json projects[].",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "proj_code",
+          "column_type": "VARCHAR",
+          "source_path": "project_code",
+          "unique": true,
+          "comment": "Natural key (6-digit)."
+        },
+        {
+          "name": "project_name",
+          "column_type": "VARCHAR",
+          "source_path": "project_name"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_code",
+        "natural_key_columns": [
+          "proj_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_project_code_schema.json",
+      "source_path": "projects",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "ontology_class",
+      "group_id": 5,
+      "title": "Ontology Class",
+      "description": "ISO 15926 ontology class hierarchy (GROUP 5). Self-ref subclass_of FK; layer derived from depth.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "name",
+          "column_type": "VARCHAR",
+          "source_path": "name",
+          "unique": true,
+          "comment": "Natural key (e.g. ISO15926_Entity)."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "subclass_of",
+          "column_type": "VARCHAR",
+          "source_path": "subclass_of",
+          "comment": "Self-ref FK (null = root)."
+        },
+        {
+          "name": "tag_type_mapping",
+          "column_type": "VARCHAR",
+          "source_path": "tag_type_mapping"
+        },
+        {
+          "name": "tag_type_aliases",
+          "column_type": "JSON",
+          "source_path": "tag_type_aliases",
+          "json_flag": true
+        },
+        {
+          "name": "document_type_map",
+          "column_type": "VARCHAR",
+          "source_path": "document_type_mapping"
+        },
+        {
+          "name": "layer",
+          "column_type": "INTEGER",
+          "comment": "Computed from subclass_of depth (Priority-3 derived)."
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:ontology_class",
+        "natural_key_columns": [
+          "name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_ontology_config.json",
+      "source_path": "classes",
+      "transform": "array-of-objects",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ontology_class_subclass",
+          "column": "subclass_of",
+          "target_table": "ontology_class",
+          "target_column": "name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "ontology_relation",
+      "group_id": 5,
+      "title": "Ontology Relation",
+      "description": "Ontology relationship types (GROUP 5). Loaded from eks_ontology_config.json relationships[] (18 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "relation_name",
+          "column_type": "VARCHAR",
+          "source_path": "name",
+          "unique": true,
+          "comment": "Natural key (e.g. HAS_STAGE)."
+        },
+        {
+          "name": "inverse",
+          "column_type": "VARCHAR",
+          "source_path": "inverse"
+        },
+        {
+          "name": "transitive",
+          "column_type": "BOOLEAN",
+          "source_path": "transitive"
+        },
+        {
+          "name": "symmetric",
+          "column_type": "BOOLEAN",
+          "source_path": "symmetric"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:ontology_relation",
+        "natural_key_columns": [
+          "relation_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_ontology_config.json",
+      "source_path": "relationships",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "doc_class",
+      "group_id": 2,
+      "title": "Document Class",
+      "description": "Document classification (GROUP 2). Loaded from carrier document_classes[]; FK to ontology_class.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "source_path": "class_id",
+          "unique": true,
+          "comment": "Natural key (Drawing, Specification...)."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "ontology_class",
+          "column_type": "VARCHAR",
+          "source_path": "ontology_class",
+          "comment": "FK to ontology_class.name."
+        },
+        {
+          "name": "extraction_profile",
+          "column_type": "VARCHAR",
+          "source_path": "extraction_profile_ref"
+        },
+        {
+          "name": "cover_bearing",
+          "column_type": "BOOLEAN",
+          "source_path": "cover_bearing"
+        },
+        {
+          "name": "common_rules",
+          "column_type": "JSON",
+          "source_path": "common_rules",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:doc_class",
+        "natural_key_columns": [
+          "class_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_classes",
+      "transform": "array-of-objects",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_doc_class_ontology",
+          "column": "ontology_class",
+          "target_table": "ontology_class",
+          "target_column": "name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "document_family",
+      "group_id": 2,
+      "title": "Document Family",
+      "description": "Document family (GROUP 2). Loaded from carrier document_family[].",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "family_id",
+          "column_type": "VARCHAR",
+          "source_path": "family_id",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "discipline",
+          "column_type": "VARCHAR",
+          "source_path": "discipline"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:document_family",
+        "natural_key_columns": [
+          "family_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_family",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "document_type",
+      "group_id": 2,
+      "title": "Document Type",
+      "description": "Document type (GROUP 2). Loaded from carrier document_types[]; FKs to doc_class + document_family.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "type_id",
+          "column_type": "VARCHAR",
+          "source_path": "type_id",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "source_path": "class_id",
+          "comment": "FK to doc_class."
+        },
+        {
+          "name": "family_id",
+          "column_type": "VARCHAR",
+          "source_path": "family_id",
+          "comment": "FK to document_family."
+        },
+        {
+          "name": "common_rules",
+          "column_type": "JSON",
+          "source_path": "common_rules",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:document_type",
+        "natural_key_columns": [
+          "type_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_types",
+      "transform": "array-of-objects",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_document_type_class",
+          "column": "class_id",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_document_type_family",
+          "column": "family_id",
+          "target_table": "document_family",
+          "target_column": "family_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "class_structural_profile",
+      "group_id": 2,
+      "title": "Class Structural Profile",
+      "description": "1:1 denormalized structural profile of a document class (GROUP 2, B3.2).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "FK + natural key to doc_class."
+        },
+        {
+          "name": "cover_page",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.cover_page"
+        },
+        {
+          "name": "revision_table",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.revision_table"
+        },
+        {
+          "name": "multi_sheet",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.multi_sheet"
+        },
+        {
+          "name": "drawing_based",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.drawing_based"
+        },
+        {
+          "name": "section_based",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.section_based"
+        },
+        {
+          "name": "callouts",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.callouts"
+        },
+        {
+          "name": "symbols",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.symbols"
+        },
+        {
+          "name": "title_block",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.title_block"
+        },
+        {
+          "name": "legend",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.legend"
+        },
+        {
+          "name": "grid",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.grid"
+        },
+        {
+          "name": "signature_block",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.signature_block"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:class_structural_profile",
+        "natural_key_columns": [
+          "class_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_classes[].structural_profile",
+      "transform": "1:1-unpack",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_csp_class",
+          "column": "class_id",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "type_structural_profile",
+      "group_id": 2,
+      "title": "Type Structural Profile",
+      "description": "1:1 denormalized structural profile of a document type (GROUP 2, B3.2).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "type_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "FK + natural key to document_type."
+        },
+        {
+          "name": "cover_page",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.cover_page"
+        },
+        {
+          "name": "revision_table",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.revision_table"
+        },
+        {
+          "name": "multi_sheet",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.multi_sheet"
+        },
+        {
+          "name": "drawing_based",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.drawing_based"
+        },
+        {
+          "name": "section_based",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.section_based"
+        },
+        {
+          "name": "callouts",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.callouts"
+        },
+        {
+          "name": "symbols",
+          "column_type": "BOOLEAN",
+          "source_path": "structural_profile.symbols"
+        },
+        {
+          "name": "title_block",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.title_block"
+        },
+        {
+          "name": "legend",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.legend"
+        },
+        {
+          "name": "grid",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.grid"
+        },
+        {
+          "name": "signature_block",
+          "column_type": "VARCHAR",
+          "source_path": "structural_profile.signature_block"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:type_structural_profile",
+        "natural_key_columns": [
+          "type_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_types[].structural_profile",
+      "transform": "1:1-unpack",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_tsp_type",
+          "column": "type_id",
+          "target_table": "document_type",
+          "target_column": "type_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "element_type",
+      "group_id": 3,
+      "title": "Element Type",
+      "description": "Structural element type (GROUP 3). Loaded from eks_doc_config.json element_type_registry[] (11 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "element_type",
+          "column_type": "VARCHAR",
+          "source_path": "element_type",
+          "unique": true,
+          "comment": "Natural key (11-code enum)."
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "source_method",
+          "column_type": "VARCHAR",
+          "source_path": "source_method"
+        },
+        {
+          "name": "phase_2_use",
+          "column_type": "VARCHAR",
+          "source_path": "phase_2_use"
+        },
+        {
+          "name": "phase_3_use",
+          "column_type": "VARCHAR",
+          "source_path": "phase_3_use"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:element_type",
+        "natural_key_columns": [
+          "element_type"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "element_type_registry",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "document_template",
+      "group_id": 3,
+      "title": "Document Template",
+      "description": "Document blueprint template (GROUP 3). Loaded from carrier document_templates{} (object-iteration, 6 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "template_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (twrp_drawing...)."
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "cover_type",
+          "column_type": "VARCHAR",
+          "source_path": "cover_type"
+        },
+        {
+          "name": "threshold",
+          "column_type": "INTEGER",
+          "source_path": "threshold"
+        },
+        {
+          "name": "detection_native",
+          "column_type": "VARCHAR",
+          "source_path": "detection.native"
+        },
+        {
+          "name": "detection_print",
+          "column_type": "VARCHAR",
+          "source_path": "detection.print"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:document_template",
+        "natural_key_columns": [
+          "template_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_templates",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "template_source_quality",
+      "group_id": 3,
+      "title": "Template Source Quality",
+      "description": "Per-cover-type source quality score (GROUP 3). 6 rows per template (6x6).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "template_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to document_template."
+        },
+        {
+          "name": "cover_type",
+          "column_type": "VARCHAR",
+          "source_path": "cover_type"
+        },
+        {
+          "name": "quality_score",
+          "column_type": "DOUBLE",
+          "source_path": "score"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:template_source_quality",
+        "natural_key_columns": [
+          "template_id",
+          "cover_type"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_templates[].source_quality_score",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_tsq_template",
+          "column": "template_id",
+          "target_table": "document_template",
+          "target_column": "template_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "template_elements",
+      "group_id": 3,
+      "title": "Template Elements",
+      "description": "M:N junction between document templates and expected element types (GROUP 3, J01).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "template_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to document_template."
+        },
+        {
+          "name": "element_type",
+          "column_type": "VARCHAR",
+          "comment": "FK to element_type."
+        },
+        {
+          "name": "is_expected",
+          "column_type": "BOOLEAN",
+          "source_path": "is_expected"
+        },
+        {
+          "name": "added_in_version",
+          "column_type": "VARCHAR",
+          "source_path": "added_in_version"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:template_elements",
+        "natural_key_columns": [
+          "template_id",
+          "element_type"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "document_templates[].expected_elements",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_tel_template",
+          "column": "template_id",
+          "target_table": "document_template",
+          "target_column": "template_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_tel_element",
+          "column": "element_type",
+          "target_table": "element_type",
+          "target_column": "element_type",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "element_by_cover_type",
+      "group_id": 3,
+      "title": "Element By Cover Type",
+      "description": "M:N junction between element types and cover types (GROUP 3, J02).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "element_type",
+          "column_type": "VARCHAR",
+          "comment": "FK to element_type."
+        },
+        {
+          "name": "cover_type",
+          "column_type": "VARCHAR",
+          "source_path": "cover_type"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:element_by_cover_type",
+        "natural_key_columns": [
+          "element_type",
+          "cover_type"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "element_type_registry[].expected_by_cover_types",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ebct_element",
+          "column": "element_type",
+          "target_table": "element_type",
+          "target_column": "element_type",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "file_type",
+      "group_id": 6,
+      "title": "File Type",
+      "description": "Supported file type registry (GROUP 6). Loaded from eks_doc_config.json file_type_registry[] (5 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "extension",
+          "column_type": "VARCHAR",
+          "source_path": "extension",
+          "unique": true,
+          "comment": "Natural key (pdf, dgn...)."
+        },
+        {
+          "name": "display_name",
+          "column_type": "VARCHAR",
+          "source_path": "display_name"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "mime_type",
+          "column_type": "VARCHAR",
+          "source_path": "mime_type"
+        },
+        {
+          "name": "format_cat",
+          "column_type": "VARCHAR",
+          "source_path": "format_category"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:file_type",
+        "natural_key_columns": [
+          "extension"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "file_type_registry",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "data_column",
+      "group_id": 4,
+      "title": "Data Column",
+      "description": "Central column config hub (GROUP 4). Loaded from eks_doc_config.json column_processing{} (46 keys).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "column_name",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (object key)."
+        },
+        {
+          "name": "column_type",
+          "column_type": "VARCHAR",
+          "source_path": "column_type"
+        },
+        {
+          "name": "is_calculated",
+          "column_type": "BOOLEAN",
+          "source_path": "is_calculated"
+        },
+        {
+          "name": "calculation_config",
+          "column_type": "JSON",
+          "source_path": "calculation_config",
+          "json_flag": true
+        },
+        {
+          "name": "processing_phase",
+          "column_type": "VARCHAR",
+          "source_path": "processing_phase"
+        },
+        {
+          "name": "required",
+          "column_type": "BOOLEAN",
+          "source_path": "required"
+        },
+        {
+          "name": "scoring_tier",
+          "column_type": "VARCHAR",
+          "source_path": "scoring_tier"
+        },
+        {
+          "name": "native_only",
+          "column_type": "BOOLEAN",
+          "source_path": "native_only"
+        },
+        {
+          "name": "manual_review",
+          "column_type": "BOOLEAN",
+          "source_path": "manual_review"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "schema_ref",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "validation_config",
+          "column_type": "JSON",
+          "source_path": "validation",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:data_column",
+        "natural_key_columns": [
+          "column_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "column_processing",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "column_class",
+      "group_id": 4,
+      "title": "Column Class",
+      "description": "M:N junction between data columns and document classes (GROUP 4, J03).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "column_name",
+          "column_type": "VARCHAR",
+          "comment": "FK to data_column."
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to doc_class."
+        },
+        {
+          "name": "is_active",
+          "column_type": "BOOLEAN",
+          "source_path": "is_active"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:column_class",
+        "natural_key_columns": [
+          "column_name",
+          "class_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "column_processing[].applies_to_document_types",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_cc_column",
+          "column": "column_name",
+          "target_table": "data_column",
+          "target_column": "column_name",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_cc_class",
+          "column": "class_id",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "score_dimension",
+      "group_id": 4,
+      "title": "Score Dimension",
+      "description": "Health score dimensions (GROUP 4). Loaded from health_scoring.dimensions (6 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "dimension_id",
+          "column_type": "VARCHAR",
+          "source_path": "name",
+          "unique": true,
+          "comment": "Natural key (completeness, extraction...)."
+        },
+        {
+          "name": "weight",
+          "column_type": "DOUBLE",
+          "source_path": "weight"
+        },
+        {
+          "name": "sort_order",
+          "column_type": "INTEGER",
+          "source_path": "sort_order"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:score_dimension",
+        "natural_key_columns": [
+          "dimension_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "health_scoring.dimensions",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "score_tier",
+      "group_id": 4,
+      "title": "Score Tier",
+      "description": "Health score tier thresholds (GROUP 4). Loaded from health_scoring.score_tiers (5 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "tier_id",
+          "column_type": "VARCHAR",
+          "source_path": "name",
+          "unique": true,
+          "comment": "Natural key (tier1/tier2/tier3/excluded)."
+        },
+        {
+          "name": "min_score",
+          "column_type": "DOUBLE",
+          "source_path": "range[0]"
+        },
+        {
+          "name": "max_score",
+          "column_type": "DOUBLE",
+          "source_path": "range[1]"
+        },
+        {
+          "name": "status",
+          "column_type": "VARCHAR",
+          "source_path": "action"
+        },
+        {
+          "name": "action",
+          "column_type": "VARCHAR",
+          "source_path": "action"
+        },
+        {
+          "name": "sort_order",
+          "column_type": "INTEGER",
+          "source_path": "sort_order"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:score_tier",
+        "natural_key_columns": [
+          "tier_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "health_scoring.score_tiers",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "score_weight_tier",
+      "group_id": 4,
+      "title": "Score Weight Tier",
+      "description": "Score tier weight lookup (GROUP 4). Loaded from health_scoring.weight_tiers{} (object-iteration).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "tier_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "weight",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "label",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:score_weight_tier",
+        "natural_key_columns": [
+          "tier_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "health_scoring.weight_tiers",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "ontology_trigger",
+      "group_id": 5,
+      "title": "Ontology Trigger",
+      "description": "Binds data columns to ontology relations (GROUP 5). Loaded from eks_doc_config.json ontology_triggers{} (7 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "column_name",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key + FK to data_column."
+        },
+        {
+          "name": "relation_name",
+          "column_type": "VARCHAR",
+          "comment": "FK to ontology_relation."
+        },
+        {
+          "name": "priority",
+          "column_type": "INTEGER",
+          "source_path": "priority"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:ontology_trigger",
+        "natural_key_columns": [
+          "column_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_doc_config.json",
+      "source_path": "ontology_triggers",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ot_column",
+          "column": "column_name",
+          "target_table": "data_column",
+          "target_column": "column_name",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_ot_relation",
+          "column": "relation_name",
+          "target_table": "ontology_relation",
+          "target_column": "relation_name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "onto_class_fragment",
+      "group_id": 5,
+      "title": "Onto Class Fragment",
+      "description": "M:N junction between ontology classes and asset fragments (GROUP 5, J04).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to ontology_class."
+        },
+        {
+          "name": "fragment_id",
+          "column_type": "VARCHAR",
+          "source_path": "fragment"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:onto_class_fragment",
+        "natural_key_columns": [
+          "class_id",
+          "fragment_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_ontology_config.json",
+      "source_path": "classes[].fragments",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ocf_class",
+          "column": "class_id",
+          "target_table": "ontology_class",
+          "target_column": "name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "filename_profile",
+      "group_id": 6,
+      "title": "Filename Profile",
+      "description": "Filename parsing profile (GROUP 6). Loaded from eks_processing_config.json filename_profiles{}.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "profile_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (twrp_standard, default)."
+        },
+        {
+          "name": "profile_type",
+          "column_type": "VARCHAR",
+          "source_path": "profile_type"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "parser_type",
+          "column_type": "VARCHAR",
+          "source_path": "parser_type"
+        },
+        {
+          "name": "separator",
+          "column_type": "VARCHAR",
+          "source_path": "separator"
+        },
+        {
+          "name": "min_segments",
+          "column_type": "INTEGER",
+          "source_path": "min_segments"
+        },
+        {
+          "name": "max_segments",
+          "column_type": "INTEGER",
+          "source_path": "max_segments"
+        },
+        {
+          "name": "rejoin_separator",
+          "column_type": "VARCHAR",
+          "source_path": "rejoin_separator"
+        },
+        {
+          "name": "strip_suffixes",
+          "column_type": "JSON",
+          "source_path": "strip_suffixes",
+          "json_flag": true
+        },
+        {
+          "name": "rev_separators",
+          "column_type": "JSON",
+          "source_path": "rev_separators",
+          "json_flag": true
+        },
+        {
+          "name": "dash_rev_max_len",
+          "column_type": "INTEGER",
+          "source_path": "dash_rev_max_len"
+        },
+        {
+          "name": "output_config",
+          "column_type": "JSON",
+          "source_path": "output_config",
+          "json_flag": true
+        },
+        {
+          "name": "error_subcodes",
+          "column_type": "JSON",
+          "source_path": "error_subcodes",
+          "json_flag": true
+        },
+        {
+          "name": "segment_config",
+          "column_type": "JSON",
+          "source_path": "segment_config",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:filename_profile",
+        "natural_key_columns": [
+          "profile_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_processing_config.json",
+      "source_path": "filename_profiles",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "extraction_profile",
+      "group_id": 6,
+      "title": "Extraction Profile",
+      "description": "Content extraction/parsing profile (GROUP 6). Loaded from eks_processing_config.json extraction_profiles{}.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "profile_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (technip_pdf...)."
+        },
+        {
+          "name": "profile_type",
+          "column_type": "VARCHAR",
+          "source_path": "profile_type"
+        },
+        {
+          "name": "parser_class",
+          "column_type": "VARCHAR",
+          "source_path": "parser_class"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "supported_extensions",
+          "column_type": "JSON",
+          "source_path": "supported_extensions",
+          "json_flag": true
+        },
+        {
+          "name": "supported_doc_profiles",
+          "column_type": "JSON",
+          "source_path": "supported_doc_profiles",
+          "json_flag": true
+        },
+        {
+          "name": "requires_ocr",
+          "column_type": "BOOLEAN",
+          "source_path": "requires_ocr"
+        },
+        {
+          "name": "extraction_methods",
+          "column_type": "JSON",
+          "source_path": "extraction_methods",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:extraction_profile",
+        "natural_key_columns": [
+          "profile_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_processing_config.json",
+      "source_path": "extraction_profiles",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "file_property_profile",
+      "group_id": 6,
+      "title": "File Property Profile",
+      "description": "Per-file-type property extraction profile (GROUP 6). FK to extraction_profile.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "profile_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key ({extraction_profile}_props)."
+        },
+        {
+          "name": "profile_type",
+          "column_type": "VARCHAR",
+          "source_path": "profile_type"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "supported_extensions",
+          "column_type": "JSON",
+          "source_path": "supported_extensions",
+          "json_flag": true
+        },
+        {
+          "name": "bound_extraction_fk",
+          "column_type": "VARCHAR",
+          "source_path": "bound_extraction_profile",
+          "comment": "FK to extraction_profile.profile_id."
+        },
+        {
+          "name": "uses_os_properties",
+          "column_type": "BOOLEAN",
+          "source_path": "uses_os_properties"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:file_property_profile",
+        "natural_key_columns": [
+          "profile_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_processing_config.json",
+      "source_path": "file_property_profiles",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_fpp_extraction",
+          "column": "bound_extraction_fk",
+          "target_table": "extraction_profile",
+          "target_column": "profile_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "fp_property_mapping",
+      "group_id": 6,
+      "title": "FP Property Mapping",
+      "description": "File-property source key to data column mapping (GROUP 6). 1:N from file_property_profile.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "profile_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to file_property_profile."
+        },
+        {
+          "name": "source_key",
+          "column_type": "VARCHAR",
+          "source_path": "source_key"
+        },
+        {
+          "name": "maps_to",
+          "column_type": "VARCHAR",
+          "source_path": "maps_to",
+          "comment": "FK to data_column.column_name."
+        },
+        {
+          "name": "null_strategy",
+          "column_type": "VARCHAR",
+          "source_path": "null_strategy"
+        },
+        {
+          "name": "default_val",
+          "column_type": "VARCHAR",
+          "source_path": "default_value"
+        },
+        {
+          "name": "required",
+          "column_type": "BOOLEAN",
+          "source_path": "required"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:fp_property_mapping",
+        "natural_key_columns": [
+          "profile_id",
+          "source_key"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_processing_config.json",
+      "source_path": "file_property_profiles[].property_mapping",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_fpm_profile",
+          "column": "profile_id",
+          "target_table": "file_property_profile",
+          "target_column": "profile_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_fpm_column",
+          "column": "maps_to",
+          "target_table": "data_column",
+          "target_column": "column_name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "project_doc_type",
+      "group_id": 1,
+      "title": "Project Doc Type",
+      "description": "Binds a project's local document code to the global taxonomy (GROUP 1). Composite natural key (project_code, local_code).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project."
+        },
+        {
+          "name": "local_code",
+          "column_type": "VARCHAR",
+          "source_path": "local_code"
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "source_path": "class_id",
+          "comment": "FK to doc_class."
+        },
+        {
+          "name": "template_id",
+          "column_type": "VARCHAR",
+          "source_path": "template",
+          "comment": "FK to document_template."
+        },
+        {
+          "name": "format_category",
+          "column_type": "VARCHAR",
+          "source_path": "format_category"
+        },
+        {
+          "name": "native_source",
+          "column_type": "VARCHAR",
+          "source_path": "native_source"
+        },
+        {
+          "name": "expected_file_types",
+          "column_type": "JSON",
+          "source_path": "expected_file_types",
+          "json_flag": true
+        },
+        {
+          "name": "parsing_profile",
+          "column_type": "VARCHAR",
+          "source_path": "default_parsing_profile"
+        },
+        {
+          "name": "project_rules",
+          "column_type": "JSON",
+          "source_path": "project_rules",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_doc_type",
+        "natural_key_columns": [
+          "project_code",
+          "local_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_document_type_schema.json",
+      "source_path": "project_document_types",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pdt_project",
+          "column": "project_code",
+          "target_table": "project",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_pdt_class",
+          "column": "class_id",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_pdt_template",
+          "column": "template_id",
+          "target_table": "document_template",
+          "target_column": "template_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "error_code",
+      "group_id": 7,
+      "title": "Error Code",
+      "description": "Registered error codes (GROUP 7). Loaded from eks_error_config.json system_errors + data_logic_errors (128 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "code",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (canonical X-X-X-XXXX format)."
+        },
+        {
+          "name": "category",
+          "column_type": "VARCHAR",
+          "comment": "Derived from parent key (system / data_logic)."
+        },
+        {
+          "name": "phase",
+          "column_type": "VARCHAR",
+          "source_path": "phase"
+        },
+        {
+          "name": "module",
+          "column_type": "VARCHAR",
+          "source_path": "module"
+        },
+        {
+          "name": "function",
+          "column_type": "VARCHAR",
+          "source_path": "function"
+        },
+        {
+          "name": "severity",
+          "column_type": "VARCHAR",
+          "source_path": "severity"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        },
+        {
+          "name": "resolution",
+          "column_type": "VARCHAR",
+          "source_path": "resolution"
+        },
+        {
+          "name": "schema_ref",
+          "column_type": "VARCHAR",
+          "source_path": "schema_ref"
+        },
+        {
+          "name": "issue_id",
+          "column_type": "VARCHAR",
+          "source_path": "issue_id"
+        },
+        {
+          "name": "is_active",
+          "column_type": "BOOLEAN",
+          "source_path": "is_active"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:error_code",
+        "natural_key_columns": [
+          "code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_error_config.json",
+      "source_path": "system_errors+data_logic_errors",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "pipeline_message",
+      "group_id": 7,
+      "title": "Pipeline Message",
+      "description": "Registered pipeline messages (GROUP 7). Loaded from eks_message_config.json messages{} (52 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "message_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (MSG-...)."
+        },
+        {
+          "name": "category",
+          "column_type": "VARCHAR",
+          "source_path": "category"
+        },
+        {
+          "name": "severity",
+          "column_type": "VARCHAR",
+          "source_path": "severity"
+        },
+        {
+          "name": "template",
+          "column_type": "VARCHAR",
+          "source_path": "template"
+        },
+        {
+          "name": "triggers_on",
+          "column_type": "VARCHAR",
+          "source_path": "triggers_on"
+        },
+        {
+          "name": "related_code",
+          "column_type": "VARCHAR",
+          "source_path": "related_code",
+          "comment": "FK to error_code.code."
+        },
+        {
+          "name": "phase",
+          "column_type": "VARCHAR",
+          "source_path": "phase"
+        },
+        {
+          "name": "sort_order",
+          "column_type": "INTEGER",
+          "source_path": "sort_order"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:pipeline_message",
+        "natural_key_columns": [
+          "message_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_message_config.json",
+      "source_path": "messages",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pm_error",
+          "column": "related_code",
+          "target_table": "error_code",
+          "target_column": "code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "project_definition",
+      "group_id": 9,
+      "title": "Project Definition",
+      "description": "Per-engineering-project configuration (GROUP 9). Loaded from eks_project_definition_config.json project_definition{}.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key + FK to project_code."
+        },
+        {
+          "name": "project_name",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.project_name"
+        },
+        {
+          "name": "project_type",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.project_type"
+        },
+        {
+          "name": "discipline",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.discipline",
+          "comment": "FK to discipline."
+        },
+        {
+          "name": "client",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.client"
+        },
+        {
+          "name": "contractor",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.contractor"
+        },
+        {
+          "name": "region",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.region"
+        },
+        {
+          "name": "execution_center",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.execution_center"
+        },
+        {
+          "name": "status",
+          "column_type": "VARCHAR",
+          "source_path": "project_identity.status"
+        },
+        {
+          "name": "baseline_revision",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.baseline_revision"
+        },
+        {
+          "name": "project_phase",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.project_phase"
+        },
+        {
+          "name": "execution_stage",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.execution_stage"
+        },
+        {
+          "name": "issue_status",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.issue_status"
+        },
+        {
+          "name": "document_status",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.document_status"
+        },
+        {
+          "name": "planned_completion",
+          "column_type": "VARCHAR",
+          "source_path": "project_lifecycle.planned_completion"
+        },
+        {
+          "name": "drawing_standard",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.drawing_standard"
+        },
+        {
+          "name": "numbering_scheme",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.numbering_scheme"
+        },
+        {
+          "name": "revision_scheme",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.revision_scheme"
+        },
+        {
+          "name": "tag_format",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.tag_format"
+        },
+        {
+          "name": "engineering_units",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.engineering_units"
+        },
+        {
+          "name": "security_policy",
+          "column_type": "VARCHAR",
+          "source_path": "engineering_convention.security_policy"
+        },
+        {
+          "name": "document_profile",
+          "column_type": "JSON",
+          "source_path": "document_profile",
+          "json_flag": true
+        },
+        {
+          "name": "parsing_profile",
+          "column_type": "JSON",
+          "source_path": "parsing_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "chunking_profile",
+          "column_type": "JSON",
+          "source_path": "chunking_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "embedding_profile",
+          "column_type": "JSON",
+          "source_path": "embedding_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "retrieval_profile",
+          "column_type": "JSON",
+          "source_path": "retrieval_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "prompt_profile",
+          "column_type": "JSON",
+          "source_path": "prompt_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "validation_profile",
+          "column_type": "JSON",
+          "source_path": "validation_profile_ref",
+          "json_flag": true
+        },
+        {
+          "name": "asset_profile",
+          "column_type": "JSON",
+          "source_path": "asset_profile",
+          "json_flag": true
+        },
+        {
+          "name": "ontology_profile",
+          "column_type": "JSON",
+          "source_path": "ontology_profile",
+          "json_flag": true
+        },
+        {
+          "name": "security_profile",
+          "column_type": "JSON",
+          "source_path": "security_profile",
+          "json_flag": true
+        },
+        {
+          "name": "runtime_profiles",
+          "column_type": "JSON",
+          "source_path": "runtime_profiles",
+          "json_flag": true
+        },
+        {
+          "name": "fragment_required_fields",
+          "column_type": "JSON",
+          "source_path": "fragment_required_fields",
+          "json_flag": true
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_definition",
+        "natural_key_columns": [
+          "project_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_project_definition_config.json",
+      "source_path": "project_definition",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pdef_projcode",
+          "column": "project_code",
+          "target_table": "project_code",
+          "target_column": "proj_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_pdef_discipline",
+          "column": "discipline",
+          "target_table": "discipline",
+          "target_column": "discipline_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "project_engineering_standard",
+      "group_id": 9,
+      "title": "Project Engineering Standard",
+      "description": "Per-project engineering standards (GROUP 9).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project_definition."
+        },
+        {
+          "name": "standard_cat",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "standard_ref",
+          "column_type": "VARCHAR",
+          "source_path": "standard"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_engineering_standard",
+        "natural_key_columns": [
+          "project_code",
+          "standard_cat"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_project_definition_config.json",
+      "source_path": "project_definition[].engineering_standards",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pes_project",
+          "column": "project_code",
+          "target_table": "project_definition",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "project_allowed_discipline",
+      "group_id": 9,
+      "title": "Project Allowed Discipline",
+      "description": "M:N junction between projects and allowed disciplines (GROUP 9, J05).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project_definition."
+        },
+        {
+          "name": "discipline_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to discipline."
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_allowed_discipline",
+        "natural_key_columns": [
+          "project_code",
+          "discipline_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_project_definition_config.json",
+      "source_path": "project_definition[].engineering_convention.allowed_disciplines",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pad_project",
+          "column": "project_code",
+          "target_table": "project_definition",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_pad_discipline",
+          "column": "discipline_code",
+          "target_table": "discipline",
+          "target_column": "discipline_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "project_revision_pattern",
+      "group_id": 9,
+      "title": "Project Revision Pattern",
+      "description": "Per-project revision validation pattern (GROUP 9).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project_definition."
+        },
+        {
+          "name": "pattern",
+          "column_type": "VARCHAR",
+          "source_path": "pattern"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR",
+          "source_path": "description"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:project_revision_pattern",
+        "natural_key_columns": [
+          "project_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_project_definition_config.json",
+      "source_path": "project_definition[].revision_validation",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_prp_project",
+          "column": "project_code",
+          "target_table": "project_definition",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "asset_fragment",
+      "group_id": 10,
+      "title": "Asset Fragment",
+      "description": "Reusable asset fragment header (GROUP 10). Loaded from eks_asset_base_schema.json definitions (14 fragments).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "fragment_id",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (item_core...)."
+        },
+        {
+          "name": "fragment_name",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "category",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "field_count",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "base_def_key",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_fragment",
+        "natural_key_columns": [
+          "fragment_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_base_schema.json",
+      "source_path": "definitions",
+      "transform": "object-iteration"
+    },
+    {
+      "table_name": "asset_fragment_field",
+      "group_id": 10,
+      "title": "Asset Fragment Field",
+      "description": "Per-fragment field definitions (GROUP 10). Loaded from base schema fragment definitions properties.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "fragment_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to asset_fragment."
+        },
+        {
+          "name": "field_name",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "field_type",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "is_required",
+          "column_type": "BOOLEAN"
+        },
+        {
+          "name": "default_value",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_fragment_field",
+        "natural_key_columns": [
+          "fragment_id",
+          "field_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_base_schema.json",
+      "source_path": "definitions[].properties",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_aff_fragment",
+          "column": "fragment_id",
+          "target_table": "asset_fragment",
+          "target_column": "fragment_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "asset_type",
+      "group_id": 10,
+      "title": "Asset Type",
+      "description": "Registered asset types (GROUP 10). Loaded from eks_asset_config.json asset_type_registry (14 rows).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "asset_type_code",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (centrifugal_pump...)."
+        },
+        {
+          "name": "asset_name",
+          "column_type": "VARCHAR",
+          "source_path": "label"
+        },
+        {
+          "name": "asset_category",
+          "column_type": "VARCHAR",
+          "source_path": "category"
+        },
+        {
+          "name": "ontology_class",
+          "column_type": "VARCHAR",
+          "source_path": "ontology_class",
+          "comment": "FK to ontology_class.name."
+        },
+        {
+          "name": "doc_template_ref",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "icon_ref",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_type",
+        "natural_key_columns": [
+          "asset_type_code"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "asset_type_registry",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_at_ontology",
+          "column": "ontology_class",
+          "target_table": "ontology_class",
+          "target_column": "name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "asset_type_fragment",
+      "group_id": 10,
+      "title": "Asset Type Fragment",
+      "description": "M:N junction between asset types and fragments (GROUP 10, J06).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "asset_type_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to asset_type."
+        },
+        {
+          "name": "fragment_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to asset_fragment."
+        },
+        {
+          "name": "is_required",
+          "column_type": "BOOLEAN"
+        },
+        {
+          "name": "display_order",
+          "column_type": "INTEGER"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_type_fragment",
+        "natural_key_columns": [
+          "asset_type_code",
+          "fragment_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "asset_type_registry[].fragments",
+      "transform": "junction-from-array",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_atf_type",
+          "column": "asset_type_code",
+          "target_table": "asset_type",
+          "target_column": "asset_type_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_atf_fragment",
+          "column": "fragment_id",
+          "target_table": "asset_fragment",
+          "target_column": "fragment_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "asset_column_normalization",
+      "group_id": 10,
+      "title": "Asset Column Normalization",
+      "description": "Maps raw Excel/CSV columns to canonical fragment field paths (GROUP 10).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "asset_type_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to asset_type."
+        },
+        {
+          "name": "source_column_name",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "target_field_path",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "transform_rule",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "pk_priority",
+          "column_type": "INTEGER"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_column_normalization",
+        "natural_key_columns": [
+          "asset_type_code",
+          "source_column_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "column_normalization",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_acn_type",
+          "column": "asset_type_code",
+          "target_table": "asset_type",
+          "target_column": "asset_type_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "asset_trigger",
+      "group_id": 10,
+      "title": "Asset Trigger",
+      "description": "Field/document edge triggers for asset relationships (GROUP 10). Loaded from relationship_triggers + document_triggers.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "asset_type_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to asset_type."
+        },
+        {
+          "name": "trigger_id",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "trigger_type",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "source_field",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "edge_type",
+          "column_type": "VARCHAR",
+          "comment": "FK to ontology_relation."
+        },
+        {
+          "name": "target_type",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "doc_profile",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_trigger",
+        "natural_key_columns": [
+          "asset_type_code",
+          "trigger_id"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "relationship_triggers+document_triggers",
+      "transform": "object-iteration",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_atrig_type",
+          "column": "asset_type_code",
+          "target_table": "asset_type",
+          "target_column": "asset_type_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_atrig_edge",
+          "column": "edge_type",
+          "target_table": "ontology_relation",
+          "target_column": "relation_name",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "documents",
+      "group_id": 11,
+      "title": "Documents",
+      "description": "Canonical registry of discovered + validated documents (GROUP 11, runtime). Populated by register_document().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK (uuid4 at insert)."
+        },
+        {
+          "name": "document_number",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "NOT NULL natural key."
+        },
+        {
+          "name": "revision",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project (nullable)."
+        },
+        {
+          "name": "document_type",
+          "column_type": "VARCHAR",
+          "comment": "FK via composite (project_code, local_code) to project_doc_type."
+        },
+        {
+          "name": "doc_class",
+          "column_type": "VARCHAR",
+          "comment": "FK to doc_class."
+        },
+        {
+          "name": "document_template",
+          "column_type": "VARCHAR",
+          "comment": "FK to document_template."
+        },
+        {
+          "name": "element_type",
+          "column_type": "VARCHAR",
+          "comment": "FK to element_type."
+        },
+        {
+          "name": "file_type",
+          "column_type": "VARCHAR",
+          "comment": "FK to file_type.extension."
+        },
+        {
+          "name": "discipline",
+          "column_type": "VARCHAR",
+          "comment": "FK to discipline.discipline_code."
+        },
+        {
+          "name": "project_definition",
+          "column_type": "VARCHAR",
+          "comment": "FK to project_definition.project_code."
+        },
+        {
+          "name": "status",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "is_latest",
+          "column_type": "BOOLEAN"
+        },
+        {
+          "name": "file_path",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "ingested_at",
+          "column_type": "TIMESTAMP"
+        },
+        {
+          "name": "source_type",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "created_by",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "checked_by",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "approved_by",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "originator_company",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "security_class",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "asset_tags",
+          "column_type": "JSON",
+          "json_flag": true
+        },
+        {
+          "name": "references_documents",
+          "column_type": "JSON",
+          "json_flag": true
+        },
+        {
+          "name": "page_count",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "extract_status",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "extraction_confidence",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "extraction_notes",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "flag_reason",
+          "column_type": "VARCHAR",
+          "comment": "I308/T1.283: materialized at ingest (Python-written) so v_review_flags is a pure projection — no SQL CASE duplication. Null when no flag."
+        },
+        {
+          "name": "verified_by",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "file_size",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "file_created_at",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "file_modified_at",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "file_hash",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_title",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_subject",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_created_date",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_modified_date",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_creator_app",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_producer",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_last_modified_by",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_keywords",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_sheet_count",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "document_title",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "supersedes",
+          "column_type": "VARCHAR",
+          "comment": "Self-ref FK to documents.id."
+        },
+        {
+          "name": "superseded_by",
+          "column_type": "VARCHAR",
+          "comment": "Self-ref FK to documents.id."
+        },
+        {
+          "name": "lifecycle_stage",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "revision_date",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "revision_description",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "embedded_revision_number",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "project_phase",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "contract_package",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "issued_date",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "responsible_engineer",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "total_sheets",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "language",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "vendor_name",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "project_title",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "project_number",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "area",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "department",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:documents",
+        "natural_key_columns": [
+          "document_number"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_supersedes",
+          "column": "supersedes",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_superseded_by",
+          "column": "superseded_by",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_doc_project",
+          "column": "project_code",
+          "target_table": "project",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_doc_class",
+          "column": "doc_class",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_doc_template",
+          "column": "document_template",
+          "target_table": "document_template",
+          "target_column": "template_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_file_type",
+          "column": "file_type",
+          "target_table": "file_type",
+          "target_column": "extension",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_discipline",
+          "column": "discipline",
+          "target_table": "discipline",
+          "target_column": "discipline_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_project_code",
+          "column": "project_definition",
+          "target_table": "project_definition",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_doc_type_composite",
+          "column": "document_type",
+          "target_table": "project_doc_type",
+          "target_column": "local_code",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_doc_element_type",
+          "column": "element_type",
+          "target_table": "element_type",
+          "target_column": "element_type",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "document_elements",
+      "group_id": 11,
+      "title": "Document Elements",
+      "description": "Structural elements extracted per document (GROUP 11, runtime). Populated by store_elements().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK (uuid4 at insert)."
+        },
+        {
+          "name": "doc_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to documents.id (NOT NULL)."
+        },
+        {
+          "name": "element_type",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to element_type (11-code enum)."
+        },
+        {
+          "name": "element_id",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "title",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "content",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "confidence",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "source",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "element_seq",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "created_at",
+          "column_type": "TIMESTAMP",
+          "nullable": false,
+          "comment": "DEFAULT now().",
+          "default": "now()"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:document_elements",
+        "natural_key_columns": [
+          "doc_id",
+          "element_type"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_element_doc",
+          "column": "doc_id",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_element_type",
+          "column": "element_type",
+          "target_table": "element_type",
+          "target_column": "element_type",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "document_reference",
+      "group_id": 11,
+      "title": "Document Reference",
+      "description": "M:N junction between registry documents (GROUP 11, runtime). Populated by store_document_reference().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK."
+        },
+        {
+          "name": "source_doc_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to documents.id (NOT NULL)."
+        },
+        {
+          "name": "target_doc_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to documents.id (NOT NULL)."
+        },
+        {
+          "name": "relation_type",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "10-type relation enum."
+        },
+        {
+          "name": "created_at",
+          "column_type": "TIMESTAMP",
+          "nullable": false,
+          "comment": "DEFAULT now().",
+          "default": "now()"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:document_reference",
+        "natural_key_columns": [
+          "source_doc_id",
+          "target_doc_id",
+          "relation_type"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ref_source",
+          "column": "source_doc_id",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_ref_target",
+          "column": "target_doc_id",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "batch_run",
+      "group_id": 11,
+      "title": "Batch Run",
+      "description": "Pipeline run statistics (GROUP 11, runtime). Populated by insert_batch()/update_batch().",
+      "columns": [
+        {
+          "name": "run_id",
+          "column_type": "VARCHAR",
+          "comment": "Natural key (UUID).",
+          "is_primary": true
+        },
+        {
+          "name": "job_id",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "project_code",
+          "column_type": "VARCHAR",
+          "comment": "FK to project."
+        },
+        {
+          "name": "data_dir",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "current_stage",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "phase_a_discovered",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "phase_a_valid",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "phase_b_total",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "phase_b_success",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "phase_b_failed",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "phase_c_flagged",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "started_at",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "finished_at",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "status",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "doc_count",
+          "column_type": "INTEGER",
+          "default": 0
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:batch_run",
+        "natural_key_columns": [
+          "run_id"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_batch_project",
+          "column": "project_code",
+          "target_table": "project",
+          "target_column": "project_code",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "health_score",
+      "group_id": 11,
+      "title": "Health Score",
+      "description": "Per-document health assessment (GROUP 11, runtime). Populated by store_health_score().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK."
+        },
+        {
+          "name": "run_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to batch_run.run_id."
+        },
+        {
+          "name": "document_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to documents.id."
+        },
+        {
+          "name": "class_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to doc_class."
+        },
+        {
+          "name": "template_id",
+          "column_type": "VARCHAR",
+          "comment": "FK to document_template."
+        },
+        {
+          "name": "health_score",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "extract_status",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "dim_completeness",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "dim_extraction",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "dim_structural",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "dim_source",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "dim_xref",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "dim_consistency",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "missing_columns",
+          "column_type": "JSON",
+          "json_flag": true
+        },
+        {
+          "name": "tier1_populated",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "tier1_total",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "scored_at",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:health_score",
+        "natural_key_columns": [
+          "id"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_hs_batch",
+          "column": "run_id",
+          "target_table": "batch_run",
+          "target_column": "run_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_hs_doc",
+          "column": "document_id",
+          "target_table": "documents",
+          "target_column": "id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_hs_class",
+          "column": "class_id",
+          "target_table": "doc_class",
+          "target_column": "class_id",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "fk_name": "fk_hs_template",
+          "column": "template_id",
+          "target_table": "document_template",
+          "target_column": "template_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "health_batch",
+      "group_id": 11,
+      "title": "Health Batch",
+      "description": "Per-run health aggregate (GROUP 11, runtime). Populated by store_health_batch().",
+      "columns": [
+        {
+          "name": "run_id",
+          "column_type": "VARCHAR",
+          "comment": "Natural key + FK to batch_run.",
+          "is_primary": true
+        },
+        {
+          "name": "avg_document_health",
+          "column_type": "DOUBLE"
+        },
+        {
+          "name": "total_documents",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "status_success",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "status_partial",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "status_failed",
+          "column_type": "INTEGER",
+          "default": 0
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:health_batch",
+        "natural_key_columns": [
+          "run_id"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_hb_batch",
+          "column": "run_id",
+          "target_table": "batch_run",
+          "target_column": "run_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "pipeline_checkpoint",
+      "group_id": 12,
+      "title": "Pipeline Checkpoint",
+      "description": "Pipeline phase-state snapshots (GROUP 12, runtime). Populated by insert_checkpoint().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK."
+        },
+        {
+          "name": "job_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to batch_run.job_id (NOT NULL)."
+        },
+        {
+          "name": "phase",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "column_type": "JSON",
+          "nullable": false,
+          "json_flag": true
+        },
+        {
+          "name": "created_at",
+          "column_type": "TIMESTAMP",
+          "nullable": false,
+          "comment": "DEFAULT now().",
+          "default": "now()"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:pipeline_checkpoint",
+        "natural_key_columns": [
+          "job_id",
+          "phase"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pc_batch",
+          "column": "job_id",
+          "target_table": "batch_run",
+          "target_column": "job_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "pipeline_event_log",
+      "group_id": 12,
+      "title": "Pipeline Event Log",
+      "description": "Structured pipeline event/debug log (GROUP 12, runtime). Populated by insert_events().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK."
+        },
+        {
+          "name": "job_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to batch_run.job_id (NOT NULL)."
+        },
+        {
+          "name": "timestamp",
+          "column_type": "TIMESTAMP",
+          "nullable": false,
+          "comment": "DEFAULT now().",
+          "default": "now()"
+        },
+        {
+          "name": "level",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "context",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "module",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "message",
+          "column_type": "TEXT",
+          "nullable": false
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:pipeline_event_log",
+        "natural_key_columns": [
+          "id"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_pe_batch",
+          "column": "job_id",
+          "target_table": "batch_run",
+          "target_column": "job_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "export_artifact",
+      "group_id": 12,
+      "title": "Export Artifact",
+      "description": "Tracks pipeline export artifacts (GROUP 12, runtime). Populated by insert_artifact().",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true,
+          "comment": "Surrogate UUID PK."
+        },
+        {
+          "name": "job_id",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "FK to batch_run.job_id (NOT NULL)."
+        },
+        {
+          "name": "artifact_type",
+          "column_type": "VARCHAR",
+          "nullable": false,
+          "comment": "View id (discovery_inventory/extraction_results/review_flags)."
+        },
+        {
+          "name": "file_path",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "row_count",
+          "column_type": "INTEGER",
+          "default": 0
+        },
+        {
+          "name": "created_at",
+          "column_type": "TIMESTAMP",
+          "nullable": false,
+          "comment": "DEFAULT now().",
+          "default": "now()"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:export_artifact",
+        "natural_key_columns": [
+          "id"
+        ],
+        "algorithm": "uuid4"
+      },
+      "transform": "direct-map",
+      "foreign_keys": [
+        {
+          "fk_name": "fk_ea_batch",
+          "column": "job_id",
+          "target_table": "batch_run",
+          "target_column": "job_id",
+          "on_delete": "NO ACTION"
+        }
+      ]
+    },
+    {
+      "table_name": "_eks_table_relations",
+      "group_id": 12,
+      "title": "EKS Table Relations (deprecated)",
+      "description": "Declared-only FK manifest (I290). DEPRECATED 2026-08-11 (I306 Q1) — physical FKs in foreign_keys[] replace it; removal on next additive migration (I310/T1.295).",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "relation_name",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key."
+        },
+        {
+          "name": "source_table",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "source_columns",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "target_table",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "target_columns",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "relation_type",
+          "column_type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "declared_only",
+          "column_type": "BOOLEAN",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "column_type": "VARCHAR"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:_eks_table_relations",
+        "natural_key_columns": [
+          "relation_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "transform": "direct-map"
+    },
+    {
+      "table_name": "db_manifest",
+      "group_id": 12,
+      "title": "DB Manifest",
+      "description": "Schema-driven DB provenance table (replaces _eks_schema_meta; I312/T1.301–T1.303). One row per materialized table.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "table_name",
+          "column_type": "VARCHAR",
+          "unique": true,
+          "comment": "Natural key (matches db_tables[].table_name)."
+        },
+        {
+          "name": "group_id",
+          "column_type": "INTEGER"
+        },
+        {
+          "name": "schema_version",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "ddl_hash",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "loaded_at",
+          "column_type": "VARCHAR"
+        },
+        {
+          "name": "row_count",
+          "column_type": "INTEGER"
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:db_manifest",
+        "natural_key_columns": [
+          "table_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "transform": "direct-map"
+    }
+  ]
+}

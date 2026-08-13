@@ -75,6 +75,9 @@
         },
         "phase_1_config_validation": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "phase_1_materialization": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }
     },

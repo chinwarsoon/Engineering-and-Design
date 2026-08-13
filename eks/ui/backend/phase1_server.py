@@ -3,7 +3,14 @@
 Per Appendix G §10, this server provides all Phase 1 API endpoints:
 file discovery, document CRUD, pipeline execution, and health scoring.
 
-Revision: 0.12 (I288/T1.246)
+Revision: 0.13 (I309/T1.290)
+- 0.13: I309/T1.290: schema-driven export. Removed hardcoded export columns
+  from _handle_export — phase→view mapping + per-view columns now come from
+  eks_export_view_config.json via resolve_export_views. Added GET
+  /api/v1/export_views (view catalog for the UI export panel). run POST accepts
+  optional export_columns {view_id:[cols]} validated via
+  validate_export_column_override (S-C-S-0313) and applied to downloads.
+  Excel "all" export uses one workbook via DataExporter.export_to_workbook.
 - 0.12: T1.246/I288: _LogCapture gains debug()/trace()/set_level() passthrough (standard EKSLogger interface) — engine code calls logger.debug() at 14 sites, aborting every UI pipeline run with AttributeError; read-only, no API change.
 - 0.1: Initial server with all Phase 1 API endpoints
 - 0.2: T1.69–T1.76: run_id, traversal guard, checkpoint persist, ErrorManager/MessageManager activation, artifact dump
@@ -33,11 +40,12 @@ Read-only endpoints on the DuckDB registry:
   - GET  /api/v1/pipeline/logs/{job_id}
   - GET  /api/v1/review/summary
   - GET  /api/v1/review/flagged
+  - GET  /api/v1/export_views                  (I309 T1.290: schema-driven view catalog)
   - GET  /api/v1/export/{phase}/{format}   (phases: a,b,c,all; formats: csv,xlsx)
 
 Read-write endpoints on the DuckDB registry:
   - POST /api/v1/files/load
-  - POST /api/v1/pipeline/start
+  - POST /api/v1/pipeline/start            (accepts optional export_columns — I309 T1.290)
   - PUT  /api/v1/documents/{id}
   - PUT  /api/v1/review/lock
   - PUT  /api/v1/review/recalculate
@@ -134,6 +142,10 @@ _registry_lock = threading.Lock()
 _job_state: Dict[str, Dict[str, Any]] = {}
 _job_logs: Dict[str, List[Dict[str, Any]]] = {}
 _job_lock = threading.RLock()
+
+# I309/T1.290: per-view export column override set via run POST (validated
+# against eks_export_view_config.json, S-C-S-0313) and applied to downloads.
+_export_columns_override: Dict[str, List[str]] = {}
 
 _logger = EKSLogger("Phase1Server", level=1) if _IMPORTS_OK else None
 _debug_mode = False
@@ -301,6 +313,8 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 self._handle_review_summary()
             elif segments[:4] == ["api", "v1", "review", "flagged"]:
                 self._handle_flagged_documents()
+            elif segments == ["api", "v1", "export_views"]:
+                self._handle_export_views()
             elif segments[:5] == ["api", "v1", "export"] and len(segments) >= 6:
                 self._handle_export(segments[4], segments[5])
             else:
@@ -568,6 +582,35 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             })
             return
 
+        # I309/T1.290: optional per-view export column override — validated
+        # against eks_export_view_config.json (S-C-S-0313). Applied to the
+        # export downloads; stored under _job_lock.
+        export_columns = data.get("export_columns")
+        if export_columns is not None:
+            if not isinstance(export_columns, dict):
+                self._json_response(400, {
+                    "error": "export_columns must be an object {view_id: [column, ...]}",
+                    "detail": "view_id values are the export views declared in eks_export_view_config.json",
+                })
+                return
+            try:
+                from eks.engine.pipeline_engine.exporter import validate_export_column_override
+                _validated = validate_export_column_override(
+                    PRJ_DIR / _EKS_ROOT_DEFAULT / "config" / "schemas",
+                    export_columns,
+                )
+            except RuntimeError as exc:
+                if _logger:
+                    _logger.warning(f"export_columns rejected: {exc}", context="Phase1Handler._handle_pipeline_start")
+                self._json_response(400, {"error": str(exc)})
+                return
+            with _job_lock:
+                _export_columns_override.clear()
+                _export_columns_override.update(_validated)
+        else:
+            with _job_lock:
+                _export_columns_override.clear()
+
         # T1.80/T1.82/T1.83: Derive output path from already-loaded config (via PathResolver)
         _eks_output_dir = _rp["output_dir"]
 
@@ -789,11 +832,52 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         flagged = _with_retry(_action)
         self._json_response(200, {"count": len(flagged), "documents": flagged})
 
+    def _handle_export_views(self):
+        """GET /api/v1/export_views — schema-driven export view catalog.
+
+        I309 (T1.290): returns the export views declared in
+        eks_export_view_config.json (view_id, columns, sheet_name,
+        file_base_name, source_table, formats) so the UI export panel is
+        schema-driven — no hardcoded view/column literals in the frontend.
+        """
+        if not self._check_imports():
+            return
+
+        try:
+            from eks.engine.pipeline_engine.exporter import resolve_export_views
+
+            schema_dir = PRJ_DIR / _EKS_ROOT_DEFAULT / "config" / "schemas"
+            specs = resolve_export_views(schema_dir)
+            views = [
+                {
+                    "view_id": view_id,
+                    "columns": spec["columns"],
+                    "sheet_name": spec["sheet_name"],
+                    "file_base_name": spec["file_base_name"],
+                    "source_table": spec.get("source_table", ""),
+                    "formats": spec.get("formats", ["csv", "xlsx"]),
+                    "filter": spec.get("filter"),
+                }
+                for view_id, spec in specs.items()
+            ]
+            self._json_response(200, {"views": views})
+        except Exception as e:
+            if _logger:
+                _logger.error(f"export_views failed: {e}", context="Phase1Handler._handle_export_views")
+            self._json_response(500, {"error": f"Failed to load export views: {e}"})
+
     def _handle_export(self, phase: str, fmt: str):
         """GET /api/v1/export/{phase}/{format} — download pipeline export files.
 
         Phases: ``a`` (discovery), ``b`` (extraction), ``c`` (review), ``all`` (all 3).
         Formats: ``csv``, ``xlsx``.
+
+        I309 (T1.290): per-view columns/sheet names are schema-driven
+        (resolve_export_views from eks_export_view_config.json) — the hardcoded
+        column lists are removed. A validated per-view column override set via
+        run POST (``export_columns``) is applied. ``all`` + xlsx produces ONE
+        workbook (one worksheet per enabled view) via
+        DataExporter.export_to_workbook.
         """
         if not self._check_imports():
             return
@@ -814,6 +898,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             # Lazy import — only when export endpoint is called
             from common.library.export import DataExporter
             from eks.engine.eks_engine_pipeline import _build_export_rows, _build_flagged_rows
+            from eks.engine.pipeline_engine.exporter import resolve_export_views
 
             exporter = DataExporter()
 
@@ -827,37 +912,64 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             registry = get_registry()
             all_docs = _with_retry(lambda: registry.list_documents(latest_only=True, order_by="document_number"))
 
-            # Define phase→file mapping
-            phase_defs = {
-                "a": {
-                    "name": "discovery_inventory",
-                    "columns": ["document_number", "revision", "document_type",
-                                "file_type", "file_path", "ingested_at"],
-                    "rows_fn": lambda: _build_export_rows(all_docs, ["pending"],
-                        ["document_number", "revision", "document_type",
-                         "file_type", "file_path", "ingested_at"]),
-                },
-                "b": {
-                    "name": "extraction_results",
-                    "columns": ["document_number", "revision", "document_type",
-                                "file_type", "file_path", "page_count",
-                                "extract_status", "extraction_confidence",
-                                "extraction_notes", "ingested_at"],
-                    "rows_fn": lambda: _build_export_rows(all_docs, None, None),
-                },
-                "c": {
-                    "name": "review_flags",
-                    "columns": ["document_number", "revision", "document_type",
-                                "extract_status", "extraction_confidence",
-                                "extraction_notes", "flag_reason", "ingested_at"],
-                    "rows_fn": lambda: _build_flagged_rows(all_docs, None),
-                },
+            # I309/T1.290: schema-driven phase→view mapping + per-view columns.
+            schema_dir = PRJ_DIR / _EKS_ROOT_DEFAULT / "config" / "schemas"
+            view_specs = resolve_export_views(schema_dir)
+            with _job_lock:
+                override = dict(_export_columns_override)
+
+            def _view_columns(view_id: str) -> list:
+                cols = list(view_specs[view_id]["columns"])
+                if view_id in override:
+                    cols = list(override[view_id])
+                return cols
+
+            # phase → (view_id, row-builder, status filter for discovery)
+            _phase_view = {
+                "a": "discovery_inventory",
+                "b": "extraction_results",
+                "c": "review_flags",
             }
+
+            def _mk_rows_fn(view_id: str, status_filter: Optional[list]):
+                if view_id == "review_flags":
+                    return lambda: _build_flagged_rows(all_docs, _view_columns(view_id))
+                return lambda: _build_export_rows(all_docs, status_filter, _view_columns(view_id))
+
+            phase_defs = {}
+            for pkey, view_id in _phase_view.items():
+                vs = view_specs[view_id]
+                phase_defs[pkey] = {
+                    "name": view_id,
+                    "sheet_name": vs["sheet_name"],
+                    "formats": vs.get("formats", ["csv", "xlsx"]),
+                    "columns": _view_columns(view_id),
+                    "rows_fn": _mk_rows_fn(view_id, ["pending"] if pkey == "a" else None),
+                }
 
             phases_to_export = ["a", "b", "c"] if phase == "all" else [phase]
 
             # For multi-phase export, use a temp single-file approach
-            file_path = output_dir / f"eks_export_phase_{phase}.{fmt}"
+            # I314 follow-up: schema-driven download file names (SSOT). The
+            # single-phase template comes from system_parameters; the all-phases
+            # workbook download reuses export_workbook_file_name (same name the
+            # pipeline writes), and all-phases CSV uses the template with
+            # phase='all'.
+            if len(phases_to_export) == 1:
+                file_name = get_system_param(
+                    cfg, "export_download_file_name_template",
+                    "eks_export_{phase}.{ext}",
+                ).format(phase=phase, ext=fmt)
+            elif fmt == "xlsx":
+                file_name = get_system_param(
+                    cfg, "export_workbook_file_name", "eks_export.xlsx"
+                )
+            else:
+                file_name = get_system_param(
+                    cfg, "export_download_file_name_template",
+                    "eks_export_{phase}.{ext}",
+                ).format(phase="all", ext="csv")
+            file_path = output_dir / file_name
             content_type = "text/csv; charset=utf-8" if fmt == "csv" else \
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -869,7 +981,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 if fmt == "csv":
                     exporter.export_to_csv(rows, file_path, columns=cols)
                 else:
-                    exporter.export_to_excel(rows, file_path, sheet_name=pd["name"], columns=cols)
+                    exporter.export_to_excel(rows, file_path, sheet_name=pd["sheet_name"], columns=cols)
             else:
                 # All phases → one file
                 if fmt == "csv":
@@ -878,12 +990,15 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     rows = pd["rows_fn"]()
                     exporter.export_to_csv(rows, file_path, columns=pd["columns"])
                 else:
-                    # Excel: multi-sheet workbook
+                    # Excel: single workbook — one worksheet per xlsx-enabled
+                    # view, schema-driven sheet names + columns (I309 T1.290).
                     sheets = {}
+                    sheet_columns = {}
                     for p in phases_to_export:
                         pd = phase_defs[p]
-                        sheets[pd["name"]] = pd["rows_fn"]()
-                    exporter.export_multi_sheet(sheets, file_path)
+                        sheets[pd["sheet_name"]] = pd["rows_fn"]()
+                        sheet_columns[pd["sheet_name"]] = pd["columns"]
+                    exporter.export_to_workbook(sheets, file_path, columns=sheet_columns)
 
             # Serve file
             with open(file_path, "rb") as f:

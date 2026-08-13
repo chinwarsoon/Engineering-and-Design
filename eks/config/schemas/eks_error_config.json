@@ -1,10 +1,10 @@
 {
     "metadata": {
-        "version": "1.7.0",
-        "last_updated": "2026-07-31",
-        "total_codes": 128,
-        "system_codes": 75,
-        "data_logic_codes": 53,
+        "version": "1.10.0",
+        "last_updated": "2026-08-13",
+        "total_codes": 140,
+        "system_codes": 82,
+        "data_logic_codes": 58,
         "system_format": "S-{cat}-S-{id4}",
         "data_logic_format": "P{phase}-{module}-{function}-{id}"
     },
@@ -26,9 +26,9 @@
         "config": {
             "prefix": "S-C-S-03xx",
             "description": "Configuration errors (schema, parameters, setup)",
-            "count": 8,
+            "count": 13,
             "start_id": "S-C-S-0301",
-            "end_id": "S-C-S-0308"
+            "end_id": "S-C-S-0313"
         },
         "project_definition": {
             "prefix": "S-C-S-09xx",
@@ -40,9 +40,9 @@
         "runtime": {
             "prefix": "S-R-S-04xx",
             "description": "Runtime errors (exceptions, memory, fail-fast, readiness)",
-            "count": 10,
+            "count": 12,
             "start_id": "S-R-S-0401",
-            "end_id": "S-R-S-0410"
+            "end_id": "S-R-S-0412"
         },
         "ai": {
             "prefix": "S-A-S-05xx",
@@ -238,6 +238,51 @@
             "stops_pipeline": true,
             "promote_detail": true
         },
+        "S-C-S-0309": {
+            "code": "S-C-S-0309",
+            "name": "INVALID_DB_TABLE_SPEC",
+            "message": "Invalid DB table specification in eks_db_config.json",
+            "severity": "HIGH",
+            "category": "Config",
+            "stops_pipeline": false,
+            "promote_detail": true
+        },
+        "S-C-S-0310": {
+            "code": "S-C-S-0310",
+            "name": "INVALID_DB_FK_SPEC",
+            "message": "Invalid DB foreign-key specification in eks_db_config.json",
+            "severity": "HIGH",
+            "category": "Config",
+            "stops_pipeline": false,
+            "promote_detail": true
+        },
+        "S-C-S-0311": {
+            "code": "S-C-S-0311",
+            "name": "INVALID_MIGRATION_POLICY",
+            "message": "Invalid migration_policy value in system_parameters — must be 'additive' or 'destructive'",
+            "severity": "HIGH",
+            "category": "Config",
+            "stops_pipeline": false,
+            "promote_detail": true
+        },
+        "S-C-S-0312": {
+            "code": "S-C-S-0312",
+            "name": "EXPORT_VIEW_CONFIG_MISSING",
+            "message": "Export view config (eks_export_view_config.json) not found or unreadable — cannot resolve export columns",
+            "severity": "HIGH",
+            "category": "Config",
+            "stops_pipeline": true,
+            "promote_detail": true
+        },
+        "S-C-S-0313": {
+            "code": "S-C-S-0313",
+            "name": "EXPORT_COLUMN_NOT_ALLOWED",
+            "message": "Column '{column}' is not an allowed export column for view '{view_id}' — allowed columns are defined in eks_export_view_config.json#/views",
+            "severity": "HIGH",
+            "category": "Config",
+            "stops_pipeline": true,
+            "promote_detail": true
+        },
         "S-R-S-0401": {
             "code": "S-R-S-0401",
             "name": "FAIL_FAST_TRIGGERED",
@@ -378,6 +423,24 @@
             "name": "SETUP_NOT_READY",
             "message": "Project setup validation failed — readiness check not passed",
             "severity": "FATAL",
+            "category": "Runtime",
+            "stops_pipeline": true,
+            "promote_detail": true
+        },
+        "S-R-S-0411": {
+            "code": "S-R-S-0411",
+            "name": "DB_MATERIALIZATION_FAILED",
+            "message": "Schema-driven DB materialization failed while rendering table DDL",
+            "severity": "CRITICAL",
+            "category": "Runtime",
+            "stops_pipeline": true,
+            "promote_detail": true
+        },
+        "S-R-S-0412": {
+            "code": "S-R-S-0412",
+            "name": "DEFINITION_LOAD_FAILED",
+            "message": "DefinitionLoader failed to materialize a definition table from source config",
+            "severity": "CRITICAL",
             "category": "Runtime",
             "stops_pipeline": true,
             "promote_detail": true
@@ -792,6 +855,13 @@
             "count": 3,
             "start_id": "P1-C-V-0001",
             "end_id": "P1-C-V-0003"
+        },
+        "phase_1_materialization": {
+            "prefix": "P1-R-P-04xx",
+            "description": "Phase 1 - Schema-driven definition table materialization + migration gate data errors (I310/T1.296, I311/T1.297)",
+            "count": 5,
+            "start_id": "P1-R-P-0001",
+            "end_id": "P1-R-P-0005"
         }
     },
     "data_logic_errors": {
@@ -1387,6 +1457,61 @@
             "function": "V",
             "source": "eks/engine/core/project_definition.py",
             "health_score_impact": 0
+        },
+        "P1-R-P-0001": {
+            "code": "P1-R-P-0001",
+            "name": "NATURAL_KEY_MISSING",
+            "message": "Definition row is missing a natural-key value required for UUIDv5 id generation",
+            "severity": "HIGH",
+            "layer": "P1",
+            "module": "R",
+            "function": "P",
+            "source": "eks/engine/core/definition_loader.py",
+            "health_score_impact": -1
+        },
+        "P1-R-P-0002": {
+            "code": "P1-R-P-0002",
+            "name": "FK_TARGET_MISSING",
+            "message": "Definition relationship references a target value absent from the referenced table",
+            "severity": "HIGH",
+            "layer": "P1",
+            "module": "R",
+            "function": "P",
+            "source": "eks/engine/core/definition_loader.py",
+            "health_score_impact": -1
+        },
+        "P1-R-P-0003": {
+            "code": "P1-R-P-0003",
+            "name": "SOURCE_TRANSFORM_FAILED",
+            "message": "Definition source value could not be transformed into the target table column",
+            "severity": "HIGH",
+            "layer": "P1",
+            "module": "R",
+            "function": "P",
+            "source": "eks/engine/core/definition_loader.py",
+            "health_score_impact": -1
+        },
+        "P1-R-P-0004": {
+            "code": "P1-R-P-0004",
+            "name": "DESTRUCTIVE_MIGRATION_BLOCKED",
+            "message": "Destructive DB migration blocked by migration policy — rerun with --db-apply (non-protected) or --db-force (protected tables, mandates backup)",
+            "severity": "HIGH",
+            "layer": "P1",
+            "module": "R",
+            "function": "P",
+            "source": "eks/engine/core/migration_gate.py",
+            "health_score_impact": -1
+        },
+        "P1-R-P-0005": {
+            "code": "P1-R-P-0005",
+            "name": "MIGRATION_BACKUP_FAILED",
+            "message": "Mandatory pre-destructive backup of the registry database failed — destructive migration aborted",
+            "severity": "CRITICAL",
+            "layer": "P1",
+            "module": "R",
+            "function": "P",
+            "source": "eks/engine/core/migration_gate.py",
+            "health_score_impact": -1
         }
     },
     "migration_log": {
@@ -1411,7 +1536,10 @@
             "Version 1.4.0: Standardized error codes to X-X-X-XXXX format. Removed P1-SETUP-* and P1-BOOT-* codes (13 codes); replaced with S-E-S-0106/0107, S-F-S-0207-0210, S-R-S-0410, S-B-S-0603-0608. Renamed 15 B-* codes to B-{cat}-S-{4-digit} format. Fixed data_logic_codes count from 48→50. Updated total_codes: 109→111, system_codes: 61 (unchanged). system_format simplified to single format.",
             "Version 1.5.0: Added 7 S-B-S bootstrap degradation codes (I257/I258): S-B-S-0609 (BOOT_CONFIG_DEGRADED), S-B-S-0610 (BOOT_CONFIGREGISTRY_FAILED), S-B-S-0611 (BOOT_SCCONFIG_DEGRADED), S-B-S-0612 (BOOT_ERRORMGR_TODICT_FAILED), S-B-S-0613 (BOOT_MSGMGR_TODICT_FAILED), S-B-S-0614 (BOOT_ERRORMGR_CTX_FAILED), S-B-S-0615 (BOOT_MSGMGR_CTX_FAILED). All WARNING, stops_pipeline: false. bootstrap range count 8→15, end_id 0608→0615. total_codes 111→118, system_codes 61→68.",
             "Version 1.6.0: Added S-B-S-0616 (BOOT_SCHEMA_EMPTY), S-B-S-0617 (BOOT_SCHEMA_CROSSREF_FAILED), S-B-S-0618 (BOOT_SCHEMA_CONFORMANCE_FAILED). All FATAL, stops_pipeline: true. bootstrap range count 15→18, end_id 0615→0618. total_codes 118→121, system_codes 68→71.",
-            "Version 1.7.0: Added 4 Project Definition system codes (I265 T1.195 V1/V3): S-C-S-0901 (PDEF_MISSING_MANDATORY_SECTION), S-C-S-0902 (PDEF_UNKNOWN_PROFILE_REF), S-C-S-0903 (PDEF_DUPLICATE_PROJECT_OR_PROFILE), S-C-S-0904 (PDEF_RUNTIME_CONSTRUCTION_FAILED). All FATAL, stops_pipeline: true. Added project_definition range to system_error_ranges. Added 3 Project Definition data codes: P1-C-V-0001 (PDEF_CAPABILITY_CONSISTENCY_FAILED), P1-C-V-0002 (PDEF_METADATA_POLICY_GAP), P1-C-V-0003 (PDEF_UNUSED_PROFILE). Added phase_1_config_validation range to data_error_ranges. total_codes 121→128, system_codes 71→75, data_logic_codes 50→53."
+            "Version 1.7.0: Added 4 Project Definition system codes (I265 T1.195 V1/V3): S-C-S-0901 (PDEF_MISSING_MANDATORY_SECTION), S-C-S-0902 (PDEF_UNKNOWN_PROFILE_REF), S-C-S-0903 (PDEF_DUPLICATE_PROJECT_OR_PROFILE), S-C-S-0904 (PDEF_RUNTIME_CONSTRUCTION_FAILED). All FATAL, stops_pipeline: true. Added project_definition range to system_error_ranges. Added 3 Project Definition data codes: P1-C-V-0001 (PDEF_CAPABILITY_CONSISTENCY_FAILED), P1-C-V-0002 (PDEF_METADATA_POLICY_GAP), P1-C-V-0003 (PDEF_UNUSED_PROFILE). Added phase_1_config_validation range to data_error_ranges. total_codes 121→128, system_codes 71→75, data_logic_codes 50→53.",
+            "Version 1.8.0: Added I310/T1.296 materialization error codes. System: S-C-S-0309 (INVALID_DB_TABLE_SPEC), S-C-S-0310 (INVALID_DB_FK_SPEC) — Config HIGH non-stopping; S-R-S-0411 (DB_MATERIALIZATION_FAILED), S-R-S-0412 (DEFINITION_LOAD_FAILED) — Runtime CRITICAL stopping. config range count 8→10 end 0310; runtime range count 10→12 end 0412. Data: P1-R-P-0001 (NATURAL_KEY_MISSING), P1-R-P-0002 (FK_TARGET_MISSING), P1-R-P-0003 (SOURCE_TRANSFORM_FAILED) — P1/R/P HIGH. Added phase_1_materialization range. total_codes 128→135, system_codes 75→79, data_logic_codes 53→56.",
+            "Version 1.9.0: Added I311/T1.297 migration-gate error codes. System: S-C-S-0311 (INVALID_MIGRATION_POLICY) — Config HIGH non-stopping (migration_policy must be 'additive'|'destructive'). config range count 10→11 end 0311. Data: P1-R-P-0004 (DESTRUCTIVE_MIGRATION_BLOCKED) — P1/R/P HIGH (destructive blocked by policy; rerun --db-apply/--db-force); P1-R-P-0005 (MIGRATION_BACKUP_FAILED) — P1/R/P CRITICAL (pre-destructive backup failed). phase_1_materialization range count 3→5 end 0005. total_codes 135→138, system_codes 79→80, data_logic_codes 56→58.",
+            "Version 1.10.0: Added I309/T1.289 export column validation error code. System: S-C-S-0313 (EXPORT_COLUMN_NOT_ALLOWED) — Config HIGH stopping (UI/pipeline column override outside eks_export_view_config.json#/views.columns). config range count 12→13 end 0312→0313. total_codes 139→140, system_codes 81→82 (reconciled S-C-S-0312 which was present but uncounted in metadata), data_logic_codes 58 (unchanged)."
         ]
     }
 }

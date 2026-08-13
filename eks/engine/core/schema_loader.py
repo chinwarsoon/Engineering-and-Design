@@ -4,7 +4,12 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
 
-Revision: 1.5.0 — I280 (T1.220): added structural_profile_for(type_id, class_id)
+Revision: 1.6.0 — I307 (T1.275–T1.278/T1.281): registered eks_db_config +
+           eks_export_view_config in _STEM_TO_ATTR; added _validate_db_config() +
+           _validate_export_view_config() (validate db_tables[]/export_views[]
+           against the eks_setup_schema.json properties with base+setup $ref
+           resolution); both new configs are discovered and validated at startup.
+1.5.0 — I280 (T1.220): added structural_profile_for(type_id, class_id)
            helper (type-level override wins, else class-level fallback, else {});
            _derive_doc_type_projection() attaches structural_profile to the flat
            document_type_registry entries (validated via document_type_entry_def).
@@ -63,6 +68,8 @@ _STEM_TO_ATTR = {
     "eks_message_config": "message_config",
         "eks_project_definition_config": "project_definition_config",
         "eks_processing_config": "processing_config",
+        "eks_db_config": "db_config",
+        "eks_export_view_config": "export_view_config",
     }
 
 _BOOTSTRAP_STEMS = {"eks_base_schema", "eks_setup_schema", "eks_config"}
@@ -108,6 +115,8 @@ class SchemaLoader:
         self.facility_schema: Dict[str, Any] = {}
         self.project_definition_config: Dict[str, Any] = {}
         self.processing_config: Dict[str, Any] = {}
+        self.db_config: Dict[str, Any] = {}
+        self.export_view_config: Dict[str, Any] = {}
         self._extra_schemas: Dict[str, Dict[str, Any]] = {}
 
         self._search_dirs = [self.config_dir / "schemas", self.config_dir]
@@ -222,6 +231,8 @@ class SchemaLoader:
         self._validate_error_config()
         self._validate_message_config()
         self._validate_project_definition()
+        self._validate_db_config()
+        self._validate_export_view_config()
 
     def _extract(self) -> None:
         """Stage 4: Build runtime indexes and derived data from loaded schemas.
@@ -731,6 +742,78 @@ class SchemaLoader:
                     f"Project '{proj_code}' project_definition entry is not an object."
                 )
             validate(instance=entry, schema=pd_def, registry=registry)
+
+    def _validate_db_config(self) -> None:
+        """Validate eks_db_config.json db_tables[] against the setup schema db_tables property.
+
+        I307 (T1.276/T1.281): the schema-driven DB-layer table config validates its
+        db_tables[] array against eks_setup_schema.json#/properties/db_tables (items
+        $ref table_spec_def with columns/foreign_keys/id_strategy/transform). The
+        full setup schema is NOT applied (the db config is a table-values-only file,
+        per the processing-config pattern). Unknown db_tables keys and unknown
+        top-level config keys are rejected by the container additionalProperties:false.
+        """
+        if not self.db_config:
+            return
+        resources = {}
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
+        if self.setup_schema.get("$id"):
+            resources[self.setup_schema["$id"]] = DRAFT7.create_resource(self.setup_schema)
+
+        registry = Registry().with_resources(
+            (uri, resource) for uri, resource in resources.items()
+        )
+        db_tables_schema = (self.setup_schema.get("properties", {}) or {}).get("db_tables")
+        if db_tables_schema is None:
+            raise ValueError(
+                "eks_setup_schema.json is missing the 'db_tables' property — "
+                "required since I307 (T1.276)."
+            )
+        db_tables = self.db_config.get("db_tables")
+        if not isinstance(db_tables, list):
+            raise ValueError("eks_db_config.json must contain a 'db_tables' array.")
+        validate(instance=db_tables, schema=db_tables_schema, registry=registry)
+
+        # Cross-check: every FK target must be a declared table (I307/T1.277).
+        names = {t.get("table_name") for t in db_tables}
+        for t in db_tables:
+            for f in t.get("foreign_keys", []):
+                if f.get("target_table") not in names:
+                    raise ValueError(
+                        f"eks_db_config.json table '{t.get('table_name')}' FK "
+                        f"'{f.get('fk_name')}' targets undeclared table "
+                        f"'{f.get('target_table')}'."
+                    )
+
+    def _validate_export_view_config(self) -> None:
+        """Validate eks_export_view_config.json export_views[] against the setup schema.
+
+        I307 (T1.278/T1.281): validates the export_views[] array against
+        eks_setup_schema.json#/properties/export_views (items $ref export_view_def
+        with required view_id/source_table/columns/file_base_name/sheet_name/formats).
+        """
+        if not self.export_view_config:
+            return
+        resources = {}
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
+        if self.setup_schema.get("$id"):
+            resources[self.setup_schema["$id"]] = DRAFT7.create_resource(self.setup_schema)
+
+        registry = Registry().with_resources(
+            (uri, resource) for uri, resource in resources.items()
+        )
+        views_schema = (self.setup_schema.get("properties", {}) or {}).get("export_views")
+        if views_schema is None:
+            raise ValueError(
+                "eks_setup_schema.json is missing the 'export_views' property — "
+                "required since I307 (T1.276)."
+            )
+        views = self.export_view_config.get("views")
+        if not isinstance(views, list):
+            raise ValueError("eks_export_view_config.json must contain a 'views' array.")
+        validate(instance=views, schema=views_schema, registry=registry)
 
     def resolve_ontology_class(self, tag_type: str) -> Optional[str]:
         """Resolves a TAG_TYPE or alias to an ontology class name."""

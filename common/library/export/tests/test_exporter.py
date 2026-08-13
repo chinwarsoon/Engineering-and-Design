@@ -18,7 +18,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from common.library.export import DataExporter, export_to_csv, export_to_excel, export_multi_sheet
+from common.library.export import (
+    DataExporter,
+    export_to_csv,
+    export_to_excel,
+    export_multi_sheet,
+    export_to_workbook,
+)
 from common.library.export.exporter import DataExportError
 
 
@@ -293,6 +299,68 @@ class TestDataExporterMultiSheet(unittest.TestCase):
         path = Path(self.tmp) / "mod_multi.xlsx"
         export_multi_sheet({"Data": SAMPLE_ROWS}, path)
         self.assertTrue(path.exists())
+
+    # ------------------------------------------------------------------
+    # export_to_workbook (I309 T1.288) — single workbook, per-sheet columns
+    # ------------------------------------------------------------------
+
+    def test_export_to_workbook_round_trip_with_columns(self):
+        """export_to_workbook honors per-sheet column control."""
+        sheets = {
+            "Discovery": [{"id": 1, "doc": "D1", "tag": "x"}, {"id": 2, "doc": "D2", "tag": "y"}],
+            "Review": [{"id": 1, "status": "PASS"}, {"id": 2, "status": "FAIL"}],
+        }
+        columns = {"Discovery": ["doc", "id"]}  # Review sheet uses derived columns
+        path = Path(self.tmp) / "workbook_cols.xlsx"
+        self.exporter.export_to_workbook(sheets, path, columns=columns)
+        self.assertTrue(path.exists())
+
+        from openpyxl import load_workbook
+        wb = load_workbook(path)
+        self.assertEqual(set(wb.sheetnames), {"Discovery", "Review"})
+        # Discovery sheet honors override order and subset
+        d_rows = _read_excel(path, "Discovery")
+        self.assertEqual(list(d_rows[0].keys()), ["doc", "id"])
+        self.assertEqual(d_rows[0]["doc"], "D1")
+        self.assertEqual(d_rows[0]["id"], 1)
+        # Review sheet derived its own columns (default behavior)
+        r_rows = _read_excel(path, "Review")
+        self.assertEqual(list(r_rows[0].keys()), ["id", "status"])
+        wb.close()
+
+    def test_export_to_workbook_module_level(self):
+        """Convenience function works with and without columns."""
+        sheets = {"S1": [{"a": 1, "b": 2}]}
+        path = Path(self.tmp) / "mod_workbook.xlsx"
+        export_to_workbook(sheets, path, columns={"S1": ["b", "a"]})
+        self.assertTrue(path.exists())
+
+        from openpyxl import load_workbook
+        wb = load_workbook(path)
+        self.assertEqual(set(wb.sheetnames), {"S1"})
+        rows = _read_excel(path, "S1")
+        self.assertEqual(list(rows[0].keys()), ["b", "a"])
+        wb.close()
+
+    def test_export_multi_sheet_delegates_to_export_to_workbook(self):
+        """export_multi_sheet remains backward-compatible (delegates)."""
+        path = Path(self.tmp) / "delegate.xlsx"
+        self.exporter.export_multi_sheet({"A": SAMPLE_ROWS}, path)
+        self.assertTrue(path.exists())
+
+        from openpyxl import load_workbook
+        wb = load_workbook(path)
+        self.assertEqual(set(wb.sheetnames), {"A"})
+        wb.close()
+
+    def test_export_to_workbook_overwrite_guard(self):
+        """S-DE-004 for overwrite guard on workbook export."""
+        path = Path(self.tmp) / "guard_workbook.xlsx"
+        self.exporter.export_to_workbook({"A": SAMPLE_ROWS}, path)
+        no_overwrite = DataExporter(overwrite=False)
+        with self.assertRaises(DataExportError) as ctx:
+            no_overwrite.export_to_workbook({"A": SAMPLE_ROWS}, path)
+        self.assertIn("S-DE-004", str(ctx.exception))
 
 
 class TestDataExporterEdgeCases(unittest.TestCase):

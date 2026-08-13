@@ -5,10 +5,18 @@ The ``main()`` function is the single console_scripts entry point.  All
 implementation is delegated to ``eks.engine.pipeline_engine.{cli,runner,exporter}``
 — this file handles only import-time sys.path bootstrap and re-exports.
 
-Revision: 2.1
-Date: 2026-07-24
+Revision: 2.3
+Date: 2026-08-13
 Author: opencode
-Summary: 2.1: I234 — schema-driven --export default (reads from
+Summary: 2.3: I309 (T1.289) — export phase emits ONE workbook (all xlsx-enabled
+     views as worksheets) via DataExporter.export_to_workbook; workbook file
+     name schema-driven (system_parameters.export_workbook_file_name);
+     optional column_override validated by validate_export_column_override
+     (S-C-S-0313). CSV per-view behavior unchanged.
+2.2: I311 (T1.298) — wired migration-gate flags (--db-check plan-only
+     exit 0; --db-apply/--db-force) into main(); transfers migration_mode into
+     run_pipeline() and the export DocumentRegistry (U292).
+2.1: I234 — schema-driven --export default (reads from
      system_parameters.export_default); CLI writes pipeline_output.json
      and debug_log.json by default.
 """
@@ -72,9 +80,12 @@ from eks.engine.pipeline_engine.cli import (              # noqa: E402
     build_parser,
     build_schema_driven_parser,
     parse_eks_cli,
+    resolve_db_migration_mode,
 )
 from eks.engine.pipeline_engine.exporter import (         # noqa: E402
     resolve_export_columns,
+    resolve_export_views,
+    validate_export_column_override,
     _build_export_rows,
     _build_flagged_rows,
 )
@@ -83,7 +94,7 @@ from eks.engine.pipeline_engine.exporter import (         # noqa: E402
 # Main entry point (unchanged body from pre-split version)
 # ---------------------------------------------------------------------------
 
-def main(args: Optional[list] = None) -> int:
+def main(args: Optional[list] = None, column_override: Optional[dict] = None) -> int:
     """console_scripts entry point — full pipeline orchestration (DCC-faithful).
 
     Orchestration chain (T1.99.59–61, I113 pre-bootstrap logger, I117 preload guard):
@@ -109,6 +120,11 @@ def main(args: Optional[list] = None) -> int:
 
     Args:
         args: Optional argument list (None -> sys.argv).
+        column_override: Optional per-view column override
+                         ``{view_id: [column, ...]}`` applied to the export phase
+                         (I309 T1.289). Validated against
+                         eks_export_view_config.json via
+                         ``validate_export_column_override`` (S-C-S-0313).
 
     Returns:
         0 on success, 1 on failure (suitable for ``sys.exit``).
@@ -169,6 +185,25 @@ def main(args: Optional[list] = None) -> int:
     _cfg_export = mgr.effective_parameters.get("export_default", "both") if hasattr(mgr, "effective_parameters") and mgr.effective_parameters else "both"
     export_fmt = _cli_export if _cli_export is not None else _cfg_export
 
+    # I311 (T1.298): migration-gate mode from the parsed CLI namespace.
+    db_migration_mode = resolve_db_migration_mode(parsed)
+    if db_migration_mode == "check":
+        from eks.engine.core.migration_gate import MigrationGate
+        registry_db = Path(resolved.get("output_dir", prj / "eks" / "output")) / "eks_registry.db"
+        gate = MigrationGate(
+            db_path=registry_db,
+            config_dir=config_dir,
+            logger=logger,
+            mode="check",
+        )
+        try:
+            gate.run(include_drift=True)
+        except Exception as exc:  # nocv — fatal check failure
+            print(f"DB check failed: {exc}\nRerun with --db-apply (non-protected) or --db-force (incl. protected, with backup).", file=sys.stderr)
+            return 1
+        return 0
+    db_migration_apply_mode = db_migration_mode if db_migration_mode in ("apply", "force") else None
+
     if mm is not None:
         mm.show("STATUS_PIPELINE_START", root_dir=safe_posix(data_dir))
     # T1.136: Reconcile verbosity across all output channels after bootstrap
@@ -218,6 +253,7 @@ def main(args: Optional[list] = None) -> int:
             context=ctx,
             _PipelineOrchestrator_cls=_PipelineOrchestrator,
             _DocumentRegistry_cls=_DocumentRegistry,
+            migration_mode=db_migration_apply_mode,
         )
         summary = result["summary"]
         returned_ctx = result.get("context")
@@ -243,7 +279,7 @@ def main(args: Optional[list] = None) -> int:
                     run_output_dir = output_dir / engine_in.run_id
                     run_output_dir.mkdir(parents=True, exist_ok=True)
 
-                    reg = DocumentRegistry(logger=logger)
+                    reg = DocumentRegistry(logger=logger, migration_mode=db_migration_apply_mode)
                     all_docs = reg.list_documents(latest_only=True, order_by="document_number")
 
                     run_docs = list(all_docs)
@@ -252,11 +288,6 @@ def main(args: Optional[list] = None) -> int:
                     )
 
                     export_config = resolve_export_columns(Path(safe_posix(config_dir)) / "schemas")
-                    if export_config.get("_fallback"):
-                        logger.warning(
-                            "Schema-driven export columns unavailable — using hardcoded 11-field fallback",
-                            context="main",
-                        )
                     discovery_cols = export_config["discovery_inventory"]
                     extraction_cols = export_config["extraction_results"]
                     review_cols = export_config["review_flags"]
@@ -265,26 +296,88 @@ def main(args: Optional[list] = None) -> int:
                     extraction_rows = _build_export_rows(run_docs, None, extraction_cols)
                     flagged_rows = _build_flagged_rows(run_docs, review_cols)
 
-                    if export_fmt in ("csv", "both"):
-                        if discovery_rows:
-                            p = exporter.export_to_csv(discovery_rows, run_output_dir / "discovery_inventory.csv", columns=discovery_cols)
+                    # I308/T1.284: schema-driven file/sheet names + artifact_type
+                    # (view_id) from eks_export_view_config.json — replaces the
+                    # hardcoded csv / sheet-name literals of the old export path.
+                    view_specs = resolve_export_views(Path(safe_posix(config_dir)) / "schemas")
+                    export_views = [
+                        {
+                            "artifact_type": "discovery_inventory",
+                            "rows": discovery_rows,
+                            "columns": discovery_cols,
+                            **view_specs["discovery_inventory"],
+                        },
+                        {
+                            "artifact_type": "extraction_results",
+                            "rows": extraction_rows,
+                            "columns": extraction_cols,
+                            **view_specs["extraction_results"],
+                        },
+                        {
+                            "artifact_type": "review_flags",
+                            "rows": flagged_rows,
+                            "columns": review_cols,
+                            **view_specs["review_flags"],
+                        },
+                    ]
+
+                    # I309/T1.289: optional schema-validated per-view column
+                    # override (S-C-S-0313) — applied to CSV and workbook sheets.
+                    validated_override = {}
+                    if column_override:
+                        validated_override = validate_export_column_override(
+                            Path(safe_posix(config_dir)) / "schemas",
+                            column_override,
+                        )
+
+                    def _view_columns(spec: dict) -> list:
+                        view_id = spec["artifact_type"]
+                        if view_id in validated_override:
+                            return list(validated_override[view_id])
+                        return list(spec["columns"])
+
+                    # CSV: per-view files (unchanged behavior).
+                    for spec in export_views:
+                        if not spec["rows"]:
+                            continue
+                        base_name = spec["file_base_name"]
+                        cols = _view_columns(spec)
+                        if export_fmt in ("csv", "both") and "csv" in spec.get("formats", ["csv", "xlsx"]):
+                            p = exporter.export_to_csv(
+                                spec["rows"],
+                                run_output_dir / f"{base_name}.csv",
+                                columns=cols,
+                            )
                             exported_files.append(str(p))
-                        if extraction_rows:
-                            p = exporter.export_to_csv(extraction_rows, run_output_dir / "extraction_results.csv", columns=extraction_cols)
-                            exported_files.append(str(p))
-                        if flagged_rows:
-                            p = exporter.export_to_csv(flagged_rows, run_output_dir / "review_flags.csv", columns=review_cols)
-                            exported_files.append(str(p))
-                    if export_fmt in ("xlsx", "both"):
-                        if discovery_rows:
-                            p = exporter.export_to_excel(discovery_rows, run_output_dir / "discovery_inventory.xlsx", sheet_name="Discovery", columns=discovery_cols)
-                            exported_files.append(str(p))
-                        if extraction_rows:
-                            p = exporter.export_to_excel(extraction_rows, run_output_dir / "extraction_results.xlsx", sheet_name="Extraction", columns=extraction_cols)
-                            exported_files.append(str(p))
-                        if flagged_rows:
-                            p = exporter.export_to_excel(flagged_rows, run_output_dir / "review_flags.xlsx", sheet_name="Review Flags", columns=review_cols)
-                            exported_files.append(str(p))
+
+                    # I309/T1.289: ONE workbook — every xlsx-enabled view becomes
+                    # one worksheet (sheet_name from view config), columns
+                    # schema-driven + optional override. Workbook file name is
+                    # schema-driven via system_parameters.export_workbook_file_name.
+                    workbook_views = [
+                        s for s in export_views
+                        if "xlsx" in s.get("formats", ["csv", "xlsx"]) and s["rows"]
+                    ]
+                    if export_fmt in ("xlsx", "both") and workbook_views:
+                        workbook_name = None
+                        if hasattr(mgr, "effective_parameters") and mgr.effective_parameters:
+                            workbook_name = mgr.effective_parameters.get("export_workbook_file_name")
+                        if not workbook_name:
+                            raise RuntimeError(
+                                "FAIL_FAST [S-C-S-0304]: system_parameters."
+                                "export_workbook_file_name missing in eks_config.json — "
+                                "cannot name the single-workbook export"
+                            )
+                        sheets = {s["sheet_name"]: s["rows"] for s in workbook_views}
+                        sheet_columns = {
+                            s["sheet_name"]: _view_columns(s) for s in workbook_views
+                        }
+                        p = exporter.export_to_workbook(
+                            sheets,
+                            run_output_dir / workbook_name,
+                            columns=sheet_columns,
+                        )
+                        exported_files.append(str(p))
 
                     if exported_files:
                         logger.status(f"Exported {len(exported_files)} file(s) to {run_output_dir}", context="main")

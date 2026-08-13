@@ -13,13 +13,14 @@
 | 1.3 | 2026-08-09 | AI Assistant | Renamed to Appendix B.2; relationship map + FK paths moved to B.1 |
 | 1.6 | 2026-08-10 | AI Assistant | I300 (T1.263): ontology_relation 15→16 (HAS_STAGE added), ontology_trigger 6→7 (lifecycle_stage→HAS_STAGE), TABLE SUMMARY T17/T18 + schema-to-table counts updated; §24 follow-up noted for REFERENCES_ASSET/HAS_FORMAT drift |
 | 1.7 | 2026-08-10 | AI Assistant | I298–I299, I301–I305 batch: (I302) version banners B.1 v1.1→v1.5, B.2 v1.2→v1.6; (I303) template_elements 44→27, twrp_spec_c populated [section,table,image], carrier v2.3.1; (I304) eks_project_definition_setup_schema.json v1.0.0 created, config $schema repointed; (I305) ontology relations 16→18 (REFERENCES_ASSET + HAS_FORMAT added, §24 drift resolved), T17 16→18; (I298/I299/I301) GROUP 12 pipeline runtime tables added (pipeline_checkpoint, pipeline_event_log, export_artifact), TABLE SUMMARY T40-T42, load order 48→51; GAP-011 §24 resolved, GAP-013–015 RESOLVED, GAP-012 promoted P3→P1 |
+| 1.8 | 2026-08-13 | AI Assistant | I308 (T1.282–T1.286): new **EXPORT VIEW MODEL** section — persistent DuckDB views `v_discovery_inventory` / `v_extraction_results` / `v_review_flags` defined by `eks_export_view_config.json` v1.1.0 (source_table=documents, is_latest filter, ordered columns, file_base_name/sheet_name/formats); `generate_view_ddl()` renders `CREATE OR REPLACE VIEW` (idempotent, no hardcoded view SQL); `export_artifact.artifact_type` = view_id; `documents.flag_reason` materialized at ingest; version-control columns pruned from exports; missing view config → fail-fast S-C-S-0312; GAP-016 (two-tier gap) RESOLVED — DB is the materialized view, JSON-only definition layer language removed |
 | 1.5 | 2026-08-10 | AI Assistant | I293/I294/I295 re-scoped 2026-08-10 against runtime code: `batch_run`/`health_score`/`health_batch` are CREATE tasks (tables don't exist in runtime DB — GROUP 11 mapping updated to "CREATE tracked by I293/T1.256, I294/T1.257"); `document_reference` junction added to GROUP 11 (I295/T1.258); supersedes self-ref already delivered as declared_only `fk_supersedes` (I290) — dropped from I295 scope |
 | 1.4 | 2026-08-10 | AI Assistant | I291 (T1.254): added GROUP 11 "RUNTIME TABLES" family (documents, document_elements, batch_run, health_score, health_batch) with document_elements shape (id UUID PK, created_at DEFAULT now(), element_seq); load-order position 43/44 documented (renumber deferred to I297/T1.260) |
 
 ```
 ================================================================================
                  EKS DEFINITION DATABASE — FULL TABLE LAYOUT
-                           v1.6 / 2026-08-10
+                           v1.8 / 2026-08-13
 ================================================================================
 ```
 
@@ -1301,7 +1302,40 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 
                   42 Tables (39 definition + 3 pipeline runtime)
                   ~1,500 definition rows at rest
+                  + 3 persistent export VIEWs (I308): v_discovery_inventory, v_extraction_results, v_review_flags
 ```
+
+
+## EXPORT VIEW MODEL (I308)
+
+> **SSOT:** `eks/config/schemas/eks_export_view_config.json` v1.1.0 (values) + `eks_setup_schema.json` `export_views` (shape). The 3 default views below are **persistent DuckDB VIEWs** created in `_init_db()` AFTER the I311 migration gate, rendered by `schema_to_ddl.generate_view_ddl()` (`CREATE OR REPLACE VIEW v_<view_id> AS SELECT <columns> FROM <source_table>` — idempotent, no hardcoded view SQL). View id, columns, order, source table, file base name, sheet name and formats all come from the view config — no literals in engine code.
+
+| View ID (`view_id` = `export_artifact.artifact_type`) | Source Table | Filter | File Base Name (`file_base_name`) | Sheet Name (`sheet_name`) | Formats |
+|:---|:---|:---|:---|:---|:---|
+| `v_discovery_inventory` | `documents` | `is_latest = TRUE` | `discovery_inventory` | `Discovery` | csv, xlsx |
+| `v_extraction_results` | `documents` | `is_latest = TRUE` | `extraction_results` | `Extraction` | csv, xlsx |
+| `v_review_flags` | `documents` | `is_latest = TRUE` | `review_flags` | `Review Flags` | csv |
+
+### I308 design resolutions (Q1–Q6)
+
+| # | Resolution |
+|:---|:---|
+| Q1 | `v_review_flags` reads the **materialized** `documents.flag_reason` column (written by `core/flag_utils` at ingest) — pure projection, no SQL CASE duplication in view DDL. |
+| Q2 | All views filter `is_latest = TRUE` via the schema-driven `filter` field (`filter.column` / `filter.value`) — no hardcoded WHERE clauses. |
+| Q3 | Missing view config → **fail-fast** raise of registered error code `S-C-S-0312` (`eks_error_config.json`, covered by T1.285) — never silent fallback, never partial export (§16/I274/I276). |
+| Q4 | Version-control columns (`is_latest`, `supersedes`, `superseded_by`) are intentionally **excluded** from exports (retained in `documents`); `export_artifact.artifact_type` = `view_id`. |
+| Q5 | One `.xlsx` workbook per configured base name, **one worksheet per view** (sheet names = `sheet_name`); CSV per view uses `file_base_name` (I309). |
+| Q6 | Each view has a **single source table** (`source_table` = `documents`) — no cross-table joins inside view DDL; column subset + order = `columns[]`. |
+
+### Column provenance
+
+- `discovery_inventory`: 46 ordered columns — project/meta fields first (project_title → verified_by), then file/embedded metadata (file_size → embedded_sheet_count), then document fields (document_title → vendor_name).
+- `extraction_results`: 49 ordered columns — adds extraction fields (page_count, extract_status, extraction_confidence, extraction_notes) after asset_tags.
+- `review_flags`: 12 ordered columns — review focus: project/doc identity + extract_status/extraction_confidence/extraction_notes + `flag_reason` + ingested_at.
+
+### GAP-016 — two-tier gap RESOLVED
+
+The "definition served JSON-only / DB is a mirror" two-tier interpretation is **closed as RESOLVED** (2026-08-13, I308/T1.272 re-scope): the DB **is** the materialized view — all 53 tables are materialized DuckDB objects driven by `eks_db_config.json`, and the persistent export views are projections over those materialized tables. No "JSON-only definition layer" language remains anywhere in the project (§24 grep clean).
 
 
 ## KEY FOREIGN-KEY CLOSURE PATHS

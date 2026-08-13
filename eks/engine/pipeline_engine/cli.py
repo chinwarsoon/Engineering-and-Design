@@ -4,10 +4,13 @@ CLI argument parsing for the EKS pipeline.
 Extracted from ``eks_engine_pipeline.py`` (I233).  Zero module-level runtime
 globals — all paths flow from callers.
 
-Revision: 1.1
-Date: 2026-07-24
+Revision: 1.2
+Date: 2026-08-12
 Author: opencode
-Summary: 1.1: I234/T1.113 — --export default changed to None (schema-driven);
+Summary: 1.2: I311/T1.298 — added --db-check/--db-apply(--yes)/--db-force
+     flags + resolve_db_migration_mode() + add_db_migration_args() for the
+     migration gate.
+1.1: I234/T1.113 — --export default changed to None (schema-driven);
      runtime resolution from system_parameters.export_default.
 """
 from __future__ import annotations
@@ -58,6 +61,21 @@ _EKS_CORE_ARG_SPECS = [
         "opts": ["--export"], "dest": "export_format", "type": str,
         "choices": ["csv", "xlsx", "both", "none"], "default": None,
         "help": "Export pipeline results as CSV/Excel spreadsheets (default: from system_parameters.export_default in eks_config.json; use 'none' to disable).",
+    },
+    {
+        "opts": ["--db-check"], "dest": "db_check", "action": "store_true",
+        "default": False,
+        "help": "I311: print the DB migration plan only (read-only) and exit 0.",
+    },
+    {
+        "opts": ["--db-apply", "--yes"], "dest": "db_apply", "action": "store_true",
+        "default": False,
+        "help": "I311: confirm and apply the migration plan, permitting non-protected destructive operations.",
+    },
+    {
+        "opts": ["--db-force"], "dest": "db_force", "action": "store_true",
+        "default": False,
+        "help": "I311: TOTAL override — apply incl. protected tables (documents/document_elements); mandates a timestamped backup of eks_registry.db to output/archive/ before any destructive change.",
     },
 ]
 
@@ -167,6 +185,68 @@ def parse_eks_cli(
         reference=Path(__file__),
         core_arg_specs=_EKS_CORE_ARG_SPECS,
     )
+
+
+def resolve_db_migration_mode(ns: Any) -> Optional[str]:
+    """I311/T1.298 — resolve the migration-gate mode from a parsed namespace.
+
+    Precedence: ``--db-check`` (plan only, exit 0) > ``--db-force`` (TOTAL
+    override incl. protected tables + mandatory backup) > ``--db-apply``
+    (``--yes``, non-protected destructive). Returns None when no flag is set —
+    the schema-driven ``system_parameters.migration_policy`` then governs.
+    """
+    if ns is None:
+        return None
+    if getattr(ns, "db_check", False):
+        return "check"
+    if getattr(ns, "db_force", False):
+        return "force"
+    if getattr(ns, "db_apply", False):
+        return "apply"
+    return None
+
+
+def add_db_migration_args(parser: "argparse.ArgumentParser") -> None:
+    """I311/T1.298 — add the migration-gate flags to a standalone CLI parser.
+
+    Used by discovery_cli.py / health_cli.py (which own local parsers) so all
+    DocumentRegistry entry points expose the same --db-check/--db-apply/
+    --db-force surface as the main pipeline CLI (U292 transfer requirement).
+    """
+    parser.add_argument(
+        "--db-check", dest="db_check", action="store_true", default=False,
+        help="I311: print the DB migration plan only (read-only) and exit 0.",
+    )
+    parser.add_argument(
+        "--db-apply", "--yes", dest="db_apply", action="store_true", default=False,
+        help="I311: confirm and apply the migration plan, permitting non-protected "
+             "destructive operations.",
+    )
+    parser.add_argument(
+        "--db-force", dest="db_force", action="store_true", default=False,
+        help="I311: TOTAL override — apply incl. protected tables "
+             "(documents/document_elements); mandates a timestamped backup of "
+             "eks_registry.db to output/archive/ before any destructive change.",
+    )
+
+
+def run_db_check_only(db_path: Any, config_dir: Optional[Any] = None,
+                      logger: Any = None) -> int:
+    """I311/T1.298 — run the migration gate in check mode (plan only).
+
+    Returns 0 when the plan is built and printed (read-only, exit 0), 1 on a
+    fatal gate failure. Used by the main pipeline CLI and the standalone
+    DocumentRegistry entry points (discovery_cli / health_cli) so ``--db-check``
+    behaves identically everywhere (U292).
+    """
+    from eks.engine.core.migration_gate import MigrationGate
+    gate = MigrationGate(db_path=db_path, config_dir=config_dir, logger=logger, mode="check")
+    try:
+        gate.run(include_drift=True)
+    except Exception as exc:  # nocv — fatal check failure
+        print(f"DB check failed: {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _parse_early_verbosity(

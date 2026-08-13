@@ -1,7 +1,7 @@
 ﻿# Appendix B — Document Registry
 
-**Version**: 2.1.5  
-**Last Updated**: 2026-08-07  
+**Version**: 2.1.6  
+**Last Updated**: 2026-08-13  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Official  
 **Related Files**:
@@ -13,12 +13,14 @@
 - [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers (v1.12.0)
 - [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.3.0)
 - [`eks/config/schemas/eks_ontology_config.json`](../config/schemas/eks_ontology_config.json) — Document class hierarchy (§C4, v1.7.0)
+- [`eks/config/schemas/eks_export_view_config.json`](../config/schemas/eks_export_view_config.json) — Default export view values SSOT (I308, v1.1.0)
+- [`eks/engine/core/schema_to_ddl.py`](../engine/core/schema_to_ddl.py) — `generate_view_ddl()` renders persistent `v_*` export views (I308)
 
 **Sub-Appendices**:
 - [Appendix B.1 — Cross-Relationship Chart](appendix_b.1_cross_relationship_chart.md) — Complete entity relationships, DB table relationship map, FK closure paths, and cross-document gap analysis
-- [Appendix B.2 — DB Table Design](appendix_b.2_db_table_design.md) — All 39 table definitions, columns, types, constraints, schema provenance, and load order
+- [Appendix B.2 — DB Table Design](appendix_b.2_db_table_design.md) — All 42 table definitions (39 definition + 3 pipeline runtime), columns, types, constraints, schema provenance, load order, and the I308 export view model (3 persistent `v_*` views)
 
-**Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`. v2.1.3 (I280): §2 Structural Characteristics implemented via per-class/type `structural_profile` (carrier v2.2.0, base v1.16.0). v2.1.5 (I283): four-level Class→Type→Template→Element detection implemented — `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`), template `expected_elements` is the element-set SSOT (structural_profile = capability metadata only), cover type schema-first (detection fallback only when unavailable), all detectors gated by `expected_elements` (carrier v2.3.0, base v1.17.0, doc config v1.12.0).
+**Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`. v2.1.3 (I280): §2 Structural Characteristics implemented via per-class/type `structural_profile` (carrier v2.2.0, base v1.16.0). v2.1.5 (I283): four-level Class→Type→Template→Element detection implemented — `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`), template `expected_elements` is the element-set SSOT (structural_profile = capability metadata only), cover type schema-first (detection fallback only when unavailable), all detectors gated by `expected_elements` (carrier v2.3.0, base v1.17.0, doc config v1.12.0). v2.1.6 (I308 T1.286): export step upgraded to the schema-driven **export view model** — 3 persistent DuckDB views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) rendered by `generate_view_ddl()` from `eks_export_view_config.json` v1.1.0 (view id / source table / is_latest filter / ordered columns / file base name / sheet name / formats), view id = `export_artifact.artifact_type`, `documents.flag_reason` materialized, missing view config → fail-fast S-C-S-0312, version-control columns pruned from exports (GAP-016 two-tier gap RESOLVED). See U295/TL056.
 
 ---
 
@@ -105,6 +107,7 @@
 | 2.1.3 | 2026-08-05 | opencode | **I281 T1.223/T1.224**: Documented the 11-type processing profile registry (Domain 4). Profile VALUES now live in `eks_processing_config.json` (SSOT §9/§16) — `extraction_profiles` (5 `technip_*`) migrated from `eks_doc_config.json#/parsing_profiles`; core `eks_base_schema.json` holds shape-only defs (`processing_profile_registry_def` + 11 per-type defs incl. `extraction_profile_def` superset); core `eks_setup_schema.json` `processing_profiles` declares the `{type}_profiles` sections; updated Phase 1 scope note. Related-file refs (base v1.16.0 / setup v1.10.0 / doc config v1.10.0). |
 | 2.1.4 | 2026-08-07 | opencode | **I283 RESUMMARIZED (T1.230/T1.231)**: Four-level Class→Type→Template→Element detection model documented. Element-set SSOT = template `expected_elements` (structural_profile = capability metadata only); `element_type_code` expands 8→11 with `title_block`/`grid`/`signature_block` detectors; `classify_cover_type()` keyword classification retired — cover type schema-first from carrier `document_templates[template_id].cover_type`, detection fallback only when unavailable; Phase 1 gates all detectors by `expected_elements` (link/note placeholders); detection output feeds health score (I284) from metadata sources only. See U270. |
 | 2.1.5 | 2026-08-07 | opencode | **I283 T1.230/T1.231**: Four-level Class→Type→Template→Element detection IMPLEMENTED. `element_type_code` 8→11 (`title_block`/`grid`/`signature_block`) in doc base v1.17.0; `element_type_registry` 11 entries (doc config v1.12.0); carrier v2.3.0 — `twrp_drawing` (A) + `twrp_pandid` (B) `expected_elements` → 8 (`cover_page`/`revision_table`/`section`/`image`/`link`/`title_block`/`grid`/`signature_block`), `threshold` 5; `StructureDetector.detect()` gated by template `expected_elements` (all 11 detectors incl. link/note placeholders) + schema-first `cover_type` param, `classify_cover_type()` retired; `resolve_cover_type()` → Optional (None = schema unavailable → detection fallback); detection output wired to `HealthInput.cover_type` (I284 base); `valid_element_types` derived from base enum. See U271/TL046. |
+| 2.1.6 | 2026-08-13 | AI Assistant | **I308 T1.282–T1.286**: Export upgraded to schema-driven **export view model**. `eks_export_view_config.json` v1.1.0 defines the 3 default views (`discovery_inventory`, `extraction_results`, `review_flags`) — view_id, source_table, `filter` (is_latest = TRUE), ordered `columns`, `file_base_name`, `sheet_name`, `formats`; `schema_to_ddl.generate_view_ddl()` renders idempotent `CREATE OR REPLACE VIEW v_<view_id>` created in `_init_db()` AFTER the I311 migration gate; `export_artifact.artifact_type` = view_id; `documents.flag_reason` materialized at ingest (`core/flag_utils`); version-control columns pruned from exports; missing view config → fail-fast S-C-S-0312; hardcoded column lists + `_fallback` dicts removed (I274/I276 cleanup); GAP-016 (two-tier gap) RESOLVED. Updated §B6 step 6 + B7.2 step 7 + Related Files + Sub-Appendix B.2 (EXPORT VIEW MODEL). See U295/TL056. |
 
 ---
 
@@ -1015,9 +1018,9 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
    - Score tiers determine action: auto_register (≥0.90), optional_review (≥0.70), flag_review (≥0.50), mandatory_review (≥0.20), manual_entry (<0.20).
 
 6. **Pipeline Export** (`--export csv|xlsx|both`):
-   - Schema-driven column subsets defined in `eks_doc_base_schema.json` → `export_artifact_def` (I193).
-   - Three artifacts: `discovery_inventory` (all `x_export` fields minus extraction), `extraction_results` (all `x_export` fields), `review_flags` (extraction-quality triage subset + `flag_reason`).
-   - Columns resolved at runtime from `x_export` boolean flags on each schema property — no hardcoded column lists. Additionally scoped by `applies_to_document_types` (concept filter) and `native_only` (format_category filter) from `column_processing` entries (I275 T1.203).
+   - **Schema-driven export view model (I308)**: 3 persistent DuckDB views — `v_discovery_inventory` (46 columns: all `x_export` fields minus extraction), `v_extraction_results` (49 columns: all `x_export` fields), `v_review_flags` (12 columns: extraction-quality triage subset + materialized `flag_reason`) — rendered by `generate_view_ddl()` as `CREATE OR REPLACE VIEW v_<view_id>` from `eks_export_view_config.json` v1.1.0, created in `_init_db()` AFTER the I311 migration gate.
+   - View id / source table (`documents`) / `filter` (`is_latest = TRUE`) / ordered `columns` / `file_base_name` / `sheet_name` / `formats` all read from the view config — **no hardcoded column lists** (I193/I275 `x_export` → superseded by `columns[]` SSOT; version-control columns `is_latest`/`supersedes`/`superseded_by` pruned).
+   - `export_artifact.artifact_type` = view_id; missing view config → **fail-fast** S-C-S-0312 (no partial export). Outputs: `eks/output/discovery_inventory.csv/.xlsx`, `extraction_results.csv/.xlsx`, `review_flags.csv` (one worksheet per view: Discovery / Extraction / Review Flags).
 
 ### Phase 3 — Knowledge Graph Ingestion (🔷 PLANNED)
 
@@ -1060,7 +1063,7 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 
 6. **Revision Control** — Three-tier I185 check in `FileScanner.register_placeholders()`: key lookup → hash match (skip duplicate) → hash mismatch (register new revision with supersedes chain). Each registration uses UUID v4 `id` (I186). Supersedes chain auto-links `supersedes`/`superseded_by` FK pairs.
 
-7. **Pipeline Export** — I193 schema-driven export produces 3 artifacts (`discovery_inventory`, `extraction_results`, `review_flags`) in CSV/XLSX/Both formats. Column subsets resolved at runtime from `x_export` flags on each schema property — no hardcoded column lists. Additionally scoped by `applies_to_document_types` and `native_only` flags in `column_processing` (I275 T1.203). Outputs written to `eks/output/`.
+7. **Pipeline Export** — I308 schema-driven **export view model**: 3 persistent DuckDB views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) rendered by `generate_view_ddl()` from `eks_export_view_config.json` v1.1.0 (view id / source table / `is_latest` filter / ordered columns / file base name / sheet name / formats), created after the I311 migration gate. `export_artifact.artifact_type` = view_id; `documents.flag_reason` materialized; version-control columns pruned; missing view config → fail-fast S-C-S-0312. Exports: `discovery_inventory` / `extraction_results` (csv + xlsx) and `review_flags` (csv) written to `eks/output/` (supersedes I193 `x_export` runtime resolution / I275 column_processing scoping).
 
 8. **Test Verification** — Registry CRUD, I185 three-tier dedup, UUID migration (I186), filename parsing (Appendix I), file property extraction (Appendix J), structure detection, element persistence, health scoring, and schema-driven export all passing.
 

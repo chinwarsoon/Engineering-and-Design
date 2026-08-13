@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.11.0",
-    "title": "EKS Default Project Configuration — v1.11.0 (parsers section removed — parser_class single-sourced in eks_processing_config.json#/extraction_profiles, I287 T1.241)",
+    "version": "1.14.0",
+    "title": "EKS Default Project Configuration — v1.14.0 (I314 follow-up: added system_parameters.export_download_file_name_template 'eks_export_{phase}.{ext}' — schema-driven SSOT for the HTTP export download file-name template, read at runtime by phase1_server; v1.13.0 (I309 T1.289: added system_parameters.export_workbook_file_name 'eks_export.xlsx' — schema-driven single-workbook export file name for the all-views Excel export; v1.12.0 added system_parameters.migration_policy default 'additive' non-destructive for I311 migration gate; parsers section removed — parser_class single-sourced in eks_processing_config.json#/extraction_profiles, I287 T1.241)",
     "project_definition": {
         "$ref": "https://eks.engineering/configs/eks_project_definition_config.json"
     },
@@ -55,7 +55,10 @@
         "ollama_timeout": 30,
         "db_timeout": 30,
         "export_default": "both",
-        "telemetry_verbose": true
+        "telemetry_verbose": true,
+        "migration_policy": "additive",
+        "export_workbook_file_name": "eks_export.xlsx",
+        "export_download_file_name_template": "eks_export_{phase}.{ext}"
     },
     "folders": [
         { "name": "eks/archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },

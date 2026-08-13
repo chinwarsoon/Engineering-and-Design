@@ -21,7 +21,9 @@ class TestErrorManager(unittest.TestCase):
         self.em = ErrorManager(config_dir=CONFIG_DIR)
 
     def test_loads_catalog(self):
-        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 128)
+        # 140 = 82 system + 58 data_logic (I309 T1.289: added S-C-S-0313
+        # EXPORT_COLUMN_NOT_ALLOWED and reconciled S-C-S-0312 in metadata).
+        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 140)
 
     def test_system_error_lookup(self):
         entry = self.em.get_system_error("S-E-S-0101")
@@ -892,14 +894,14 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.20.0")  # I291 T1.254: document_element_def shape + 2 declared_only relations (I290 T1.253 was 1.19.0)
+        self.assertEqual(base["version"], "1.21.0")  # I307 T1.280: registry_relations physical-FK intent (I291 T1.254 was 1.20.0)
 
         core_base_path = CONFIG_DIR / "schemas" / "eks_base_schema.json"
         if not core_base_path.exists():
             core_base_path = CONFIG_DIR / "eks_base_schema.json"
         with open(core_base_path) as f:
             core_base = json.load(f)
-        self.assertEqual(core_base["version"], "1.17.0")  # I287 T1.238: filename/file_property/os_properties defs added
+        self.assertEqual(core_base["version"], "1.21.0")  # I309 T1.289: export_workbook_file_name added (I308 T1.282 was 1.20.0)
 
 
 # ---------------------------------------------------------------------------

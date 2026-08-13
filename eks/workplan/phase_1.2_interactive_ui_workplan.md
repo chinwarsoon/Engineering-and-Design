@@ -1418,6 +1418,28 @@ except ImportError as e:
 
 See Appendix G §10.6 for full port allocation and §10.9.3 for corporate port override strategy.
 
+### Phase 1.2.22: Export Column Selection & Sequence Management (I309 / T1.290)
+
+**Timeline**: 0.5 days
+**Milestones**: `GET /api/v1/export_views` returns schema-driven ordered columns per view; UI multi-select + re-order per view for the current run; run POST carries `columns` override; backend validates against view config + table schema
+
+**Background**: I309 (resolved 2026-08-13, review Q1–Q10) required Excel single-workbook export (one worksheet per view, all 3 views xlsx) and dynamic per-view column selection for the current run. The backend previously bypassed the I308 schema-driven resolver with hardcoded column lists (`phase1_server.py` L834–855). Per Q7: the default column set must match the CLI (schema-driven SSOT via `resolve_export_columns()`); the user may dynamically select and re-order columns on the UI, applied as a per-run `column_override` (never written back to the schema).
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.22.1 | Remove hardcoded column lists in `phase1_server.py` (L834–855) | Replace with `resolve_export_columns()` (exporter.py) — same schema source as the CLI; default selection = full schema column set | ✅ Complete |
+| T1.2.22.2 | Add `GET /api/v1/export_views` | View list + ordered columns per view from `eks_export_view_config.json` (`columns[]` order is SSOT) | ✅ Complete |
+| T1.2.22.3 | UI multi-select + drag re-order per view | User manages column selection and sequence dynamically for the current run; runtime override only — no schema writes | ⏸️ Deferred |
+| T1.2.22.4 | Wire `columns` override into run POST + backend validation | Backend validates subset of view config columns + table schema → fail-fast **S-C-S-0313 EXPORT_COLUMN_NOT_ALLOWED** on unknown column | ✅ Complete |
+
+**Files changed**: `eks/ui/backend/phase1_server.py`, `eks/ui/*.html`, `eks/config/schemas/eks_error_config.json` (S-C-S-0313 registration)
+**Tests**: `eks/test/test_i309_exports.py` (T1.291 — column override validation, workbook sheets/names schema-driven); TL057 18/18; full suite 778 passed / 4 failed (no I309 regressions)
+**Status**: 🔶 PARTIAL — **T1.2.22.1/.2/.4 backend ✅ Complete 2026-08-13** (U297, TL057: `GET /api/v1/export_views`, run POST `export_columns` override, S-C-S-0313 fail-fast, `_mk_rows_fn`, `_handle_export`); **T1.2.22.3 frontend ⏸️ Deferred 2026-08-13** by user — `eks/ui/eks.js` + `eks/ui/phase1_ingestion.html` column multi-select/re-order panel NOT implemented; tracked as **I314** (issue log v112) and to be completed in a future Phase 1.2 UI task. Per AGENTS.md §15 a partially implemented feature must not be marked Complete.
+
+---
+
 ### Phase 1 Foundation (PARTIAL)
 
 | Component | Status | Notes |

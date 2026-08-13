@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.20.0 (I291 T1.254): document_element_def shape enriched (id UUID PK, created_at TIMESTAMP NOT NULL DEFAULT now(), optional element_seq) and 2 declared_only relations added to registry_relations (fk_element_doc doc_id→documents.id; fk_element_type element_type→element_type.element_type) — materialized in `_eks_table_relations`, no physical DuckDB FK DDL (I290 precedent: doc_id FK would block _migrate_ids_to_uuid; element_type target unmaterialized). v1.19.0 (I290 T1.253): added project_code to project_metadata_def and a schema-declared `document_registry_relations` list (GROUP 11 runtime documents table) — FK relationships (document_type→project_doc_type composite (project_code,local_code), discipline, file_type, project_code, self-ref supersedes/superseded_by) declared as schema metadata consumed by SchemaToDDL; runtime registry does not emit DuckDB FK constraints to un-materialized definition-layer tables (DuckDB rejects FK to missing table & blocks PK update referenced by self-FK on UUID migration) — relations persisted as `_eks_table_relations` manifest + validated at the validation layer. v1.18.0 (I286 T1.237): column_processing_entry_def extended with optional manual_review boolean (default false) — data-source classification flag: true = Manual-source column requiring human input (Phase 5 verification), false/absent = derivable column (still review-allowed). v1.17.0 (I283 T1.230): element_type_code extended 8→11 — added title_block, grid, signature_block for the four-level Class→Type→Template→Element detection model (complete Phase 1 drawing-frame profiles). v1.16.0 (I280 T1.218): B3.2 sub-object defs added — structural_profile_def + extraction_profile_ref/retrieval_profile_ref/validation_profile_ref + Phase 3 stubs (document_semantics_def, ai_profile_def, knowledge_relationships_def), all OPTIONAL fields on document_class_def/document_type_def (absent = use defaults; extraction ref resolves to eks_processing_config.json extraction_profiles ids per I281). v1.15.0 (I281 T1.223): parsing_profile_def REMOVED. v1.14.0 (I282 T1.226): document_type_concept_def REMOVED — replaced by shape-only document_class_def, document_type_def, document_family_def (class_id/type_id/family_id plain strings — NO value enums; VALUES live in eks_document_type_schema.json#/document_classes, #/document_types, #/document_family per SSOT §9/§16 + I031 precedent). ontology_class relaxed from enum to plain string (validated at runtime against eks_ontology_config.json). project_document_type_def and document_type_entry_def migrate concept_id→class_id. document_type_code enum kept as a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.13.0 (I276 T1.206): document_type_entry_def extended with default_parsing_profile (two-axis parser routing projection). v1.12.0 (I275 T1.203): column_processing_entry_def extended with applies_to_document_types + native_only scope keys. v1.11.0 (I279 T1.214): added document_type_concept_def, project_document_type_def, document_template_entry_def — defs backing the three-section eks_document_type_schema.json v2.0.0 carrier. document_type_code enum is a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111). v1.15.0 (I281 T1.223): REMOVED parsing_profile_def — superseded by core eks_base_schema.json extraction_profile_def (one-time migration, Q1). Extraction/parsing profile values now live in eks_processing_config.json#/extraction_profiles (SSOT §9). Core schemas are the sole profile source.",
+    "description": "v1.21.0 (I307 T1.280): registry_relations moved to physical-FK intent per I306 Q1 — every declared_only relation now has a matching fk_spec_def row in eks_db_config.json with a materialized target; declared_only retired as a design pattern (the schema-driven DB layer materializes all FK targets). `_eks_table_relations` manifest DDL retirement deferred to I310/T1.295. export_artifact_def superseded for column subsets by eks_export_view_config.json (I307/T1.278); export_artifact runtime FK wired via fk_ea_batch in eks_db_config.json. Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.20.0 (I291 T1.254): document_element_def shape enriched (id UUID PK, created_at TIMESTAMP NOT NULL DEFAULT now(), optional element_seq) and 2 declared_only relations added to registry_relations (fk_element_doc doc_id→documents.id; fk_element_type element_type→element_type.element_type) — materialized in `_eks_table_relations`, no physical DuckDB FK DDL (I290 precedent: doc_id FK would block _migrate_ids_to_uuid; element_type target unmaterialized). v1.19.0 (I290 T1.253): added project_code to project_metadata_def and a schema-declared `document_registry_relations` list (GROUP 11 runtime documents table) — FK relationships (document_type→project_doc_type composite (project_code,local_code), discipline, file_type, project_code, self-ref supersedes/superseded_by) declared as schema metadata consumed by SchemaToDDL; runtime registry does not emit DuckDB FK constraints to un-materialized definition-layer tables (DuckDB rejects FK to missing table & blocks PK update referenced by self-FK on UUID migration) — relations persisted as `_eks_table_relations` manifest + validated at the validation layer. v1.18.0 (I286 T1.237): column_processing_entry_def extended with optional manual_review boolean (default false) — data-source classification flag: true = Manual-source column requiring human input (Phase 5 verification), false/absent = derivable column (still review-allowed). v1.17.0 (I283 T1.230): element_type_code extended 8→11 — added title_block, grid, signature_block for the four-level Class→Type→Template→Element detection model (complete Phase 1 drawing-frame profiles). v1.16.0 (I280 T1.218): B3.2 sub-object defs added — structural_profile_def + extraction_profile_ref/retrieval_profile_ref/validation_profile_ref + Phase 3 stubs (document_semantics_def, ai_profile_def, knowledge_relationships_def), all OPTIONAL fields on document_class_def/document_type_def (absent = use defaults; extraction ref resolves to eks_processing_config.json extraction_profiles ids per I281). v1.15.0 (I281 T1.223): parsing_profile_def REMOVED. v1.14.0 (I282 T1.226): document_type_concept_def REMOVED — replaced by shape-only document_class_def, document_type_def, document_family_def (class_id/type_id/family_id plain strings — NO value enums; VALUES live in eks_document_type_schema.json#/document_classes, #/document_types, #/document_family per SSOT §9/§16 + I031 precedent). ontology_class relaxed from enum to plain string (validated at runtime against eks_ontology_config.json). project_document_type_def and document_type_entry_def migrate concept_id→class_id. document_type_code enum kept as a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.13.0 (I276 T1.206): document_type_entry_def extended with default_parsing_profile (two-axis parser routing projection). v1.12.0 (I275 T1.203): column_processing_entry_def extended with applies_to_document_types + native_only scope keys. v1.11.0 (I279 T1.214): added document_type_concept_def, project_document_type_def, document_template_entry_def — defs backing the three-section eks_document_type_schema.json v2.0.0 carrier. document_type_code enum is a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111). v1.15.0 (I281 T1.223): REMOVED parsing_profile_def — superseded by core eks_base_schema.json extraction_profile_def (one-time migration, Q1). Extraction/parsing profile values now live in eks_processing_config.json#/extraction_profiles (SSOT §9). Core schemas are the sole profile source.",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -13,17 +13,51 @@
         },
         "document_type_code": {
             "type": "string",
-            "enum": ["CAD", "DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT", "DR", "SP", "CL", "BQ", "VI", "M3", "QA"],
+            "enum": [
+                "CAD",
+                "DWG",
+                "PI-PID",
+                "SPC",
+                "DS",
+                "MAN",
+                "OM",
+                "RPT",
+                "DR",
+                "SP",
+                "CL",
+                "BQ",
+                "VI",
+                "M3",
+                "QA"
+            ],
             "description": "Document type codes aligned with ontology document_type_mapping (Appendix C) and TWRP assets."
         },
         "file_type_code": {
             "type": "string",
-            "enum": ["pdf", "dgn", "docx", "xlsx", "dwg"],
+            "enum": [
+                "pdf",
+                "dgn",
+                "docx",
+                "xlsx",
+                "dwg"
+            ],
             "description": "Source file format codes aligned with TWRP parsers and pipeline parsers config."
         },
         "element_type_code": {
             "type": "string",
-            "enum": ["cover_page", "revision_table", "section", "table", "image", "link", "legend", "note", "title_block", "grid", "signature_block"],
+            "enum": [
+                "cover_page",
+                "revision_table",
+                "section",
+                "table",
+                "image",
+                "link",
+                "legend",
+                "note",
+                "title_block",
+                "grid",
+                "signature_block"
+            ],
             "description": "Structural element types per Appendix D D7.10. I283 (T1.230): extended 8→11 — added title_block, grid, signature_block so Phase 1 document profiles cover the drawing-frame capabilities declared in structural_profile (Drawing class)."
         },
         "revision_id": {
@@ -32,138 +66,424 @@
         },
         "lifecycle_stage_code": {
             "type": "string",
-            "enum": ["draft", "issued_for_review", "issued_for_construction", "as_built", "superseded", "archived"],
+            "enum": [
+                "draft",
+                "issued_for_review",
+                "issued_for_construction",
+                "as_built",
+                "superseded",
+                "archived"
+            ],
             "default": "draft",
             "description": "Document lifecycle stage codes per engineering document control workflow. T1.99.143."
         },
         "document_type_entry_def": {
             "type": "object",
             "properties": {
-                "code": { "$ref": "#/definitions/document_type_code" },
-                "label": { "type": "string", "description": "Human-readable label" },
-                "ontology_class": { "type": "string", "description": "Ontology class for graph mapping. I282: plain string validated at runtime against eks_ontology_config.json (no value enum — SSOT §9/§16)." },
-                "description": { "type": "string", "description": "Full description" },
-                "class_id": { "type": "string", "description": "I282: document class this code belongs to (projection from project_document_types via class_id)" },
-                "template": { "type": "string", "description": "I279: template_id from document_templates this code uses (projection)" },
-                "format_category": { "type": "string", "enum": ["native", "print"], "description": "I279: native vs PDF-print delivery format (projection)" },
-                "native_source": { "type": "string", "description": "I279: native source extension when format_category is print (projection)" },
-                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions expected for this document type" },
-                "default_parsing_profile": { "type": "string", "description": "I276: default parsing profile id for two-axis routing (projection from project_document_types)" },
-                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280 (T1.220): B3.2 structural profile projected for this document type (type-level override, falling back to class-level). Absent = class/type defaults." }
+                "code": {
+                    "$ref": "#/definitions/document_type_code"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "ontology_class": {
+                    "type": "string",
+                    "description": "Ontology class for graph mapping. I282: plain string validated at runtime against eks_ontology_config.json (no value enum — SSOT §9/§16)."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Full description"
+                },
+                "class_id": {
+                    "type": "string",
+                    "description": "I282: document class this code belongs to (projection from project_document_types via class_id)"
+                },
+                "template": {
+                    "type": "string",
+                    "description": "I279: template_id from document_templates this code uses (projection)"
+                },
+                "format_category": {
+                    "type": "string",
+                    "enum": [
+                        "native",
+                        "print"
+                    ],
+                    "description": "I279: native vs PDF-print delivery format (projection)"
+                },
+                "native_source": {
+                    "type": "string",
+                    "description": "I279: native source extension when format_category is print (projection)"
+                },
+                "expected_file_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/file_type_code"
+                    },
+                    "description": "File extensions expected for this document type"
+                },
+                "default_parsing_profile": {
+                    "type": "string",
+                    "description": "I276: default parsing profile id for two-axis routing (projection from project_document_types)"
+                },
+                "structural_profile": {
+                    "$ref": "#/definitions/structural_profile_def",
+                    "description": "I280 (T1.220): B3.2 structural profile projected for this document type (type-level override, falling back to class-level). Absent = class/type defaults."
+                }
             },
-            "required": ["code", "label", "description"],
+            "required": [
+                "code",
+                "label",
+                "description"
+            ],
             "additionalProperties": false
         },
         "document_class_def": {
             "type": "object",
             "description": "Document class registry entry (I282 B3.1 three-level hierarchy — Level 1). Shape-only definition — the class_id VALUES live in the carrier eks_document_type_schema.json#/document_classes (SSOT §9/§16 + I031 precedent; base holds shape only, no value enums). I280 (T1.218): optional B3.2 sub-objects — structural_profile (class-level defaults), extraction_profile_ref/retrieval_profile_ref/validation_profile_ref (profile refs), Phase 3 stubs (document_semantics/ai_profile/knowledge_relationships). Absent = use defaults.",
             "properties": {
-                "class_id": { "type": "string", "description": "Document class identifier (e.g. Drawing, Specification, Datasheet, Calculation, Manual, Register, Report, Procedure). Validated at runtime against the carrier document_classes registry." },
-                "label": { "type": "string", "description": "Human-readable label" },
-                "ontology_class": { "type": "string", "description": "Ontology class for graph mapping. Plain string — validated at runtime against eks_ontology_config.json" },
-                "common_rules": { "type": "object", "description": "Class-level common processing rules shared across project bindings" },
-                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280: B3.2 structural characteristics for the whole class (class-level defaults; types may override)" },
-                "extraction_profile_ref": { "$ref": "#/definitions/extraction_profile_ref", "description": "I280: default extraction profile id for this class (resolves to eks_processing_config.json extraction_profiles)" },
-                "retrieval_profile_ref": { "$ref": "#/definitions/retrieval_profile_ref", "description": "I280: Phase 2/3 — default retrieval profile id" },
-                "validation_profile_ref": { "$ref": "#/definitions/validation_profile_ref", "description": "I280: default validation profile id (I284 feeds the column-value layer)" },
-                "document_semantics": { "$ref": "#/definitions/document_semantics_def", "description": "I280: Phase 3 stub — semantic entities/relationships/constraints" },
-                "ai_profile": { "$ref": "#/definitions/ai_profile_def", "description": "I280: Phase 3 stub — AI reasoning behaviour" },
-                "knowledge_relationships": { "$ref": "#/definitions/knowledge_relationships_def", "description": "I280: Phase 3 stub — typed relation registry" }
+                "class_id": {
+                    "type": "string",
+                    "description": "Document class identifier (e.g. Drawing, Specification, Datasheet, Calculation, Manual, Register, Report, Procedure). Validated at runtime against the carrier document_classes registry."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "ontology_class": {
+                    "type": "string",
+                    "description": "Ontology class for graph mapping. Plain string — validated at runtime against eks_ontology_config.json"
+                },
+                "common_rules": {
+                    "type": "object",
+                    "description": "Class-level common processing rules shared across project bindings"
+                },
+                "structural_profile": {
+                    "$ref": "#/definitions/structural_profile_def",
+                    "description": "I280: B3.2 structural characteristics for the whole class (class-level defaults; types may override)"
+                },
+                "extraction_profile_ref": {
+                    "$ref": "#/definitions/extraction_profile_ref",
+                    "description": "I280: default extraction profile id for this class (resolves to eks_processing_config.json extraction_profiles)"
+                },
+                "retrieval_profile_ref": {
+                    "$ref": "#/definitions/retrieval_profile_ref",
+                    "description": "I280: Phase 2/3 — default retrieval profile id"
+                },
+                "validation_profile_ref": {
+                    "$ref": "#/definitions/validation_profile_ref",
+                    "description": "I280: default validation profile id (I284 feeds the column-value layer)"
+                },
+                "document_semantics": {
+                    "$ref": "#/definitions/document_semantics_def",
+                    "description": "I280: Phase 3 stub — semantic entities/relationships/constraints"
+                },
+                "ai_profile": {
+                    "$ref": "#/definitions/ai_profile_def",
+                    "description": "I280: Phase 3 stub — AI reasoning behaviour"
+                },
+                "knowledge_relationships": {
+                    "$ref": "#/definitions/knowledge_relationships_def",
+                    "description": "I280: Phase 3 stub — typed relation registry"
+                }
             },
-            "required": ["class_id", "label", "ontology_class"],
+            "required": [
+                "class_id",
+                "label",
+                "ontology_class"
+            ],
             "additionalProperties": false
         },
         "document_type_def": {
             "type": "object",
             "description": "Document type registry entry (I282 B3.1 three-level hierarchy — Level 2). Shape-only definition — the type_id VALUES live in the carrier eks_document_type_schema.json#/document_types. A type belongs to exactly one class and optionally one family. I280 (T1.218): optional B3.2 sub-objects — type-level structural_profile/ref overrides; absent = inherit class-level defaults.",
             "properties": {
-                "type_id": { "type": "string", "description": "Document type identifier (e.g. P&ID, Isometric, Loop Drawing). Validated at runtime against the carrier document_types registry." },
-                "label": { "type": "string", "description": "Human-readable label" },
-                "class_id": { "type": "string", "description": "Reference to a class_id in the carrier document_classes registry" },
-                "family_id": { "type": ["string", "null"], "description": "Optional reference to a family_id in the carrier document_family registry. Null when the type belongs to no family." },
-                "structural_profile": { "$ref": "#/definitions/structural_profile_def", "description": "I280: B3.2 structural characteristics override for this type; absent = inherit class-level structural_profile" },
-                "extraction_profile_ref": { "$ref": "#/definitions/extraction_profile_ref", "description": "I280: extraction profile id override for this type" },
-                "retrieval_profile_ref": { "$ref": "#/definitions/retrieval_profile_ref", "description": "I280: Phase 2/3 — retrieval profile id override" },
-                "validation_profile_ref": { "$ref": "#/definitions/validation_profile_ref", "description": "I280: validation profile id override (I284)" },
-                "document_semantics": { "$ref": "#/definitions/document_semantics_def", "description": "I280: Phase 3 stub" },
-                "ai_profile": { "$ref": "#/definitions/ai_profile_def", "description": "I280: Phase 3 stub" },
-                "knowledge_relationships": { "$ref": "#/definitions/knowledge_relationships_def", "description": "I280: Phase 3 stub" }
+                "type_id": {
+                    "type": "string",
+                    "description": "Document type identifier (e.g. P&ID, Isometric, Loop Drawing). Validated at runtime against the carrier document_types registry."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "class_id": {
+                    "type": "string",
+                    "description": "Reference to a class_id in the carrier document_classes registry"
+                },
+                "family_id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Optional reference to a family_id in the carrier document_family registry. Null when the type belongs to no family."
+                },
+                "structural_profile": {
+                    "$ref": "#/definitions/structural_profile_def",
+                    "description": "I280: B3.2 structural characteristics override for this type; absent = inherit class-level structural_profile"
+                },
+                "extraction_profile_ref": {
+                    "$ref": "#/definitions/extraction_profile_ref",
+                    "description": "I280: extraction profile id override for this type"
+                },
+                "retrieval_profile_ref": {
+                    "$ref": "#/definitions/retrieval_profile_ref",
+                    "description": "I280: Phase 2/3 — retrieval profile id override"
+                },
+                "validation_profile_ref": {
+                    "$ref": "#/definitions/validation_profile_ref",
+                    "description": "I280: validation profile id override (I284)"
+                },
+                "document_semantics": {
+                    "$ref": "#/definitions/document_semantics_def",
+                    "description": "I280: Phase 3 stub"
+                },
+                "ai_profile": {
+                    "$ref": "#/definitions/ai_profile_def",
+                    "description": "I280: Phase 3 stub"
+                },
+                "knowledge_relationships": {
+                    "$ref": "#/definitions/knowledge_relationships_def",
+                    "description": "I280: Phase 3 stub"
+                }
             },
-            "required": ["type_id", "label", "class_id"],
+            "required": [
+                "type_id",
+                "label",
+                "class_id"
+            ],
             "additionalProperties": false
         },
         "document_family_def": {
             "type": "object",
             "description": "Document family registry entry (I282 B3.1 three-level hierarchy — Level 3, cross-discipline grouping). Shape-only definition — the family_id VALUES live in the carrier eks_document_type_schema.json#/document_family. A family is a sub-discipline grouping whose members share common properties and activities (D6).",
             "properties": {
-                "family_id": { "type": "string", "description": "Document family identifier (e.g. Process Drawing, Instrument Drawing). Validated at runtime against the carrier document_family registry." },
-                "label": { "type": "string", "description": "Human-readable label" },
-                "discipline": { "type": "string", "description": "Engineering discipline this family groups under" }
+                "family_id": {
+                    "type": "string",
+                    "description": "Document family identifier (e.g. Process Drawing, Instrument Drawing). Validated at runtime against the carrier document_family registry."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "discipline": {
+                    "type": "string",
+                    "description": "Engineering discipline this family groups under"
+                }
             },
-            "required": ["family_id", "label", "discipline"],
+            "required": [
+                "family_id",
+                "label",
+                "discipline"
+            ],
             "additionalProperties": false
         },
         "project_document_type_def": {
             "type": "object",
             "description": "Per-project document-type binding (I279 three-section carrier). Binds a project-local code to a document class and a template. Different projects may use different local codes for the same class. I282: concept_id migrated to class_id (concept layer removed).",
             "properties": {
-                "local_code": { "type": "string", "description": "Project-local document type code (stored in document_metadata_def.document_type)" },
-                "class_id": { "type": "string", "description": "Reference to a class_id in the carrier document_classes registry (validated at runtime)" },
-                "template": { "type": "string", "description": "Reference to a template_id in document_templates" },
-                "format_category": { "type": "string", "enum": ["native", "print"], "description": "Native format (dwg/dgn/docx/xlsx) vs PDF print of the same document" },
-                "native_source": { "type": "string", "description": "Native source file extension (e.g. dwg, docx) when the binding is a print of a native file" },
-                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions accepted for this binding" },
-                "default_parsing_profile": { "type": "string", "description": "Default parsing profile id for this binding (I276)" },
-                "project_rules": { "type": "object", "description": "Project-specific rules for this binding" }
+                "local_code": {
+                    "type": "string",
+                    "description": "Project-local document type code (stored in document_metadata_def.document_type)"
+                },
+                "class_id": {
+                    "type": "string",
+                    "description": "Reference to a class_id in the carrier document_classes registry (validated at runtime)"
+                },
+                "template": {
+                    "type": "string",
+                    "description": "Reference to a template_id in document_templates"
+                },
+                "format_category": {
+                    "type": "string",
+                    "enum": [
+                        "native",
+                        "print"
+                    ],
+                    "description": "Native format (dwg/dgn/docx/xlsx) vs PDF print of the same document"
+                },
+                "native_source": {
+                    "type": "string",
+                    "description": "Native source file extension (e.g. dwg, docx) when the binding is a print of a native file"
+                },
+                "expected_file_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/file_type_code"
+                    },
+                    "description": "File extensions accepted for this binding"
+                },
+                "default_parsing_profile": {
+                    "type": "string",
+                    "description": "Default parsing profile id for this binding (I276)"
+                },
+                "project_rules": {
+                    "type": "object",
+                    "description": "Project-specific rules for this binding"
+                }
             },
-            "required": ["local_code", "class_id", "template", "format_category", "expected_file_types"],
+            "required": [
+                "local_code",
+                "class_id",
+                "template",
+                "format_category",
+                "expected_file_types"
+            ],
             "additionalProperties": false
         },
         "document_template_entry_def": {
             "type": "object",
             "description": "Structural template registry entry (I279 three-section carrier). Defines the expectations formerly carried by element_expectations.",
             "properties": {
-                "label": { "type": "string", "description": "Human-readable template label" },
-                "cover_type": { "type": "string", "enum": ["A", "B", "C", "D", "E"], "description": "Cover sheet type letter for structure_detector routing" },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable template label"
+                },
+                "cover_type": {
+                    "type": "string",
+                    "enum": [
+                        "A",
+                        "B",
+                        "C",
+                        "D",
+                        "E"
+                    ],
+                    "description": "Cover sheet type letter for structure_detector routing"
+                },
                 "source_quality_score": {
                     "type": "object",
-                    "additionalProperties": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "additionalProperties": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
                     "description": "I284: template-scoped cover source-quality map {cover_type: score}. Consumed by HealthScorer._score_source_quality for the source_quality dimension. Linked only to document_templates (no project override). When absent for a template, HealthScorer falls back to health_scoring.default_source_quality_scores in eks_doc_config.json."
                 },
                 "expected_elements": {
                     "type": "array",
-                    "items": { "$ref": "#/definitions/element_type_code" },
+                    "items": {
+                        "$ref": "#/definitions/element_type_code"
+                    },
                     "description": "Structural elements expected for structural completeness scoring"
                 },
-                "threshold": { "type": "integer", "minimum": 0, "description": "Minimum detected elements to pass structural completeness" },
+                "threshold": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Minimum detected elements to pass structural completeness"
+                },
                 "detection": {
                     "type": "object",
                     "properties": {
-                        "native": { "type": "string", "enum": ["embedded_structure", "page1_ocr"], "description": "Detection mechanism for native-format delivery" },
-                        "print": { "type": "string", "enum": ["embedded_structure", "page1_ocr"], "description": "Detection mechanism for PDF-print delivery" }
+                        "native": {
+                            "type": "string",
+                            "enum": [
+                                "embedded_structure",
+                                "page1_ocr"
+                            ],
+                            "description": "Detection mechanism for native-format delivery"
+                        },
+                        "print": {
+                            "type": "string",
+                            "enum": [
+                                "embedded_structure",
+                                "page1_ocr"
+                            ],
+                            "description": "Detection mechanism for PDF-print delivery"
+                        }
                     },
-                    "required": ["native", "print"],
+                    "required": [
+                        "native",
+                        "print"
+                    ],
                     "additionalProperties": false
                 }
             },
-            "required": ["label", "cover_type", "expected_elements", "threshold", "detection"],
+            "required": [
+                "label",
+                "cover_type",
+                "expected_elements",
+                "threshold",
+                "detection"
+            ],
             "additionalProperties": false
         },
         "structural_profile_def": {
             "type": "object",
             "description": "I280 (T1.218): B3.2 Structural Characteristics profile. Declares the physical layout / visual elements expected for a document class or type. Used by type-aware StructureDetector (I283) to tailor element detection. Fields absent = default/unknown.",
             "properties": {
-                "cover_page": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Whether a cover page is expected (B2.1 Document Structure)" },
-                "revision_table": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Whether a revision table is expected" },
-                "multi_sheet": { "type": "boolean", "description": "Whether the document is typically multi-sheet" },
-                "drawing_based": { "type": "boolean", "description": "Whether content is drawing-based (graphics heavy) vs text-based" },
-                "section_based": { "type": "boolean", "description": "Whether content is organised into sections/headings" },
-                "contains_callouts": { "type": "boolean", "description": "Whether visual callouts/labels are expected (B2.1 Visual Elements)" },
-                "contains_symbols": { "type": "boolean", "description": "Whether graphic symbols (P&ID/loop) are expected" },
-                "title_block": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Title block presence" },
-                "legend": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Legend presence" },
-                "grid": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Grid/reference-frame presence" },
-                "signature_block": { "type": "string", "enum": ["required", "optional", "absent"], "description": "Signature block presence" }
+                "cover_page": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Whether a cover page is expected (B2.1 Document Structure)"
+                },
+                "revision_table": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Whether a revision table is expected"
+                },
+                "multi_sheet": {
+                    "type": "boolean",
+                    "description": "Whether the document is typically multi-sheet"
+                },
+                "drawing_based": {
+                    "type": "boolean",
+                    "description": "Whether content is drawing-based (graphics heavy) vs text-based"
+                },
+                "section_based": {
+                    "type": "boolean",
+                    "description": "Whether content is organised into sections/headings"
+                },
+                "contains_callouts": {
+                    "type": "boolean",
+                    "description": "Whether visual callouts/labels are expected (B2.1 Visual Elements)"
+                },
+                "contains_symbols": {
+                    "type": "boolean",
+                    "description": "Whether graphic symbols (P&ID/loop) are expected"
+                },
+                "title_block": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Title block presence"
+                },
+                "legend": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Legend presence"
+                },
+                "grid": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Grid/reference-frame presence"
+                },
+                "signature_block": {
+                    "type": "string",
+                    "enum": [
+                        "required",
+                        "optional",
+                        "absent"
+                    ],
+                    "description": "Signature block presence"
+                }
             },
             "additionalProperties": false
         },
@@ -183,11 +503,41 @@
             "type": "object",
             "description": "I280 (T1.218): PHASE 3 STUB — B3.2 Document Semantics: what knowledge a document contains, directly feeding the graph database. Optional; no code consumers in Phase 1.",
             "properties": {
-                "semantic_entities": { "type": "array", "items": { "type": "string" }, "description": "Entity types (Equipment, Instrument, Valve, Pipe, ...)" },
-                "semantic_relationships": { "type": "array", "items": { "type": "string" }, "description": "Relationship types (connected_to, measures, ...)" },
-                "semantic_constraints": { "type": "array", "items": { "type": "object" }, "description": "Constraints on entity relationships" },
-                "business_objects": { "type": "array", "items": { "type": "string" }, "description": "Business-relevant objects" },
-                "engineering_objects": { "type": "array", "items": { "type": "string" }, "description": "Engineering-relevant objects" }
+                "semantic_entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Entity types (Equipment, Instrument, Valve, Pipe, ...)"
+                },
+                "semantic_relationships": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Relationship types (connected_to, measures, ...)"
+                },
+                "semantic_constraints": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "description": "Constraints on entity relationships"
+                },
+                "business_objects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Business-relevant objects"
+                },
+                "engineering_objects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Engineering-relevant objects"
+                }
             },
             "additionalProperties": false
         },
@@ -195,10 +545,25 @@
             "type": "object",
             "description": "I280 (T1.218): PHASE 3 STUB — B3.2 AI Behaviour profile: how RAG/QA should reason over this document type. Optional; no code consumers in Phase 1.",
             "properties": {
-                "question_types": { "type": "array", "items": { "type": "string" }, "description": "Supported question types" },
-                "reasoning_level": { "type": "string", "description": "Reasoning depth required" },
-                "requires_graph": { "type": "boolean", "description": "Whether graph-backed reasoning is required" },
-                "requires_multimodal": { "type": "boolean", "description": "Whether multimodal (image+text) reasoning is required" }
+                "question_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Supported question types"
+                },
+                "reasoning_level": {
+                    "type": "string",
+                    "description": "Reasoning depth required"
+                },
+                "requires_graph": {
+                    "type": "boolean",
+                    "description": "Whether graph-backed reasoning is required"
+                },
+                "requires_multimodal": {
+                    "type": "boolean",
+                    "description": "Whether multimodal (image+text) reasoning is required"
+                }
             },
             "additionalProperties": false
         },
@@ -206,21 +571,49 @@
             "type": "object",
             "description": "I280 (T1.218): PHASE 3 STUB — B3.2 Knowledge Relationships: typed relation registry for graph edges. Optional; no code consumers in Phase 1.",
             "properties": {
-                "relationship_types": { "type": "array", "items": { "type": "string" }, "description": "Typed relations (supersedes, references_documents, ...)" }
+                "relationship_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Typed relations (supersedes, references_documents, ...)"
+                }
             },
             "additionalProperties": false
         },
         "project_metadata_def": {
             "type": "object",
             "properties": {
-                "project_code": { "type": "string", "description": "I290 (T1.253): engineering project code (e.g. 131101) — composite-FK partner for document_type→project_doc_type (project_code, local_code). Populated at ingest from the pipeline project context. Kept nullable for backward compatibility (documents can be registered before project context is known).", "x_export": true },
-                "project_title": { "type": "string", "x_export": true },
-                "project_number": { "type": "string", "x_export": true },
-                "area": { "type": "string", "x_export": true },
-                "discipline": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def/properties/code", "x_export": true },
-                "department": { "type": "string", "x_export": true }
+                "project_code": {
+                    "type": "string",
+                    "description": "I290 (T1.253): engineering project code (e.g. 131101) — composite-FK partner for document_type→project_doc_type (project_code, local_code). Populated at ingest from the pipeline project context. Kept nullable for backward compatibility (documents can be registered before project context is known).",
+                    "x_export": true
+                },
+                "project_title": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "project_number": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "area": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "discipline": {
+                    "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def/properties/code",
+                    "x_export": true
+                },
+                "department": {
+                    "type": "string",
+                    "x_export": true
+                }
             },
-            "required": ["project_title", "project_number"],
+            "required": [
+                "project_title",
+                "project_number"
+            ],
             "additionalProperties": false
         },
         "document_metadata_def": {
@@ -228,164 +621,540 @@
             "properties": {
                 "source_type": {
                     "type": "string",
-                    "enum": ["ingested", "referenced", "stub"],
+                    "enum": [
+                        "ingested",
+                        "referenced",
+                        "stub"
+                    ],
                     "default": "ingested",
                     "x_export": true
                 },
-                "document_type": { "$ref": "#/definitions/document_type_code", "x_export": true },
-                "document_number": { "type": "string", "x_export": true },
-                "revision": { "$ref": "#/definitions/revision_id", "x_export": true },
-                "status": { "type": "string", "x_export": true },
-                "is_latest": { "type": "boolean", "default": true, "x_export": false },
-                "file_path": { "type": "string", "description": "Relative path to source file on disk", "x_export": true },
-                "file_type": { "$ref": "#/definitions/file_type_code", "description": "Source file format for parser routing", "x_export": true },
-                "ingested_at": { "type": "string", "format": "date-time", "description": "UTC timestamp of ingestion", "x_export": true },
-                "created_by": { "type": "string", "x_export": true },
-                "checked_by": { "type": "string", "x_export": true },
-                "approved_by": { "type": "string", "x_export": true },
-                "originator_company": { "type": "string", "x_export": true },
-                "security_class": { "type": "string", "x_export": true },
+                "document_type": {
+                    "$ref": "#/definitions/document_type_code",
+                    "x_export": true
+                },
+                "document_number": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "revision": {
+                    "$ref": "#/definitions/revision_id",
+                    "x_export": true
+                },
+                "status": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "is_latest": {
+                    "type": "boolean",
+                    "default": true,
+                    "x_export": false
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Relative path to source file on disk",
+                    "x_export": true
+                },
+                "file_type": {
+                    "$ref": "#/definitions/file_type_code",
+                    "description": "Source file format for parser routing",
+                    "x_export": true
+                },
+                "ingested_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "UTC timestamp of ingestion",
+                    "x_export": true
+                },
+                "created_by": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "checked_by": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "approved_by": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "originator_company": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "security_class": {
+                    "type": "string",
+                    "x_export": true
+                },
                 "asset_tags": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": {
+                        "type": "string"
+                    },
                     "default": [],
                     "x_export": true
                 },
-                "page_count": { "type": "integer", "x_export": true },
+                "page_count": {
+                    "type": "integer",
+                    "x_export": true
+                },
                 "extract_status": {
                     "type": "string",
-                    "enum": ["pending", "success", "partial", "failed"],
+                    "enum": [
+                        "pending",
+                        "success",
+                        "partial",
+                        "failed"
+                    ],
                     "default": "pending",
                     "x_export": true
                 },
-                "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1, "x_export": true },
-                "extraction_notes": { "type": "string", "x_export": true },
-                "verified_by": { "type": "string", "x_export": true },
-                "file_size": { "type": "integer", "description": "OS-level file size in bytes (from Path.stat().st_size)", "x_export": true },
-                "file_created_at": { "type": "string", "description": "OS-level file creation timestamp (from st_ctime, UTC ISO 8601)", "x_export": true },
-                "file_modified_at": { "type": "string", "description": "OS-level file last-modified timestamp (from st_mtime, UTC ISO 8601)", "x_export": true },
-                "file_hash": { "type": "string", "description": "Content hash (MD5 or SHA256) for integrity verification", "x_export": true },
-                "embedded_title": { "type": "string", "description": "Embedded document title from parser metadata", "x_export": true },
-                "embedded_subject": { "type": "string", "description": "Embedded document subject from parser metadata", "x_export": true },
-                "embedded_created_date": { "type": "string", "description": "Embedded creation date from parser metadata", "x_export": true },
-                "embedded_modified_date": { "type": "string", "description": "Embedded modification date from parser metadata", "x_export": true },
-                "embedded_creator_app": { "type": "string", "description": "Application that created the file (e.g. AutoCAD 2024)", "x_export": true },
-                "embedded_producer": { "type": "string", "description": "Library/producer that generated the file (e.g. pdfplot15.hdi)", "x_export": true },
-                "embedded_last_modified_by": { "type": "string", "description": "Last user who modified the file (from DOCX/XLSX core properties)", "x_export": true },
-                "embedded_keywords": { "type": "string", "description": "Embedded keywords from parser metadata", "x_export": true },
-                "embedded_sheet_count": { "type": "integer", "description": "Number of sheets in XLSX workbook", "x_export": true },
-                "document_title": { "type": "string", "description": "Human-readable document title. T1.99.142.", "x_export": true },
-                "supersedes": { "type": "string", "description": "FK to documents.id — the previous revision this document supersedes. T1.99.141.", "x_export": false },
-                "superseded_by": { "type": "string", "description": "FK to documents.id — the next revision that supersedes this document. T1.99.141.", "x_export": false },
-                "lifecycle_stage": { "$ref": "#/definitions/lifecycle_stage_code", "description": "Document lifecycle stage. T1.99.143.", "x_export": true },
-                "revision_date": { "type": "string", "description": "Date of this revision (ISO 8601 string). T1.99.143.", "x_export": true },
-                "revision_description": { "type": "string", "description": "Description of changes in this revision. T1.99.143.", "x_export": true },
-                "embedded_revision_number": { "type": "string", "description": "Revision number from embedded DOCX/XLSX core properties. T1.99.144.", "x_export": true },
-                "references_documents": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Array of doc_id strings this document references. T1.99.145.", "x_export": true },
-                "project_phase": { "type": "string", "description": "Project lifecycle phase (e.g. tender, construction, as_built). T1.99.146.", "x_export": true },
-                "contract_package": { "type": "string", "description": "Procurement contract package grouping. T1.99.146.", "x_export": true },
-                "issued_date": { "type": "string", "description": "Formal issue/submission date to client (ISO 8601 string). T1.99.146.", "x_export": true },
-                "responsible_engineer": { "type": "string", "description": "Engineer accountable for the document. T1.99.146.", "x_export": true },
-                "total_sheets": { "type": "integer", "description": "Total sheets in multi-sheet drawing set. T1.99.146.", "x_export": true },
-                "language": { "type": "string", "default": "en", "description": "ISO 639-1 language code of document content. T1.99.146.", "x_export": true },
-                "vendor_name": { "type": "string", "description": "Equipment vendor name for vendor-supplied documents. T1.99.146.", "x_export": true }
+                "extraction_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "x_export": true
+                },
+                "extraction_notes": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "verified_by": {
+                    "type": "string",
+                    "x_export": true
+                },
+                "flag_reason": {
+                    "type": ["string", "null"],
+                    "description": "I308/T1.283: materialized at ingest (Python-written) so v_review_flags is a pure projection. Null/absent when no flag.",
+                    "x_export": true
+                },
+                "file_size": {
+                    "type": "integer",
+                    "description": "OS-level file size in bytes (from Path.stat().st_size)",
+                    "x_export": true
+                },
+                "file_created_at": {
+                    "type": "string",
+                    "description": "OS-level file creation timestamp (from st_ctime, UTC ISO 8601)",
+                    "x_export": true
+                },
+                "file_modified_at": {
+                    "type": "string",
+                    "description": "OS-level file last-modified timestamp (from st_mtime, UTC ISO 8601)",
+                    "x_export": true
+                },
+                "file_hash": {
+                    "type": "string",
+                    "description": "Content hash (MD5 or SHA256) for integrity verification",
+                    "x_export": true
+                },
+                "embedded_title": {
+                    "type": "string",
+                    "description": "Embedded document title from parser metadata",
+                    "x_export": true
+                },
+                "embedded_subject": {
+                    "type": "string",
+                    "description": "Embedded document subject from parser metadata",
+                    "x_export": true
+                },
+                "embedded_created_date": {
+                    "type": "string",
+                    "description": "Embedded creation date from parser metadata",
+                    "x_export": true
+                },
+                "embedded_modified_date": {
+                    "type": "string",
+                    "description": "Embedded modification date from parser metadata",
+                    "x_export": true
+                },
+                "embedded_creator_app": {
+                    "type": "string",
+                    "description": "Application that created the file (e.g. AutoCAD 2024)",
+                    "x_export": true
+                },
+                "embedded_producer": {
+                    "type": "string",
+                    "description": "Library/producer that generated the file (e.g. pdfplot15.hdi)",
+                    "x_export": true
+                },
+                "embedded_last_modified_by": {
+                    "type": "string",
+                    "description": "Last user who modified the file (from DOCX/XLSX core properties)",
+                    "x_export": true
+                },
+                "embedded_keywords": {
+                    "type": "string",
+                    "description": "Embedded keywords from parser metadata",
+                    "x_export": true
+                },
+                "embedded_sheet_count": {
+                    "type": "integer",
+                    "description": "Number of sheets in XLSX workbook",
+                    "x_export": true
+                },
+                "document_title": {
+                    "type": "string",
+                    "description": "Human-readable document title. T1.99.142.",
+                    "x_export": true
+                },
+                "supersedes": {
+                    "type": "string",
+                    "description": "FK to documents.id — the previous revision this document supersedes. T1.99.141.",
+                    "x_export": false
+                },
+                "superseded_by": {
+                    "type": "string",
+                    "description": "FK to documents.id — the next revision that supersedes this document. T1.99.141.",
+                    "x_export": false
+                },
+                "lifecycle_stage": {
+                    "$ref": "#/definitions/lifecycle_stage_code",
+                    "description": "Document lifecycle stage. T1.99.143.",
+                    "x_export": true
+                },
+                "revision_date": {
+                    "type": "string",
+                    "description": "Date of this revision (ISO 8601 string). T1.99.143.",
+                    "x_export": true
+                },
+                "revision_description": {
+                    "type": "string",
+                    "description": "Description of changes in this revision. T1.99.143.",
+                    "x_export": true
+                },
+                "embedded_revision_number": {
+                    "type": "string",
+                    "description": "Revision number from embedded DOCX/XLSX core properties. T1.99.144.",
+                    "x_export": true
+                },
+                "references_documents": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Array of doc_id strings this document references. T1.99.145.",
+                    "x_export": true
+                },
+                "project_phase": {
+                    "type": "string",
+                    "description": "Project lifecycle phase (e.g. tender, construction, as_built). T1.99.146.",
+                    "x_export": true
+                },
+                "contract_package": {
+                    "type": "string",
+                    "description": "Procurement contract package grouping. T1.99.146.",
+                    "x_export": true
+                },
+                "issued_date": {
+                    "type": "string",
+                    "description": "Formal issue/submission date to client (ISO 8601 string). T1.99.146.",
+                    "x_export": true
+                },
+                "responsible_engineer": {
+                    "type": "string",
+                    "description": "Engineer accountable for the document. T1.99.146.",
+                    "x_export": true
+                },
+                "total_sheets": {
+                    "type": "integer",
+                    "description": "Total sheets in multi-sheet drawing set. T1.99.146.",
+                    "x_export": true
+                },
+                "language": {
+                    "type": "string",
+                    "default": "en",
+                    "description": "ISO 639-1 language code of document content. T1.99.146.",
+                    "x_export": true
+                },
+                "vendor_name": {
+                    "type": "string",
+                    "description": "Equipment vendor name for vendor-supplied documents. T1.99.146.",
+                    "x_export": true
+                }
             },
-            "required": ["source_type", "document_type", "document_number", "revision"],
+            "required": [
+                "source_type",
+                "document_type",
+                "document_number",
+                "revision"
+            ],
             "additionalProperties": false
         },
         "document_element_def": {
             "type": "object",
             "description": "Structural element extracted from a document (cover page, section, table, image, etc.) per Appendix D D7.10. I291 (T1.254): shape enriched — `id` UUID PK, `created_at` TIMESTAMP NOT NULL DEFAULT now(), optional `element_seq`; FK SSOT `doc_id` → `documents.id` and `element_type` → `element_type.element_type` declared as declared_only relations in registry_relations (physical FK DDL not emitted per I290 precedent).",
             "properties": {
-                "id": { "type": "string", "format": "uuid", "description": "I291 (T1.254): surrogate UUID primary key, assigned at ingest (system-generated; not part of the required payload). Matches the documents table UUID PK pattern and is a declared_only FK target."
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "I291 (T1.254): surrogate UUID primary key, assigned at ingest (system-generated; not part of the required payload). Matches the documents table UUID PK pattern and is a declared_only FK target."
                 },
-                "doc_id": { "$ref": "#/definitions/doc_id_format", "description": "I291 (T1.254): FK → documents.id (canonical registry UUID PK; SSOT per I291 Q2 — declared_only relation fk_element_doc). Formerly 'document_registry.doc_id'." },
-                "element_type": { "$ref": "#/definitions/element_type_code", "description": "I291 (T1.254): FK → element_type.element_type (11-code enum; declared_only relation fk_element_type). Validated by DocumentRegistry.store_elements." },
-                "element_id": { "type": "string", "description": "Page number or location identifier" },
-                "title": { "type": "string", "description": "Heading, field name, or section title" },
-                "content": { "type": "string", "description": "Raw text or JSON for complex structures" },
-                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-                "source": { "type": "string", "enum": ["regex", "ocr", "heuristic", "manual"] },
-                "created_at": { "type": "string", "format": "date-time", "description": "I291 (T1.254): row creation timestamp; DDL emits TIMESTAMP NOT NULL DEFAULT now()." },
-                "element_seq": { "type": "integer", "minimum": 0, "description": "I291 (T1.254): optional 0-based sequence of the element within its document for deterministic intra-document ordering." }
+                "doc_id": {
+                    "$ref": "#/definitions/doc_id_format",
+                    "description": "I291 (T1.254): FK → documents.id (canonical registry UUID PK; SSOT per I291 Q2 — declared_only relation fk_element_doc). Formerly 'document_registry.doc_id'."
+                },
+                "element_type": {
+                    "$ref": "#/definitions/element_type_code",
+                    "description": "I291 (T1.254): FK → element_type.element_type (11-code enum; declared_only relation fk_element_type). Validated by DocumentRegistry.store_elements."
+                },
+                "element_id": {
+                    "type": "string",
+                    "description": "Page number or location identifier"
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Heading, field name, or section title"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Raw text or JSON for complex structures"
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "regex",
+                        "ocr",
+                        "heuristic",
+                        "manual"
+                    ]
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "I291 (T1.254): row creation timestamp; DDL emits TIMESTAMP NOT NULL DEFAULT now()."
+                },
+                "element_seq": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "I291 (T1.254): optional 0-based sequence of the element within its document for deterministic intra-document ordering."
+                }
             },
-            "required": ["doc_id", "element_type", "source"],
+            "required": [
+                "doc_id",
+                "element_type",
+                "source"
+            ],
             "additionalProperties": false
         },
         "registry_relation_def": {
             "type": "object",
-            "description": "I290 (T1.253): A single declared FK relationship on the runtime `documents` registry table (GROUP 11 in appendix_b.2_db_table_design.md). Declared as schema metadata (SSOT, AGENTS.md §16) and consumed by SchemaToDDL to persist `_eks_table_relations`; the runtime DuckDB registry does NOT emit physical FOREIGN KEY constraints to un-materialized definition-layer tables (DuckDB rejects FK referencing a missing table at DDL time and blocks PK updates on rows referenced by self-FKs during the UUID migration). One object per (source_columns → target_table(target_columns)).",
-            "type": "object",
+            "description": "I290 (T1.253) original: a single declared FK relationship on the runtime `documents` registry table (GROUP 11 in appendix_b.2_db_table_design.md), consumed by SchemaToDDL to persist `_eks_table_relations`. I307 (T1.280): moved to physical-FK intent per I306 Q1 — every relation has a matching fk_spec_def row in eks_db_config.json with a materialized target; declared_only retired as a design pattern. `_eks_table_relations` manifest DDL retirement deferred to I310/T1.295.",
             "properties": {
-                "relation_name": { "type": "string", "description": "Unique relationship name (e.g. fk_doc_type_composite, fk_supersedes)." },
-                "source_table": { "type": "string", "enum": ["documents", "document_elements"], "default": "documents" },
-                "source_columns": { "type": "array", "items": { "type": "string" }, "description": "Column(s) on the source runtime table holding the FK value(s)." },
-                "target_table": { "type": "string", "description": "Referenced table name ('documents' for self-refs; definition-layer table name for declared-but-unmaterialized FKs)." },
-                "target_columns": { "type": "array", "items": { "type": "string" }, "description": "Referenced key column(s) on target_table (composite keys declared with 2 entries)." },
-                "relation_type": { "type": "string", "enum": ["composite", "simple", "self"], "default": "simple", "description": "composite = multi-column target key; self = targets the same 'documents' table." },
-                "declared_only": { "type": "boolean", "default": true, "description": "true = logical declaration only (definition layer not materialized in runtime DuckDB; enforced at validation layer); no physical DuckDB FK constraint is emitted." },
-                "description": { "type": "string" }
+                "relation_name": {
+                    "type": "string",
+                    "description": "Unique relationship name (e.g. fk_doc_type_composite, fk_supersedes)."
+                },
+                "source_table": {
+                    "type": "string",
+                    "enum": [
+                        "documents",
+                        "document_elements"
+                    ],
+                    "default": "documents"
+                },
+                "source_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Column(s) on the source runtime table holding the FK value(s)."
+                },
+                "target_table": {
+                    "type": "string",
+                    "description": "Referenced table name ('documents' for self-refs; definition-layer table name for declared-but-unmaterialized FKs)."
+                },
+                "target_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Referenced key column(s) on target_table (composite keys declared with 2 entries)."
+                },
+                "relation_type": {
+                    "type": "string",
+                    "enum": [
+                        "composite",
+                        "simple",
+                        "self"
+                    ],
+                    "default": "simple",
+                    "description": "composite = multi-column target key; self = targets the same 'documents' table."
+                },
+                "declared_only": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "I307 (T1.280): retained for manifest backward-compat; superseded by physical-FK intent (I306 Q1) — every relation now has a matching fk_spec_def in eks_db_config.json with a materialized target. `_eks_table_relations` manifest DDL retirement deferred to I310/T1.295."
+                },
+                "description": {
+                    "type": "string"
+                }
             },
-            "required": ["relation_name", "source_columns", "target_table", "target_columns"],
+            "required": [
+                "relation_name",
+                "source_columns",
+                "target_table",
+                "target_columns"
+            ],
             "additionalProperties": false
         },
         "document_registry_relations": {
             "type": "array",
-            "description": "I290 (T1.253): Ordered list of declared FK relationships for the runtime `documents` registry (GROUP 11). Consumed by SchemaToDDL.generate_documents_relations() and persisted to `_eks_table_relations` on registry init. All are declared_only — the definition-layer target tables (project_doc_type, discipline, file_type, project_definition) are NOT materialized in the runtime DuckDB registry, and self-FKs must be suppressed because DuckDB blocks PK updates referenced by self-FKs during `_migrate_ids_to_uuid`. Referential integrity is enforced by the validation layer (registry.register_document against COLUMN_ALLOWLIST + definition registries).",
-            "items": { "$ref": "#/definitions/registry_relation_def" }
+            "description": "I290 (T1.253) original: ordered list of declared FK relationships for the runtime `documents` registry (GROUP 11). I307 (T1.280): moved to physical-FK intent per I306 Q1 — all targets (project_doc_type, discipline, file_type, project_definition, element_type) are materialized in the schema-driven DB layer; each relation is declared as an fk_spec_def row in eks_db_config.json and physical DuckDB FK constraints are emitted by the I310 renderer. `_eks_table_relations` manifest DDL retirement deferred to I310/T1.295.",
+            "items": {
+                "$ref": "#/definitions/registry_relation_def"
+            }
         },
         "filename_segment_def": {
             "type": "object",
             "description": "Single positional segment definition within a filename pattern (Appendix I §I4.4).",
             "properties": {
-                "position": { "type": "integer", "minimum": 0 },
-                "maps_to": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
-                "label": { "type": "string" },
-                "required": { "type": "boolean" },
+                "position": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "maps_to": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "label": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
                 "null_handling": {
                     "type": "object",
                     "properties": {
-                        "strategy": { "type": "string", "enum": ["default_value", "skip", "error"] },
-                        "default_value": { "type": "string" }
+                        "strategy": {
+                            "type": "string",
+                            "enum": [
+                                "default_value",
+                                "skip",
+                                "error"
+                            ]
+                        },
+                        "default_value": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["strategy"],
+                    "required": [
+                        "strategy"
+                    ],
                     "additionalProperties": false
                 },
                 "validation": {
                     "type": "object",
                     "properties": {
-                        "type": { "type": "string", "enum": ["pattern", "schema_reference", "enum", "none"] },
-                        "pattern": { "type": "string" },
-                        "reference": { "type": "string" },
-                        "values": { "type": "array", "items": { "type": "string" } }
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "pattern",
+                                "schema_reference",
+                                "enum",
+                                "none"
+                            ]
+                        },
+                        "pattern": {
+                            "type": "string"
+                        },
+                        "reference": {
+                            "type": "string"
+                        },
+                        "values": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
                     },
-                    "required": ["type"],
+                    "required": [
+                        "type"
+                    ],
                     "additionalProperties": false
                 }
             },
-            "required": ["position", "maps_to", "label", "required", "null_handling", "validation"],
+            "required": [
+                "position",
+                "maps_to",
+                "label",
+                "required",
+                "null_handling",
+                "validation"
+            ],
             "additionalProperties": false
         },
         "filename_output_def": {
             "type": "object",
             "description": "Output control configuration for filename parsing (Appendix I §I4.5).",
             "properties": {
-                "document_number_source": { "type": "string", "enum": ["rejoin_segments", "full_stem"] },
-                "fallback_doc_number": { "type": "string", "enum": ["full_stem", "none"] },
-                "fallback_revision": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
-                "preservation_mode": { "type": "string", "enum": ["overwrite_existing", "fill_blanks_only"] }
+                "document_number_source": {
+                    "type": "string",
+                    "enum": [
+                        "rejoin_segments",
+                        "full_stem"
+                    ]
+                },
+                "fallback_doc_number": {
+                    "type": "string",
+                    "enum": [
+                        "full_stem",
+                        "none"
+                    ]
+                },
+                "fallback_revision": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "preservation_mode": {
+                    "type": "string",
+                    "enum": [
+                        "overwrite_existing",
+                        "fill_blanks_only"
+                    ]
+                }
             },
-            "required": ["document_number_source", "fallback_doc_number", "preservation_mode"],
+            "required": [
+                "document_number_source",
+                "fallback_doc_number",
+                "preservation_mode"
+            ],
             "additionalProperties": false
         },
         "filename_error_subcodes_def": {
             "type": "object",
             "description": "Maps error conditions to P5-F-* error codes (Appendix I §I4.2).",
             "properties": {
-                "too_few_segments": { "type": "string" },
-                "too_many_segments": { "type": "string" },
-                "segment_validation_failed": { "type": "string" },
-                "unresolvable": { "type": "string" }
+                "too_few_segments": {
+                    "type": "string"
+                },
+                "too_many_segments": {
+                    "type": "string"
+                },
+                "segment_validation_failed": {
+                    "type": "string"
+                },
+                "unresolvable": {
+                    "type": "string"
+                }
             },
             "additionalProperties": true
         },
@@ -393,129 +1162,276 @@
             "type": "object",
             "description": "Single filename pattern entry (Appendix I §I4.2). Keyed by project_code or '*' for default.",
             "properties": {
-                "description": { "type": "string" },
-                "parser_type": { "type": "string", "enum": ["delimited"] },
-                "separator": { "type": "string" },
-                "min_segments": { "type": "integer", "minimum": 1 },
-                "max_segments": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+                "description": {
+                    "type": "string"
+                },
+                "parser_type": {
+                    "type": "string",
+                    "enum": [
+                        "delimited"
+                    ]
+                },
+                "separator": {
+                    "type": "string"
+                },
+                "min_segments": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "max_segments": {
+                    "oneOf": [
+                        {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "segments": {
                     "type": "array",
-                    "items": { "$ref": "#/definitions/filename_segment_def" }
+                    "items": {
+                        "$ref": "#/definitions/filename_segment_def"
+                    }
                 },
-                "rejoin_separator": { "type": "string" },
+                "rejoin_separator": {
+                    "type": "string"
+                },
                 "strip_suffixes": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "revision_separators": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "dash_revision_max_len": { "type": "integer", "minimum": 0 },
-                "output": { "$ref": "#/definitions/filename_output_def" },
-                "error_subcodes": { "$ref": "#/definitions/filename_error_subcodes_def" },
-                "processing_phase": { "type": "string", "enum": ["P0"] }
+                "dash_revision_max_len": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "output": {
+                    "$ref": "#/definitions/filename_output_def"
+                },
+                "error_subcodes": {
+                    "$ref": "#/definitions/filename_error_subcodes_def"
+                },
+                "processing_phase": {
+                    "type": "string",
+                    "enum": [
+                        "P0"
+                    ]
+                }
             },
-            "required": ["parser_type", "separator", "min_segments", "max_segments", "segments", "rejoin_separator", "strip_suffixes", "revision_separators", "dash_revision_max_len", "output", "error_subcodes", "processing_phase"],
+            "required": [
+                "parser_type",
+                "separator",
+                "min_segments",
+                "max_segments",
+                "segments",
+                "rejoin_separator",
+                "strip_suffixes",
+                "revision_separators",
+                "dash_revision_max_len",
+                "output",
+                "error_subcodes",
+                "processing_phase"
+            ],
             "additionalProperties": false
         },
         "file_property_source_def": {
             "type": "object",
             "description": "Single source-key-to-registry-column mapping for parser-embedded metadata (Appendix J §J2.1).",
             "properties": {
-                "source_key": { "type": "string", "description": "Key name in parser extract_metadata() return dict" },
-                "maps_to": { "type": "string", "description": "Target registry column name (from document_metadata_def)" },
+                "source_key": {
+                    "type": "string",
+                    "description": "Key name in parser extract_metadata() return dict"
+                },
+                "maps_to": {
+                    "type": "string",
+                    "description": "Target registry column name (from document_metadata_def)"
+                },
                 "null_handling": {
                     "type": "object",
                     "properties": {
-                        "strategy": { "type": "string", "enum": ["skip", "default_value"] },
-                        "default_value": { }
+                        "strategy": {
+                            "type": "string",
+                            "enum": [
+                                "skip",
+                                "default_value"
+                            ]
+                        },
+                        "default_value": {}
                     },
-                    "required": ["strategy"],
+                    "required": [
+                        "strategy"
+                    ],
                     "additionalProperties": false
                 },
-                "required": { "type": "boolean", "description": "Whether this property is required for health scoring" }
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this property is required for health scoring"
+                }
             },
-            "required": ["source_key", "maps_to", "null_handling", "required"],
+            "required": [
+                "source_key",
+                "maps_to",
+                "null_handling",
+                "required"
+            ],
             "additionalProperties": false
         },
         "file_property_os_def": {
             "type": "object",
             "description": "OS-level property collection configuration (Appendix J §J2.1).",
             "properties": {
-                "enabled": { "type": "boolean", "description": "Master switch for OS-level property extraction" },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Master switch for OS-level property extraction"
+                },
                 "collect": {
                     "type": "array",
-                    "items": { "type": "string", "enum": ["file_size", "fs_created", "fs_modified", "fs_accessed", "file_mode", "file_hash"] },
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "file_size",
+                            "fs_created",
+                            "fs_modified",
+                            "fs_accessed",
+                            "file_mode",
+                            "file_hash"
+                        ]
+                    },
                     "description": "OS property keys to collect"
                 },
-                "hash_algorithm": { "type": "string", "enum": ["md5", "sha256"], "description": "Hashing algorithm for file integrity check" }
+                "hash_algorithm": {
+                    "type": "string",
+                    "enum": [
+                        "md5",
+                        "sha256"
+                    ],
+                    "description": "Hashing algorithm for file integrity check"
+                }
             },
-            "required": ["enabled", "collect"],
+            "required": [
+                "enabled",
+                "collect"
+            ],
             "additionalProperties": false
         },
         "file_property_pattern_def": {
             "type": "object",
             "description": "Per-file-type property extraction configuration (Appendix J §J2.1).",
             "properties": {
-                "enabled": { "type": "boolean", "description": "Whether property extraction is enabled for this file type" },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether property extraction is enabled for this file type"
+                },
                 "extraction_method": {
                     "type": "string",
-                    "enum": ["parser_metadata", "os_only"],
+                    "enum": [
+                        "parser_metadata",
+                        "os_only"
+                    ],
                     "description": "parser_metadata = read embedded metadata from parser output; os_only = only Path.stat()"
                 },
                 "property_mapping": {
                     "type": "array",
-                    "items": { "$ref": "#/definitions/file_property_source_def" },
+                    "items": {
+                        "$ref": "#/definitions/file_property_source_def"
+                    },
                     "description": "Mapping from parser extract_metadata() keys to registry columns"
                 }
             },
-            "required": ["enabled", "extraction_method", "property_mapping"],
+            "required": [
+                "enabled",
+                "extraction_method",
+                "property_mapping"
+            ],
             "additionalProperties": false
         },
         "export_artifact_def": {
             "type": "object",
-            "description": "Defines the column subset for each export artifact (CSV/XLSX). Pipeline reads this at runtime instead of hardcoded column lists. T1.99.158 (I193).",
+            "description": "Defines the column subset for each export artifact (CSV/XLSX). Pipeline reads this at runtime instead of hardcoded column lists. T1.99.158 (I193). I307 (T1.280): SUPERSEDED for column subsets by eks_export_view_config.json (I307/T1.278 — view_id/source_table/columns/file_base_name/sheet_name/formats); retained here for backward compat. The runtime export_artifact table FK is declared as fk_ea_batch in eks_db_config.json db_tables[export_artifact].foreign_keys[] (job_id → batch_run.job_id).",
             "properties": {
                 "discovery_inventory": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": {
+                        "type": "string"
+                    },
                     "description": "Columns for Phase A discovery inventory. All x_export fields except extraction-specific ones (page_count, extract_status, extraction_confidence, extraction_notes)."
                 },
                 "extraction_results": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": {
+                        "type": "string"
+                    },
                     "description": "Columns for Phase B extraction results. All x_export fields including extraction metadata."
                 },
                 "review_flags": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": {
+                        "type": "string"
+                    },
                     "description": "Columns for Phase C review flags. Focused subset for extraction-quality triage + computed flag_reason."
                 }
             },
-            "required": ["discovery_inventory", "extraction_results", "review_flags"],
+            "required": [
+                "discovery_inventory",
+                "extraction_results",
+                "review_flags"
+            ],
             "additionalProperties": false
         },
-
         "column_type_enum": {
             "type": "string",
-            "enum": ["code_column", "id_column", "date_column", "sequence_column", "text_column", "numeric_column", "boolean_column", "score_column", "json_column", "file_path_column", "revision_column"],
+            "enum": [
+                "code_column",
+                "id_column",
+                "date_column",
+                "sequence_column",
+                "text_column",
+                "numeric_column",
+                "boolean_column",
+                "score_column",
+                "json_column",
+                "file_path_column",
+                "revision_column"
+            ],
             "description": "Processing role classification for registry columns. Each type determines how the column value is processed, validated, and exported."
         },
-
         "processing_phase_enum": {
             "type": "string",
-            "enum": ["A", "B", "C", "D", "bootstrap"],
+            "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "bootstrap"
+            ],
             "description": "Pipeline phase that populates this column. Phase A = filename parsing, Phase B = content parsing + metadata extraction, Phase C = review flagging, bootstrap = DDL-generated at registry creation."
         },
-
         "calculation_strategy_def": {
             "type": "object",
             "description": "Calculation strategy for derived columns. The 'type' determines which handler resolves this column; remaining properties are type-specific parameters.",
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["priority_chain", "filename_segment", "file_property", "parser_metadata", "cover_page_element", "code_to_title_lookup", "health_score", "auto_increment", "existing_record"],
+                    "enum": [
+                        "priority_chain",
+                        "filename_segment",
+                        "file_property",
+                        "parser_metadata",
+                        "cover_page_element",
+                        "code_to_title_lookup",
+                        "health_score",
+                        "auto_increment",
+                        "existing_record"
+                    ],
                     "description": "Calculation handler type. Each type maps to a registered ColumnProcessor handler plugin."
                 },
                 "sources": {
@@ -523,21 +1439,36 @@
                     "items": {
                         "type": "object",
                         "properties": {
-                            "source": { "type": "string", "description": "Source identifier (e.g., cover_page_element, parser_metadata, code_to_title_lookup, existing_record)" },
-                            "field": { "type": "string", "description": "Field name to read from the source" }
+                            "source": {
+                                "type": "string",
+                                "description": "Source identifier (e.g., cover_page_element, parser_metadata, code_to_title_lookup, existing_record)"
+                            },
+                            "field": {
+                                "type": "string",
+                                "description": "Field name to read from the source"
+                            }
                         },
-                        "required": ["source", "field"],
+                        "required": [
+                            "source",
+                            "field"
+                        ],
                         "additionalProperties": false
                     },
                     "description": "Ordered list of sources for priority_chain resolution. First non-null value wins."
                 },
                 "fallback": {
                     "type": "string",
-                    "enum": ["leave_null", "default_value"],
+                    "enum": [
+                        "leave_null",
+                        "default_value"
+                    ],
                     "description": "Fallback behavior when all sources return null."
                 },
                 "position": {
-                    "type": ["integer", "null"],
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
                     "minimum": 0,
                     "description": "Positional index for filename_segment calculation. Null when separator-based extraction is used (e.g. revision)."
                 },
@@ -554,67 +1485,132 @@
                     "description": "Field name for parser_metadata or cover_page_element lookup."
                 }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "additionalProperties": false
         },
-
         "handler_def": {
             "type": "string",
             "description": "ColumnProcessor handler plugin class name. Overrides the default handler inferred from calculation.type. Registered plugins: PriorityChainResolver, FilenameSegmentResolver, FilePropertyResolver, MetadataResolver, CoverPageResolver, CodeToTitleResolver, HealthScoreResolver, AutoIncrementResolver."
         },
-
         "validation_rule_def": {
             "type": "object",
             "description": "Single validation rule applied to a column value. The 'type' determines which validator runs; remaining properties are rule-specific parameters.",
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["pattern", "min_length", "min_value", "max_value", "format", "enum_reference", "schema_reference_check"],
+                    "enum": [
+                        "pattern",
+                        "min_length",
+                        "min_value",
+                        "max_value",
+                        "format",
+                        "enum_reference",
+                        "schema_reference_check"
+                    ],
                     "description": "Validation rule type."
                 },
-                "pattern": { "type": "string", "description": "Regex pattern for pattern validation." },
-                "min_length": { "type": "integer", "minimum": 0, "description": "Minimum string length (0 = no minimum)." },
-                "min_value": { "type": "number", "description": "Minimum numeric value." },
-                "max_value": { "type": "number", "description": "Maximum numeric value." },
-                "format": { "type": "string", "description": "Expected format string (e.g., YYYY-MM-DD)." },
-                "reference": { "type": "string", "description": "Schema reference name for enum_reference or schema_reference_check." },
-                "data_section": { "type": "string", "description": "Section within the referenced schema (e.g., projects, document_types)." },
-                "field": { "type": "string", "description": "Field name within the schema section for enum matching." },
-                "description": { "type": "string", "description": "Human-readable description of this validation rule." }
+                "pattern": {
+                    "type": "string",
+                    "description": "Regex pattern for pattern validation."
+                },
+                "min_length": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Minimum string length (0 = no minimum)."
+                },
+                "min_value": {
+                    "type": "number",
+                    "description": "Minimum numeric value."
+                },
+                "max_value": {
+                    "type": "number",
+                    "description": "Maximum numeric value."
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Expected format string (e.g., YYYY-MM-DD)."
+                },
+                "reference": {
+                    "type": "string",
+                    "description": "Schema reference name for enum_reference or schema_reference_check."
+                },
+                "data_section": {
+                    "type": "string",
+                    "description": "Section within the referenced schema (e.g., projects, document_types)."
+                },
+                "field": {
+                    "type": "string",
+                    "description": "Field name within the schema section for enum matching."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable description of this validation rule."
+                }
             },
-            "required": ["type"],
+            "required": [
+                "type"
+            ],
             "additionalProperties": false
         },
-
         "column_processing_entry_def": {
             "type": "object",
             "description": "Single column processing entry. Defines how a column is classified, calculated, validated, and which pipeline phase populates it.",
             "properties": {
-                "column_type": { "$ref": "#/definitions/column_type_enum" },
-                "is_calculated": { "type": "boolean", "description": "Whether this column is derived (true) or populated from a source field (false)." },
-                "calculation": { "$ref": "#/definitions/calculation_strategy_def", "description": "Calculation strategy. Required if is_calculated is true." },
-                "handler": { "$ref": "#/definitions/handler_def", "description": "Handler plugin override. Optional — defaults to handler registered for calculation.type." },
-                "schema_ref": { "type": "string", "description": "Reference to an external schema for cross-schema validation (e.g., project_code_schema, document_type_schema)." },
-                "schema_ref_field": { "type": "string", "description": "Field name within the referenced schema to validate against." },
+                "column_type": {
+                    "$ref": "#/definitions/column_type_enum"
+                },
+                "is_calculated": {
+                    "type": "boolean",
+                    "description": "Whether this column is derived (true) or populated from a source field (false)."
+                },
+                "calculation": {
+                    "$ref": "#/definitions/calculation_strategy_def",
+                    "description": "Calculation strategy. Required if is_calculated is true."
+                },
+                "handler": {
+                    "$ref": "#/definitions/handler_def",
+                    "description": "Handler plugin override. Optional — defaults to handler registered for calculation.type."
+                },
+                "schema_ref": {
+                    "type": "string",
+                    "description": "Reference to an external schema for cross-schema validation (e.g., project_code_schema, document_type_schema)."
+                },
+                "schema_ref_field": {
+                    "type": "string",
+                    "description": "Field name within the referenced schema to validate against."
+                },
                 "validation": {
                     "type": "array",
-                    "items": { "$ref": "#/definitions/validation_rule_def" },
+                    "items": {
+                        "$ref": "#/definitions/validation_rule_def"
+                    },
                     "description": "Per-column validation rules applied after the value is resolved."
                 },
-                "processing_phase": { "$ref": "#/definitions/processing_phase_enum" },
+                "processing_phase": {
+                    "$ref": "#/definitions/processing_phase_enum"
+                },
                 "required": {
                     "type": "boolean",
                     "description": "I284: whether this column is REQUIRED for the claimed document classes. required=true → a missing value scores 0 (penalises the health score). required=false → the column weight is 0 (neutral; missing value does not penalise)."
                 },
                 "scoring_tier": {
                     "type": "string",
-                    "enum": ["tier1", "tier2", "tier3", "excluded"],
+                    "enum": [
+                        "tier1",
+                        "tier2",
+                        "tier3",
+                        "excluded"
+                    ],
                     "description": "I284: health-score tier for this column. tier1=critical (weight from health_scoring.weight_tiers.tier1_critical), tier2=standard, tier3=optional, excluded=never scored. excluded takes precedence over required — an excluded column produces no score even if required=true."
                 },
                 "applies_to_document_types": {
                     "type": "array",
                     "minItems": 1,
-                    "items": { "$ref": "#/definitions/document_class_def/properties/class_id" },
+                    "items": {
+                        "$ref": "#/definitions/document_class_def/properties/class_id"
+                    },
                     "description": "I284: REQUIRED. Array of class_ids (from document_classes) this column explicitly applies to — every data column must be explicitly claimed to each document class. Classes not listed are NOT scored for this column. The document's resolved class (local_code -> binding -> class_id) must be listed for the column to participate. I282: concept_id migrated to class_id."
                 },
                 "native_only": {
@@ -627,9 +1623,18 @@
                     "default": false,
                     "description": "I286: data-source classification flag. true = Manual-source column requiring human input (Appendix B §B4; surfaced in Phase 5 verification). false/absent = derivable column (from filename/file properties or pipeline). The flag is a classification, NOT a review gate — derivable columns remain review-allowed via the review workflow (confirmation a)."
                 },
-                "description": { "type": "string", "description": "Human-readable description of this column and its processing." }
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable description of this column and its processing."
+                }
             },
-            "required": ["column_type", "is_calculated", "processing_phase", "scoring_tier", "applies_to_document_types"],
+            "required": [
+                "column_type",
+                "is_calculated",
+                "processing_phase",
+                "scoring_tier",
+                "applies_to_document_types"
+            ],
             "additionalProperties": false
         }
     },
@@ -637,82 +1642,116 @@
         {
             "relation_name": "fk_doc_type_composite",
             "source_table": "documents",
-            "source_columns": ["project_code", "document_type"],
+            "source_columns": [
+                "project_code",
+                "document_type"
+            ],
             "target_table": "project_doc_type",
-            "target_columns": ["project_code", "local_code"],
+            "target_columns": [
+                "project_code",
+                "local_code"
+            ],
             "relation_type": "composite",
             "declared_only": true,
-            "description": "I290 (T1.253): document_type resolves through the composite candidate key (project_code, local_code) on project_doc_type (Q1). Deferred: project_doc_type is a definition-layer table not materialized in the runtime DuckDB registry; declared schema metadata for validation + future materialization."
+            "description": "I290 (T1.253): document_type resolves through the composite candidate key (project_code, local_code) on project_doc_type. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_pdt in eks_db_config.json db_tables[documents].foreign_keys[] with project_doc_type materialized; composite FK enforcement lands in I310/T1.292."
         },
         {
             "relation_name": "fk_supersedes",
             "source_table": "documents",
-            "source_columns": ["supersedes"],
+            "source_columns": [
+                "supersedes"
+            ],
             "target_table": "documents",
-            "target_columns": ["id"],
+            "target_columns": [
+                "id"
+            ],
             "relation_type": "self",
             "declared_only": true,
-            "description": "I290 (T1.253): self-ref FK supersedes→documents.id. Declared_only: DuckDB blocks PK UPDATEs of rows referenced by self-FK during _migrate_ids_to_uuid — suppressed at DDL, enforced by revision-link logic."
+            "description": "I290 (T1.253): self-ref FK supersedes→documents.id. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_supersedes in eks_db_config.json; self-FK DDL and the _migrate_ids_to_uuid guard are handled by the I310/I311 migration gate."
         },
         {
             "relation_name": "fk_superseded_by",
             "source_table": "documents",
-            "source_columns": ["superseded_by"],
+            "source_columns": [
+                "superseded_by"
+            ],
             "target_table": "documents",
-            "target_columns": ["id"],
+            "target_columns": [
+                "id"
+            ],
             "relation_type": "self",
             "declared_only": true,
-            "description": "I290 (T1.253): self-ref reverse link; same declared_only rationale as fk_supersedes."
+            "description": "I290 (T1.253): self-ref reverse link. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_superseded_by in eks_db_config.json; enforcement lands in I310."
         },
         {
             "relation_name": "fk_project_code",
             "source_table": "documents",
-            "source_columns": ["project_code"],
+            "source_columns": [
+                "project_code"
+            ],
             "target_table": "project_definition",
-            "target_columns": ["project_code"],
+            "target_columns": [
+                "project_code"
+            ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry project_code FK to project_definition (GROUP 9); declared-only (target unmaterialized)."
+            "description": "I290 (T1.253): registry project_code FK to project_definition (GROUP 9). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_project_def in eks_db_config.json with project_definition materialized."
         },
         {
             "relation_name": "fk_discipline",
             "source_table": "documents",
-            "source_columns": ["discipline"],
+            "source_columns": [
+                "discipline"
+            ],
             "target_table": "discipline",
-            "target_columns": ["discipline_code"],
+            "target_columns": [
+                "discipline_code"
+            ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry discipline FK (GROUP 1 reference); declared-only."
+            "description": "I290 (T1.253): registry discipline FK (GROUP 1 reference). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_discipline in eks_db_config.json with discipline materialized."
         },
         {
             "relation_name": "fk_file_type",
             "source_table": "documents",
-            "source_columns": ["file_type"],
+            "source_columns": [
+                "file_type"
+            ],
             "target_table": "file_type",
-            "target_columns": ["extension"],
+            "target_columns": [
+                "extension"
+            ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry file_type FK to file_type.extension (GROUP 6, 5 rows); declared-only."
+            "description": "I290 (T1.253): registry file_type FK to file_type.extension (GROUP 6, 5 rows). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_filetype in eks_db_config.json with file_type materialized."
         },
         {
             "relation_name": "fk_element_doc",
             "source_table": "document_elements",
-            "source_columns": ["doc_id"],
+            "source_columns": [
+                "doc_id"
+            ],
             "target_table": "documents",
-            "target_columns": ["id"],
+            "target_columns": [
+                "id"
+            ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I291 (T1.254): document_elements.doc_id FK → documents.id (registry UUID PK; SSOT per I291 Q2). declared_only — a physical DuckDB FK here would block _migrate_ids_to_uuid PK UPDATEs (I290 precedent); enforced by store_elements doc_id existence check."
+            "description": "I291 (T1.254): document_elements.doc_id FK → documents.id (registry UUID PK; SSOT per I291 Q2). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_element_doc in eks_db_config.json db_tables[document_elements].foreign_keys[] with documents materialized; store_elements doc_id existence check retained as friendly error path."
         },
         {
             "relation_name": "fk_element_type",
             "source_table": "document_elements",
-            "source_columns": ["element_type"],
+            "source_columns": [
+                "element_type"
+            ],
             "target_table": "element_type",
-            "target_columns": ["element_type"],
+            "target_columns": [
+                "element_type"
+            ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I291 (T1.254): document_elements.element_type FK → element_type.element_type (GROUP 3, 11 codes). declared_only — element_type is a definition-layer table not materialized in the runtime DuckDB registry; enforced by store_elements 11-code enum validation."
+            "description": "I291 (T1.254): document_elements.element_type FK → element_type.element_type (GROUP 3, 11 codes). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_element_type in eks_db_config.json with element_type materialized; 11-code enum validation retained."
         }
     ]
 }

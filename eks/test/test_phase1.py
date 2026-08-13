@@ -568,8 +568,10 @@ class TestPhase1(unittest.TestCase):
         from eks.engine.eks_engine_pipeline import resolve_export_columns
         config = resolve_export_columns(self.config_dir)
 
-        self.assertFalse(config.get('_fallback', True),
-            "resolve_export_columns() fell back to hardcoded defaults — schema not loaded")
+        # T1.282 (I308): no _fallback key — function reads eks_export_view_config.json
+        # SSOT and raises S-C-S-0312 on missing config instead of silently falling back.
+        self.assertNotIn('_fallback', config,
+            "resolve_export_columns() must not return a hardcoded _fallback marker (I308)")
 
         disc_cols = config['discovery_inventory']
         extr_cols = config['extraction_results']

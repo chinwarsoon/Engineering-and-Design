@@ -2,10 +2,24 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 1.1
-Date: 2026-08-10
+Revision: 1.6
+Date: 2026-08-13
 Author: opencode
-Summary: 1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added GROUP 11 runtime
+Summary: 1.6: I308 (T1.283) — persistent v_* export views now created by
+          _create_export_views() AFTER _run_migration_gate() so additive
+          migrations (e.g. flag_reason on a stale registry) are applied
+          before the views referencing them are created.
+1.5: I311 (T1.297) — migration gate replaces the silent
+          _migrate_schema() call; added migration_policy/migration_mode/
+          migration_archive_dir constructor params + _run_migration_gate().
+1.4: I310 (T1.296) — _eks_table_relations keeps legacy manifest
+          shape (relation_name PK) for I290 population.
+1.3: I310 (T1.294/T1.296) — documents/document_elements keep
+          schema-def DDL; health CRUD preserves runtime batch references.
+1.2: I310 (T1.292–T1.295) — materialize all configured tables,
+          load definition data through DefinitionLoader, and validate
+          relationships after loading.
+1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added GROUP 11 runtime
           table CRUD: insert_batch()/update_batch()/get_batch() (batch_run stage
           stats); store_health_score()/store_health_batch()/get_health_scores()
           (health_score/health_batch with document_id UUID); store_document_reference()/
@@ -42,6 +56,8 @@ from common.library.utility.change_detector import detect_changes
 from common.library.utility.file_hash import compute_file_hash
 from .config_registry import ConfigRegistry
 from .schema_to_ddl import SchemaToDDL
+from .definition_loader import DefinitionLoader
+from .flag_utils import compute_flag_reason
 from ..logging.logger import EKSLogger, log_depth
 
 class DocumentRegistry:
@@ -143,7 +159,10 @@ class DocumentRegistry:
     }
 
     def __init__(self, logger: Optional[EKSLogger] = None, db_path: Optional[str] = None,
-                 pre_generated_ddl: Optional[Dict[str, Any]] = None):
+                 pre_generated_ddl: Optional[Dict[str, Any]] = None,
+                 migration_policy: Optional[str] = None,
+                 migration_mode: Optional[str] = None,
+                 migration_archive_dir: Optional[str] = None):
         """
         Initialize the DocumentRegistry.
 
@@ -157,8 +176,22 @@ class DocumentRegistry:
                 is skipped and the pre-generated DDL is used directly for
                 table creation and migration. Keys: documents_ddl, elements_ddl,
                 indexes, definitions.
+            migration_policy: Optional override for the I311 gate policy
+                ('additive' non-destructive | 'destructive'). Defaults to the
+                schema-driven ``system_parameters.migration_policy``.
+            migration_mode: Optional I311 gate mode ('check' | 'apply' | 'force').
+                'check' builds a plan only (callers short-circuit pre-construction);
+                'apply' (= --db-apply/--yes) permits non-protected destructive;
+                'force' (= --db-force) is the TOTAL override incl. protected
+                tables (documents/document_elements) with a mandatory timestamped
+                backup to output/archive/ before any destructive change.
+            migration_archive_dir: Optional archive dir for the mandatory
+                pre-destructive .db backup (default: <eks>/archive).
         """
         self.config = ConfigRegistry()
+        self._migration_policy = migration_policy
+        self._migration_mode = migration_mode
+        self._migration_archive_dir = Path(migration_archive_dir) if migration_archive_dir else None
         if db_path is not None:
             self.db_path = Path(db_path)
         else:
@@ -180,7 +213,14 @@ class DocumentRegistry:
         # T1.256 (I293): cached SchemaToDDL for runtime GROUP 11 table DDL
         self._schema_to_ddl: Optional[SchemaToDDL] = None
         self._init_db()
-        self._migrate_schema()
+        # I311 (T1.297): the schema-driven migration gate replaces the narrow
+        # silent `_migrate_schema()` (which stays defined below until I312 retires
+        # it alongside `_eks_schema_meta`, T1.301–T1.303).
+        self._run_migration_gate()
+        # I308 (T1.283): persistent export views are created AFTER the migration
+        # gate — a stale registry first gets additive columns (e.g. flag_reason)
+        # so the v_* views never reference a column the gate still has to add.
+        self._create_export_views()
         self._ensure_schema_version()
 
     @log_depth
@@ -226,25 +266,156 @@ class DocumentRegistry:
                 sddl_from_cache = SchemaToDDL(self._load_doc_schema())
             self._schema_to_ddl = sddl_from_cache
 
+        db_config = getattr(getattr(self.config, "_loader", None), "db_config", None)
+        if not db_config:
+            db_config = SchemaToDDL.load_db_config(
+                Path(getattr(getattr(self.config, "_loader", None), "config_dir", ""))
+            )
+        schema_to_ddl = SchemaToDDL(
+            getattr(getattr(self.config, "_loader", None), "doc_base_schema", {}),
+            self.logger,
+            db_config=db_config,
+        )
+        runtime_tables = {
+            spec["table_name"]
+            for spec in db_config.get("db_tables", [])
+            if spec.get("transform") == "direct-map"
+        }
+        # I310/T1.294: documents/document_elements keep their schema-def DDL
+        # shape (full merged metadata + lifecycle defaults) and are excluded
+        # here. I311 (T1.297): _eks_table_relations is no longer excluded —
+        # its manifest DDL is rendered from eks_db_config.json (SSOT) with an
+        # `id` PRIMARY KEY, so config pre-creation governs its shape and the
+        # migration gate sees no drift.
+        db_ddls = schema_to_ddl.generate_db_tables_ddl(
+            physical_fk_tables=runtime_tables,
+            exclude_tables={"documents", "document_elements"},
+        )
+
         conn = duckdb.connect(str(self.db_path))
         try:
+            # Schema-def DDL first so documents/document_elements (and their
+            # FKs) exist before config tables reference them (I310/T1.294).
             conn.execute(docs_ddl)
             conn.execute(els_ddl)
             for idx_stmt in indexes:
                 conn.execute(idx_stmt)
-            # I290 (T1.253): persist schema-declared FK relationships manifest
+            for table_ddl in db_ddls:
+                conn.execute(table_ddl)
+            # I310/T1.295: retain the relationship table as a derived audit.
             self._create_relations_manifest(conn)
-            # Runtime GROUP 11 tables (I293/I294/I295)
-            conn.execute(sddl_from_cache.generate_batch_run_ddl())
-            conn.execute(sddl_from_cache.generate_health_score_ddl())
-            conn.execute(sddl_from_cache.generate_health_batch_ddl())
-            conn.execute(sddl_from_cache.generate_document_reference_ddl())
-            # Runtime GROUP 12 tables (I298/I299/I301)
-            conn.execute(sddl_from_cache.generate_pipeline_checkpoint_ddl())
-            conn.execute(sddl_from_cache.generate_pipeline_event_log_ddl())
-            conn.execute(sddl_from_cache.generate_export_artifact_ddl())
+            definition_loader = DefinitionLoader(
+                db_config,
+                getattr(getattr(self.config, "_loader", None), "config_dir", ""),
+                self.logger,
+            )
+            definition_loader.load_all(conn)
+            relationship_violations = definition_loader.validate_relationships(conn)
+            if relationship_violations:
+                self.logger.warning(
+                    f"Definition relationship validation found "
+                    f"{len(relationship_violations)} violations",
+                    context="DocumentRegistry._init_db",
+                )
         finally:
             conn.close()
+
+    @log_depth
+    def _create_export_views(self) -> None:
+        """I308/T1.283: persist the v_* export views from the
+        eks_export_view_config.json SSOT (is_latest=TRUE renders the WHERE clause).
+
+        Runs after ``_run_migration_gate()`` so that additive migrations
+        (e.g. ``flag_reason`` on a stale registry) are applied before the views
+        referencing them are created. ``CREATE OR REPLACE VIEW`` keeps this
+        idempotent across runs.
+        """
+        config_dir = Path(getattr(getattr(self.config, "_loader", None), "config_dir", ""))
+        sddl = getattr(self, "_schema_to_ddl", None)
+        if sddl is None:
+            # Should not happen — _init_db() sets it — but keep a safe fallback.
+            loader = getattr(self.config, "_loader", None)
+            if loader and hasattr(loader, "doc_base_schema") and loader.doc_base_schema:
+                sddl = SchemaToDDL(loader.doc_base_schema, self.logger)
+            else:
+                sddl = SchemaToDDL(self._load_doc_schema())
+            self._schema_to_ddl = sddl
+        try:
+            view_ddls = sddl.generate_view_ddl(config_dir=config_dir)
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to generate export view DDL: {exc}",
+                context="DocumentRegistry._create_export_views",
+            )
+            raise
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            for view_ddl in view_ddls:
+                conn.execute(view_ddl)
+            self.logger.info(
+                f"Created {len(view_ddls)} persistent export views (I308)",
+                context="DocumentRegistry._create_export_views",
+            )
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to create export views: {exc}",
+                context="DocumentRegistry._create_export_views",
+            )
+            raise
+        finally:
+            conn.close()
+
+    @log_depth
+    def _run_migration_gate(self) -> None:
+        """Run the I311 schema-driven migration gate after ``_init_db()``.
+
+        Reads the schema-driven ``system_parameters.migration_policy`` (with an
+        explicit ``migration_policy`` constructor override taking precedence) and
+        hands the DB over to :class:`MigrationGate`. Default policy (``additive``)
+        auto-applies missing tables/columns; structural drift raises
+        ``P1-R-P-0004`` unless a destructive override (``--db-apply``/``--db-force``)
+        was transferred in via ``migration_mode``.
+        """
+        from .migration_gate import MigrationGate
+
+        policy = self._migration_policy
+        if not policy:
+            try:
+                policy = self.config.get_system_param("migration_policy", "additive")
+            except Exception:  # nocv — config may not be bootstrapped yet
+                policy = "additive"
+        if policy not in ("additive", "destructive"):
+            policy = "additive"
+            self.logger.warning(
+                "Invalid migration_policy in config — falling back to 'additive' "
+                "(S-C-S-0311, I311/T1.297)",
+                context="DocumentRegistry._run_migration_gate",
+            )
+
+        self._migration_gate = MigrationGate(
+            db_path=self.db_path,
+            config_dir=self._gate_config_dir(),
+            logger=self.logger,
+            policy=policy,
+            mode=self._migration_mode,
+            archive_dir=self._migration_archive_dir,
+        )
+        self._migration_plan = self._migration_gate.run(
+            include_drift=(self._migration_mode == "check")
+        )
+        if self._migration_mode == "check":
+            self.logger.status(
+                self._migration_gate.render_report(self._migration_plan),
+                context="DocumentRegistry._run_migration_gate",
+            )
+
+    @log_depth
+    def _gate_config_dir(self) -> str:
+        """Resolve the config dir for the migration gate (bootstrap-first, SSOT)."""
+        loader = getattr(self.config, '_loader', None)
+        if loader is not None and getattr(loader, "config_dir", None):
+            return str(Path(loader.config_dir))
+        return str(self._resolve_doc_base_config_dir())
 
     @log_depth
     def _create_relations_manifest(self, conn) -> None:
@@ -851,6 +1022,12 @@ class DocumentRegistry:
         dims = score_row.get("dimensions", {})
         conn = duckdb.connect(str(self.db_path))
         try:
+            # I310/T1.295: materialized health rows may arrive before the
+            # pipeline writes batch metadata; preserve that runtime contract.
+            conn.execute(
+                "INSERT INTO batch_run (run_id) VALUES (?) ON CONFLICT (run_id) DO NOTHING",
+                [run_id],
+            )
             conn.execute(
                 "DELETE FROM health_score WHERE run_id = ? AND document_id = ?",
                 [run_id, document_id],
@@ -888,6 +1065,10 @@ class DocumentRegistry:
         by_status = batch_row.get("by_status", {})
         conn = duckdb.connect(str(self.db_path))
         try:
+            conn.execute(
+                "INSERT INTO batch_run (run_id) VALUES (?) ON CONFLICT (run_id) DO NOTHING",
+                [run_id],
+            )
             conn.execute(
                 "INSERT INTO health_batch (run_id, avg_document_health, total_documents, "
                 "status_success, status_partial, status_failed) "
@@ -1104,6 +1285,16 @@ class DocumentRegistry:
                 "extract_status": metadata.get("extract_status", "pending"),
                 "extraction_confidence": metadata.get("extraction_confidence"),
                 "extraction_notes": metadata.get("extraction_notes"),
+                # I308/T1.283: materialize flag_reason at ingest (single source of
+                # truth = core.flag_utils.compute_flag_reason). Explicit caller
+                # value wins; otherwise computed so v_review_flags is a pure
+                # projection (no SQL CASE duplication).
+                "flag_reason": metadata.get("flag_reason")
+                if metadata.get("flag_reason")
+                else compute_flag_reason(
+                    metadata.get("extract_status", "pending"),
+                    metadata.get("extraction_confidence"),
+                ),
                 # T1.99.145: Cross-reference column
                 "references_documents": refs_json,
                 # T1.99.142: Human-readable title

@@ -4,10 +4,13 @@ Pipeline orchestration functions for the EKS pipeline.
 Extracted from ``eks_engine_pipeline.py`` (I233).  Zero module-level runtime
 globals — all paths received as explicit parameters.
 
-Revision: 1.1
-Date: 2026-08-08
+Revision: 1.2
+Date: 2026-08-12
 Author: opencode
-Summary: I288 (T1.244–T1.245) — processing_config forwarded to PipelineOrchestrator
+Summary: 1.2: I311 (T1.298) — run_pipeline() accepts migration_mode/migration_policy
+          and transfers them into both DocumentRegistry construction sites
+          (context + bootstrap branches) per the confirmed design (U292).
+1.1: I288 (T1.244–T1.245) — processing_config forwarded to PipelineOrchestrator
           in both run_pipeline branches from EKSPipelineContext.parameters (single
           source, SSOT §24); bootstrap_pipeline() exposes the EKSPipelineContext
           under out["context"] for non-context callers.
@@ -146,6 +149,8 @@ def run_pipeline(
     context: Optional[Any] = None,
     _PipelineOrchestrator_cls: Any = None,
     _DocumentRegistry_cls: Any = None,
+    migration_mode: Optional[str] = None,
+    migration_policy: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run the Phase 1 pipeline, optionally a single phase. Returns a result dict.
 
@@ -172,6 +177,9 @@ def run_pipeline(
             bootstrap is skipped and the context is used directly.
         _PipelineOrchestrator_cls: Preloaded PipelineOrchestrator class (I127).
         _DocumentRegistry_cls: Preloaded DocumentRegistry class (I127).
+        migration_mode: I311 gate mode transferred in from the main CLI
+            ('apply' = --db-apply/--yes, 'force' = --db-force); None when unset.
+        migration_policy: I311 gate policy override ('additive' | 'destructive').
 
     Returns:
         dict with keys: summary (depends on phase), em, mm, config_registry,
@@ -197,6 +205,8 @@ def run_pipeline(
             registry or DocumentRegistry(
                 logger=logger,
                 pre_generated_ddl=context.parameters.get("pre_generated_ddl"),
+                migration_mode=migration_mode,
+                migration_policy=migration_policy,
             ),
             logger=logger,
             use_telemetry=False,
@@ -235,6 +245,8 @@ def run_pipeline(
             registry = DocumentRegistry(
                 logger=logger,
                 pre_generated_ddl=boot.get("pre_generated_ddl"),
+                migration_mode=migration_mode,
+                migration_policy=migration_policy,
             )
 
         _telemetry_verbose = config.get("system_parameters", {}).get("telemetry_verbose", True)

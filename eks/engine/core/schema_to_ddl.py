@@ -2,10 +2,24 @@
 Schema-to-DDL for EKS - Auto-generate SQL DDL from JSON schema definitions.
 T1.36: Replaces hard-coded DDL in registry.py with schema-driven generation.
 
-Revision: 1.1
-Date: 2026-08-10
+Revision: 1.4
+Date: 2026-08-12
 Author: opencode
-Summary: 1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added runtime-table DDL
+Summary: 1.4: I310 (T1.292/T1.296) — exclude schema-def DDL tables,
+          exclude self-referencing physical FKs, and reference registered
+          DB-layer error codes.
+1.3: I310 (T1.292) — added all-table DB config rendering, selective
+          physical FK eligibility, and reserved-identifier quoting.
+1.2: I307 (T1.279) — re-homed the 7 runtime-table DDL generators
+          (batch_run, health_score, health_batch, document_reference,
+          pipeline_checkpoint, pipeline_event_log, export_artifact) from
+          hardcoded column literals into eks_db_config.json. Added
+          load_db_config() + _render_table_from_config() so the generators
+          emit DDL from the schema-driven config (single column source for
+          all 53 tables; no code/config split). Physical FKs and JSON
+          columns are declared in eks_db_config.json foreign_keys[]/columns[]
+          and rendered when present.
+1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added runtime-table DDL
           generators generate_batch_run_ddl(), generate_health_score_ddl(),
           generate_health_batch_ddl(), generate_document_reference_ddl()
           (GROUP 11 pipeline-execution tables).
@@ -15,6 +29,7 @@ Summary: 1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added runtime-table DDL
           adds `created_at TIMESTAMP NOT NULL DEFAULT now()`.
 """
 import json
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from ..logging.logger import EKSLogger, log_depth
@@ -37,6 +52,13 @@ SQLITE_DEFAULT_MAP = {
     "JSON": "'{default}'",
 }
 
+# I310/T1.296: registered DB-layer error codes (eks_error_config.json v1.8.0).
+ERR_DB_TABLE_SPEC = "S-C-S-0309"        # system — invalid table spec
+ERR_DB_FK_SPEC = "S-C-S-0310"           # system — invalid FK spec
+ERR_DB_MATERIALIZATION = "S-R-S-0411"   # system — DDL materialization failed
+# I308/T1.282: registered view-config error code.
+ERR_VIEW_CONFIG = "S-C-S-0312"          # system — export view config missing/unreadable
+
 
 class SchemaToDDL:
     """
@@ -45,10 +67,15 @@ class SchemaToDDL:
     from eks_doc_base_schema.json.
     """
 
-    def __init__(self, doc_base_schema: Dict[str, Any], logger: Optional[EKSLogger] = None):
+    def __init__(self, doc_base_schema: Dict[str, Any], logger: Optional[EKSLogger] = None,
+                 db_config: Optional[Dict[str, Any]] = None):
         self.schema = doc_base_schema
         self.definitions = doc_base_schema.get("definitions", {})
         self.logger = logger or EKSLogger("SchemaToDDL", level=2)
+        # I307 (T1.279): schema-driven runtime-table column source. If not supplied,
+        # lazily loaded by load_db_config() on first runtime-table DDL call.
+        self.db_config = db_config
+        self._db_config_dir: Optional[Path] = None
 
     @log_depth
     def generate_documents_ddl(self) -> str:
@@ -132,26 +159,12 @@ class SchemaToDDL:
         columns (job_id, data_dir, current_stage, phase_a_discovered,
         phase_a_valid, phase_b_total, phase_b_success, phase_b_failed,
         phase_c_flagged). Runtime-generated (no base-schema definition).
+
+        I307 (T1.279): column definitions re-homed from this hardcoded string
+        into eks_db_config.json — the renderer emits DDL from config (single
+        column source, no code/config split).
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS batch_run ("
-            "    run_id VARCHAR PRIMARY KEY,"
-            "    job_id VARCHAR,"
-            "    project_code VARCHAR,"
-            "    data_dir VARCHAR,"
-            "    current_stage VARCHAR,"
-            "    phase_a_discovered INTEGER DEFAULT 0,"
-            "    phase_a_valid INTEGER DEFAULT 0,"
-            "    phase_b_total INTEGER DEFAULT 0,"
-            "    phase_b_success INTEGER DEFAULT 0,"
-            "    phase_b_failed INTEGER DEFAULT 0,"
-            "    phase_c_flagged INTEGER DEFAULT 0,"
-            "    started_at VARCHAR,"
-            "    finished_at VARCHAR,"
-            "    status VARCHAR,"
-            "    doc_count INTEGER DEFAULT 0"
-            ")"
-        )
+        return self._render_table_from_config("batch_run")
 
     @log_depth
     def generate_health_score_ddl(self) -> str:
@@ -161,28 +174,11 @@ class SchemaToDDL:
         I294 (T1.257): per-document health result, one row per doc per run.
         `document_id` is the registry UUID (declared_only FK → documents.id,
         enforced at validation layer — no physical FK DDL per I290 precedent).
+
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS health_score ("
-            "    id VARCHAR PRIMARY KEY,"
-            "    run_id VARCHAR,"
-            "    document_id VARCHAR,"
-            "    class_id VARCHAR,"
-            "    template_id VARCHAR,"
-            "    health_score DOUBLE,"
-            "    extract_status VARCHAR,"
-            "    dim_completeness DOUBLE,"
-            "    dim_extraction DOUBLE,"
-            "    dim_structural DOUBLE,"
-            "    dim_source DOUBLE,"
-            "    dim_xref DOUBLE,"
-            "    dim_consistency DOUBLE,"
-            "    missing_columns JSON,"
-            "    tier1_populated INTEGER,"
-            "    tier1_total INTEGER,"
-            "    scored_at VARCHAR"
-            ")"
-        )
+        return self._render_table_from_config("health_score")
 
     @log_depth
     def generate_health_batch_ddl(self) -> str:
@@ -190,17 +186,10 @@ class SchemaToDDL:
         Generate CREATE TABLE DDL for the runtime `health_batch` table (GROUP 8/11).
 
         I294 (T1.257): per-run aggregate produced by ``HealthScorer.score_batch()``.
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS health_batch ("
-            "    run_id VARCHAR PRIMARY KEY,"
-            "    avg_document_health DOUBLE,"
-            "    total_documents INTEGER,"
-            "    status_success INTEGER DEFAULT 0,"
-            "    status_partial INTEGER DEFAULT 0,"
-            "    status_failed INTEGER DEFAULT 0"
-            ")"
-        )
+        return self._render_table_from_config("health_batch")
 
     @log_depth
     def generate_document_reference_ddl(self) -> str:
@@ -211,16 +200,11 @@ class SchemaToDDL:
         I295 (T1.258): M:N relationships between registry documents. Both
         endpoints are declared_only FKs → documents.id (validation-layer
         enforcement; no physical FK DDL per I290 precedent).
+
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS document_reference ("
-            "    id VARCHAR PRIMARY KEY,"
-            "    source_doc_id VARCHAR NOT NULL,"
-            "    target_doc_id VARCHAR NOT NULL,"
-            "    relation_type VARCHAR NOT NULL,"
-            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
-            ")"
-        )
+        return self._render_table_from_config("document_reference")
 
     @log_depth
     def generate_pipeline_checkpoint_ddl(self) -> str:
@@ -230,16 +214,10 @@ class SchemaToDDL:
 
         I298 (T1.261): persists pipeline phase-state snapshots for restore/audit
         alongside filesystem JSON. job_id + phase is the natural unique key.
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS pipeline_checkpoint ("
-            "    id VARCHAR PRIMARY KEY,"
-            "    job_id VARCHAR NOT NULL,"
-            "    phase VARCHAR NOT NULL,"
-            "    state JSON NOT NULL,"
-            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
-            ")"
-        )
+        return self._render_table_from_config("pipeline_checkpoint")
 
     @log_depth
     def generate_pipeline_event_log_ddl(self) -> str:
@@ -249,19 +227,10 @@ class SchemaToDDL:
 
         I299 (T1.262): structured event/debug log for cross-run querying
         (replaces filesystem-only debug_log.json).
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS pipeline_event_log ("
-            "    id VARCHAR PRIMARY KEY,"
-            "    job_id VARCHAR NOT NULL,"
-            "    timestamp TIMESTAMP NOT NULL DEFAULT now(),"
-            "    level VARCHAR NOT NULL,"
-            "    category VARCHAR,"
-            "    context VARCHAR,"
-            "    module VARCHAR,"
-            "    message TEXT NOT NULL"
-            ")"
-        )
+        return self._render_table_from_config("pipeline_event_log")
 
     @log_depth
     def generate_export_artifact_ddl(self) -> str:
@@ -271,17 +240,285 @@ class SchemaToDDL:
 
         I301 (T1.264): tracks pipeline export artifacts (CSV/XLSX) linking
         jobs to output files.
+        I307 (T1.279): column definitions re-homed from hardcoded string into
+        eks_db_config.json; rendered from config.
         """
-        return (
-            "CREATE TABLE IF NOT EXISTS export_artifact ("
-            "    id VARCHAR PRIMARY KEY,"
-            "    job_id VARCHAR NOT NULL,"
-            "    artifact_type VARCHAR NOT NULL,"
-            "    file_path VARCHAR NOT NULL,"
-            "    row_count INTEGER DEFAULT 0,"
-            "    created_at TIMESTAMP NOT NULL DEFAULT now()"
-            ")"
+        return self._render_table_from_config("export_artifact")
+
+    @staticmethod
+    def load_db_config(config_dir: Optional[Path] = None) -> Dict[str, Any]:
+        """Load eks_db_config.json from the schemas directory.
+
+        I307 (T1.277/T1.279): the schema-driven DB-layer table config is the
+        single source of column definitions for all 53 tables. Search order:
+        config_dir/schemas/eks_db_config.json, then config_dir/eks_db_config.json,
+        then the standard eks config/schemas/ layout relative to this module.
+        """
+        candidates = []
+        if config_dir is not None:
+            candidates += [Path(config_dir) / "schemas" / "eks_db_config.json",
+                           Path(config_dir) / "eks_db_config.json"]
+        # Module-relative fallback: eks/engine/core/schema_to_ddl.py -> eks/config/schemas/
+        module_dir = Path(__file__).resolve()
+        candidates.append(module_dir.parent.parent.parent / "config" / "schemas" / "eks_db_config.json")
+        candidates.append(module_dir.parent.parent.parent / "config" / "eks_db_config.json")
+        for path in candidates:
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        raise FileNotFoundError(
+            "eks_db_config.json not found. Searched: "
+            + "; ".join(str(c) for c in candidates)
+            + " — the schema-driven DB-layer config is required since I307 (T1.279)."
         )
+
+    @staticmethod
+    def load_view_config(config_dir: Optional[Path] = None) -> Dict[str, Any]:
+        """Load eks_export_view_config.json from the schemas directory.
+
+        I308 (T1.282): the schema-driven export-view config is the single source
+        of view definitions (view_id, source_table, filter, columns). Search order
+        mirrors load_db_config(): config_dir/schemas/, config_dir/, then the
+        standard eks config/schemas/ layout relative to this module.
+
+        Raises:
+            FileNotFoundError: if the config cannot be located anywhere.
+        """
+        candidates = []
+        if config_dir is not None:
+            candidates += [Path(config_dir) / "schemas" / "eks_export_view_config.json",
+                           Path(config_dir) / "eks_export_view_config.json"]
+        module_dir = Path(__file__).resolve()
+        candidates.append(module_dir.parent.parent.parent / "config" / "schemas" / "eks_export_view_config.json")
+        candidates.append(module_dir.parent.parent.parent / "config" / "eks_export_view_config.json")
+        for path in candidates:
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        raise FileNotFoundError(
+            "eks_export_view_config.json not found. Searched: "
+            + "; ".join(str(c) for c in candidates)
+            + " — the schema-driven export-view config is required since I308 (T1.282)."
+        )
+
+    def _get_db_config(self) -> Dict[str, Any]:
+        """Return the loaded eks_db_config.json, lazily loading if needed."""
+        if self.db_config is None:
+            self.db_config = self.load_db_config(self._db_config_dir)
+        return self.db_config
+
+    def _render_table_from_config(
+        self, table_name: str, include_fk: bool | set[str] = False
+    ) -> str:
+        """Render CREATE TABLE DDL for a table spec from eks_db_config.json.
+
+        I307 (T1.279): emits `CREATE TABLE IF NOT EXISTS {name}` with columns
+        (name + DuckDB type + NOT NULL + UNIQUE + PRIMARY KEY + DEFAULT). The
+        surrogate `id` column carries the PRIMARY KEY marker.
+
+        Physical FK constraints are declared in eks_db_config.json foreign_keys[]
+        (I306 Q1) but emitted only when ``include_fk`` is True — the current
+        runtime registry (11 tables) does not yet materialize every FK target,
+        so FK DDL emission is deferred to I310/T1.292 (full 53-table renderer).
+        DuckDB supports only NO ACTION / RESTRICT for ON DELETE.
+        """
+        cfg = self._get_db_config()
+        tables = cfg.get("db_tables", [])
+        spec = next((t for t in tables if t.get("table_name") == table_name), None)
+        if spec is None:
+            raise KeyError(
+                f"[{ERR_DB_TABLE_SPEC}] table '{table_name}' not declared in "
+                f"eks_db_config.json db_tables[] — cannot render DDL (I307/T1.279)."
+            )
+        cols = spec.get("columns", [])
+        if not cols:
+            raise ValueError(
+                f"[{ERR_DB_TABLE_SPEC}] table '{table_name}' has no columns "
+                "in eks_db_config.json."
+            )
+
+        lines = []
+        for c in cols:
+            parts = [self._quote_identifier(c["name"]), c["column_type"]]
+            if c.get("is_primary"):
+                parts.append("PRIMARY KEY")
+            if c.get("unique"):
+                parts.append("UNIQUE")
+            if c.get("nullable") is False:
+                parts.append("NOT NULL")
+            if c.get("default") is not None:
+                default = c["default"]
+                if c["column_type"] == "BOOLEAN":
+                    parts.append(f"DEFAULT {'TRUE' if default else 'FALSE'}")
+                elif c["column_type"] in ("INTEGER", "DOUBLE"):
+                    parts.append(f"DEFAULT {default}")
+                elif c["column_type"] == "TIMESTAMP" and str(default).lower() == "now()":
+                    # DuckDB keyword default — emitted unquoted.
+                    parts.append("DEFAULT now()")
+                else:
+                    parts.append(f"DEFAULT '{default}'")
+            lines.append("    " + " ".join(parts))
+
+        if include_fk:
+            for fk_spec in spec.get("foreign_keys", []):
+                if isinstance(include_fk, set) and fk_spec.get("fk_name") not in include_fk:
+                    continue
+                fk_clause = (
+                    "    CONSTRAINT {fk} FOREIGN KEY ({col}) REFERENCES {tbl}({tcol})"
+                    .format(
+                        fk=self._quote_identifier(fk_spec["fk_name"]),
+                        col=self._quote_identifier(fk_spec["column"]),
+                        tbl=self._quote_identifier(fk_spec["target_table"]),
+                        tcol=self._quote_identifier(fk_spec["target_column"]),
+                    )
+                )
+                if fk_spec.get("on_delete"):
+                    fk_clause += f" ON DELETE {fk_spec['on_delete']}"
+                lines.append(fk_clause)
+
+        col_lines = ",\n".join(lines)
+        return f"CREATE TABLE IF NOT EXISTS {self._quote_identifier(table_name)} (\n{col_lines}\n)"
+
+    @staticmethod
+    def _quote_identifier(identifier: str) -> str:
+        """Quote a DuckDB identifier supplied by schema configuration."""
+        if identifier.lower() not in {"symmetric"}:
+            return identifier
+        return '"' + identifier.replace('"', '""') + '"'
+
+    def generate_db_tables_ddl(
+        self,
+        physical_fk_tables: Optional[set[str]] = None,
+        exclude_tables: Optional[set[str]] = None,
+    ) -> List[str]:
+        """Render DDL for every table declared in ``eks_db_config.json``.
+
+        I310/T1.292: the DB configuration is the single source for table DDL.
+        Physical foreign keys are emitted only when their target column is
+        primary or unique in the same configuration and the target is a
+        runtime (direct-map) table; self-referencing links and definition
+        targets are retained for the post-load relationship validator.
+        ``exclude_tables`` omits schema-def DDL tables (documents,
+        document_elements) that keep their own generated shape.
+        """
+        config = self._get_db_config()
+        table_specs = config.get("db_tables", [])
+        table_names = {spec.get("table_name") for spec in table_specs}
+        direct_map_tables = {
+            spec.get("table_name")
+            for spec in table_specs
+            if spec.get("transform") == "direct-map"
+        }
+        unique_targets = {
+            (spec.get("table_name"), column.get("name"))
+            for spec in table_specs
+            for column in spec.get("columns", [])
+            if column.get("is_primary") or column.get("unique")
+        }
+        ddl_statements = []
+        for spec in table_specs:
+            table_name = spec.get("table_name")
+            if not table_name:
+                raise ValueError(
+                    f"[{ERR_DB_TABLE_SPEC}] DB table specification is missing "
+                    "table_name (I310/T1.292)."
+                )
+            if table_name not in table_names:
+                raise ValueError(
+                    f"[{ERR_DB_TABLE_SPEC}] Unknown DB table specification: "
+                    f"{table_name} (I310/T1.292)."
+                )
+            if exclude_tables and table_name in exclude_tables:
+                continue
+            physical_fks = {
+                fk.get("fk_name")
+                for fk in spec.get("foreign_keys", [])
+                if fk.get("target_table") in table_names
+                and fk.get("target_table") in direct_map_tables
+                and fk.get("target_table") != table_name
+                and (fk.get("target_table"), fk.get("target_column")) in unique_targets
+            }
+            if physical_fk_tables is not None and table_name not in physical_fk_tables:
+                physical_fks = set()
+            ddl_statements.append(
+                self._render_table_from_config(table_name, include_fk=physical_fks)
+            )
+        return ddl_statements
+
+    @log_depth
+    def generate_view_ddl(
+        self,
+        view_config: Optional[Dict[str, Any]] = None,
+        config_dir: Optional[Path] = None,
+    ) -> List[str]:
+        """Render persistent CREATE OR REPLACE VIEW DDL from the view config SSOT.
+
+        I308 (T1.283): each views[] entry in eks_export_view_config.json becomes
+        a persistent DuckDB view named ``v_<view_id>``. The SELECT list is the
+        entry's ordered ``columns[]`` and the optional ``filter`` (column/value)
+        is rendered as a WHERE clause (e.g. is_latest = TRUE) so only the latest
+        document revision flows into exports. Views are created with
+        CREATE OR REPLACE VIEW so re-initialization is idempotent.
+
+        Args:
+            view_config: Optional pre-loaded view config dict. If omitted, it is
+                         loaded via load_view_config(config_dir).
+            config_dir:  Optional config dir used to locate the view config.
+
+        Returns:
+            List of CREATE OR REPLACE VIEW statements (one per view).
+
+        Raises:
+            RuntimeError: FAIL_FAST [S-C-S-0312] if the config is missing,
+                          unreadable, or a view entry is malformed.
+        """
+        if view_config is None:
+            try:
+                view_config = self.load_view_config(config_dir)
+            except FileNotFoundError as exc:
+                raise RuntimeError(
+                    f"FAIL_FAST [{ERR_VIEW_CONFIG}]: export view config not found — {exc}"
+                ) from exc
+
+        views = view_config.get("views")
+        if not isinstance(views, list) or not views:
+            raise RuntimeError(
+                f"FAIL_FAST [{ERR_VIEW_CONFIG}]: export view config has no views[] entries"
+            )
+
+        stmts = []
+        for view in views:
+            view_id = view.get("view_id")
+            source_table = view.get("source_table")
+            columns = view.get("columns")
+            if not view_id or not source_table or not isinstance(columns, list) or not columns:
+                raise RuntimeError(
+                    f"FAIL_FAST [{ERR_VIEW_CONFIG}]: malformed view entry — "
+                    f"view_id/source_table/columns[] required: {view}"
+                )
+            col_list = ", ".join(self._quote_identifier(c) for c in columns)
+            where_clause = ""
+            filt = view.get("filter")
+            if filt:
+                fcol = filt.get("column")
+                fval = filt.get("value")
+                if not fcol:
+                    raise RuntimeError(
+                        f"FAIL_FAST [{ERR_VIEW_CONFIG}]: view '{view_id}' filter "
+                        "missing 'column'"
+                    )
+                if isinstance(fval, bool):
+                    fval_sql = "TRUE" if fval else "FALSE"
+                elif isinstance(fval, (int, float)):
+                    fval_sql = str(fval)
+                else:
+                    fval_sql = "'" + str(fval).replace("'", "''") + "'"
+                where_clause = f" WHERE {self._quote_identifier(fcol)} = {fval_sql}"
+            stmts.append(
+                f"CREATE OR REPLACE VIEW v_{view_id} AS "
+                f"SELECT {col_list} FROM {self._quote_identifier(source_table)}{where_clause}"
+            )
+        return stmts
 
     @log_depth
     def generate_indexes(self) -> List[str]:
@@ -324,44 +561,70 @@ class SchemaToDDL:
         queryable at runtime (which FKs exist, their candidate-key shape, and
         whether they are declared-only), and mirrors ``registry_relations``
         exactly so the docs and the DB cannot drift.
+
+        I311 (T1.297): the manifest table shape is rendered from
+        ``eks_db_config.json`` (SSOT) so `id` is the PRIMARY KEY and
+        ``relation_name`` is UNIQUE — matching the I307 schema-driven config
+        instead of the legacy I290 ``relation_name``-primary shape. Every
+        manifest row's `id` is derived with the config ``id_strategy``
+        (uuid5 of the namespace + natural key), mirroring DefinitionLoader.
         """
         relations = self.registry_relations()
         if not relations:
             return []
         stmts = [
-            "CREATE TABLE IF NOT EXISTS _eks_table_relations ("
-            "    relation_name VARCHAR PRIMARY KEY,"
-            "    source_table VARCHAR NOT NULL,"
-            "    source_columns VARCHAR NOT NULL,"
-            "    target_table VARCHAR NOT NULL,"
-            "    target_columns VARCHAR NOT NULL,"
-            "    relation_type VARCHAR NOT NULL,"
-            "    declared_only BOOLEAN NOT NULL DEFAULT TRUE,"
-            "    description VARCHAR"
-            ")"
+            self._render_table_from_config("_eks_table_relations", include_fk=False)
         ]
         import json as _json
 
         def _sql(strlit):
             return "'" + str(strlit).replace("'", "''") + "'"
 
+        # I311: id derived exactly like DefinitionLoader (uuid5 namespace +
+        # natural-key join) so the config id_strategy is the single source.
+        cfg = self._get_db_config()
+        spec = next(
+            (t for t in cfg.get("db_tables", [])
+             if t.get("table_name") == "_eks_table_relations"),
+            {},
+        )
+        strategy = spec.get("id_strategy", {}) or {}
+        ns = uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            strategy.get("namespace", "eks:_eks_table_relations"),
+        )
+        natural_keys = strategy.get("natural_key_columns") or ["relation_name"]
+
         for rel in relations:
+            natural = "|".join(
+                str(rel.get(name, "")) for name in natural_keys
+            )
+            row_id = str(uuid.uuid5(ns, natural))
+            columns = [
+                "id", "relation_name", "source_table", "source_columns",
+                "target_table", "target_columns", "relation_type",
+                "declared_only", "description",
+            ]
+            values = [
+                _sql(row_id),
+                _sql(rel.get("relation_name")),
+                _sql(rel.get("source_table", "documents")),
+                _sql(_json.dumps(rel.get("source_columns", []))),
+                _sql(rel.get("target_table")),
+                _sql(_json.dumps(rel.get("target_columns", []))),
+                _sql(rel.get("relation_type", "simple")),
+                "TRUE" if rel.get("declared_only", True) else "FALSE",
+                _sql(rel.get("description", "")),
+            ]
+            # I311: id PK + relation_name UNIQUE make `INSERT OR REPLACE`
+            # ambiguous in DuckDB — an explicit conflict target is required.
+            update_cols = ", ".join(
+                f"{col} = EXCLUDED.{col}" for col in columns[1:]
+            )
             stmts.append(
-                "INSERT OR REPLACE INTO _eks_table_relations "
-                "(relation_name, source_table, source_columns, target_table, "
-                " target_columns, relation_type, declared_only, description) "
-                "VALUES ("
-                + ", ".join([
-                    _sql(rel.get("relation_name")),
-                    _sql(rel.get("source_table", "documents")),
-                    _sql(_json.dumps(rel.get("source_columns", []))),
-                    _sql(rel.get("target_table")),
-                    _sql(_json.dumps(rel.get("target_columns", []))),
-                    _sql(rel.get("relation_type", "simple")),
-                    "TRUE" if rel.get("declared_only", True) else "FALSE",
-                    _sql(rel.get("description", "")),
-                ])
-                + ")"
+                "INSERT INTO _eks_table_relations "
+                f"({', '.join(columns)}) VALUES ({', '.join(values)}) "
+                f"ON CONFLICT (id) DO UPDATE SET {update_cols}"
             )
         return stmts
 
@@ -427,6 +690,10 @@ class SchemaToDDL:
         """
         resolved = self._resolve_ref(col_schema)
         json_type = resolved.get("type", "string")
+        if isinstance(json_type, list):
+            # I308/T1.283: multi-type unions (e.g. ["string", "null"]) —
+            # take the first non-null member for the SQL type mapping.
+            json_type = next((t for t in json_type if t != "null"), "string")
         fmt = resolved.get("format", "")
 
         if fmt == "date-time":
