@@ -1,14 +1,18 @@
 """
 Focused I308 tests: schema-driven persistent export views + export naming.
 
-Revision: 0.1
-Date: 2026-08-13
+Revision: 0.2
+Date: 2026-08-14
 Author: opencode
-Summary: T1.285 — persistent v_* views (discovery_inventory, extraction_results,
-         review_flags) created from eks_export_view_config.json; is_latest=TRUE
-         filter; flag_reason materialized at ingest (pure projection); schema-
-         driven file/sheet names + artifact_type == view_id in the export path;
-         missing view config raises S-C-S-0312 (no hardcoded fallback).
+Summary: 0.2: I313 (T1.307) — extended the no-hardcoded-literal guard to reject
+     bare view_id/artifact_type literal assignments, phase-letter artifact_type
+     values, and "eks_export_" fallbacks across both the pipeline and
+     phase1_server export paths.
+0.1: T1.285 — persistent v_* views (discovery_inventory, extraction_results,
+     review_flags) created from eks_export_view_config.json; is_latest=TRUE
+     filter; flag_reason materialized at ingest (pure projection); schema-
+     driven file/sheet names + artifact_type == view_id in the export path;
+     missing view config raises S-C-S-0312 (no hardcoded fallback).
 """
 
 import json
@@ -163,9 +167,15 @@ def test_i308_export_names_and_artifact_type_schema_driven():
 
 
 def test_i308_export_path_has_no_hardcoded_literals():
-    """T1.285: pipeline export path must not hardcode file/sheet names (I308/T1.284)."""
+    """T1.285 + I313/T1.307: pipeline + phase1_server export paths must not
+    hardcode file/sheet names, view_id/artifact_type literals, phase-letter
+    artifact_type values, or eks_export_ fallback defaults."""
     pipeline_path = _PROJECT_ROOT / "engine" / "eks_engine_pipeline.py"
-    src = pipeline_path.read_text(encoding="utf-8")
+    server_path = _PROJECT_ROOT / "ui" / "backend" / "phase1_server.py"
+    pipeline_src = pipeline_path.read_text(encoding="utf-8")
+    server_src = server_path.read_text(encoding="utf-8")
+
+    # Per-view filename + sheet-name literals (I308/T1.284).
     for literal in (
         "discovery_inventory.csv",
         "extraction_results.csv",
@@ -174,7 +184,49 @@ def test_i308_export_path_has_no_hardcoded_literals():
         '"Extraction"',
         '"Review Flags"',
     ):
-        assert literal not in src, f"hardcoded export literal still in pipeline: {literal}"
+        assert literal not in pipeline_src, f"hardcoded export literal still in pipeline: {literal}"
+
+    # I313/T1.307 (BLOCK-1/D-4): no literal view_id indices or artifact_type
+    # values in the pipeline export path — all derived from resolve_export_views()
+    # keys / each view's view_id.
+    for literal in (
+        'export_config["discovery_inventory"]',
+        'export_config["extraction_results"]',
+        'export_config["review_flags"]',
+        '"artifact_type": "discovery_inventory"',
+        '"artifact_type": "extraction_results"',
+        '"artifact_type": "review_flags"',
+    ):
+        assert literal not in pipeline_src, (
+            f"literal view_id/artifact_type still in pipeline: {literal}"
+        )
+
+    # I313/T1.307 (BLOCK-2): no literal view_id values in the server phase→view
+    # map and no literal view_id branch in the row-builder dispatch.
+    for literal in (
+        '"a": "discovery_inventory"',
+        '"b": "extraction_results"',
+        '"c": "review_flags"',
+        'view_id == "review_flags"',
+    ):
+        assert literal not in server_src, (
+            f"literal view_id still in phase1_server: {literal}"
+        )
+
+    # I313/T1.307 (BLOCK-3): no "eks_export_" fallback literal defaults in the
+    # server download file-name resolution (fail-fast S-C-S-0304 instead).
+    assert '"eks_export_{phase}.{ext}"' not in server_src, (
+        "fallback download template literal still in phase1_server"
+    )
+    assert '"eks_export.xlsx"' not in server_src, (
+        "fallback workbook name literal still in phase1_server"
+    )
+
+    # I313/T1.307 (BLOCK-4): insert_artifact must never record the phase letter
+    # (a/b/c/all) as artifact_type — always the export view_id.
+    assert "insert_artifact(export_job_id, phase," not in server_src, (
+        "phase letter still recorded as artifact_type in phase1_server"
+    )
 
 
 def test_i308_missing_view_config_raises_registered_code(tmp_path):

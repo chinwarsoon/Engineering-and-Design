@@ -26,8 +26,10 @@ Behaviour (confirmed design, U292):
      y/N confirmation.
   7. Definition-table row-count drift is SOFT — warning only (config is SSOT,
      T1.293); row counts are surfaced on the ``--db-check`` report.
-  8. The gate is PRAGMA-based and independent of ``_eks_schema_meta``
-     (retirement deferred to I312/T1.301–T1.303).
+  8. The gate is PRAGMA-based and independent of the legacy ``_eks_schema_meta``
+     table, which was retired in I312/T1.303 and replaced by the schema-driven
+     ``db_manifest`` provenance table (written by ``manifest.py``). ``db_manifest``
+     is excluded from structural validation (see ``METADATA_TABLES``).
 
 Error codes (registered across the 5-source chain, U292):
   S-C-S-0311  INVALID_MIGRATION_POLICY        (system/config)
@@ -49,7 +51,7 @@ from typing import Any, Callable, Dict, List, Optional
 import duckdb
 
 from ..logging.logger import EKSLogger
-from .schema_to_ddl import SchemaToDDL
+from .schema_to_ddl import SchemaToDDL, ALWAYS_NULLABLE_COLUMNS
 
 ERR_INVALID_POLICY = "S-C-S-0311"
 ERR_DESTRUCTIVE_BLOCKED = "P1-R-P-0004"
@@ -57,6 +59,10 @@ ERR_BACKUP_FAILED = "P1-R-P-0005"
 
 VALID_POLICIES = ("additive", "destructive")
 PROTECTED_TABLES = frozenset({"documents", "document_elements"})
+# I312/T1.303: metadata tables (provenance) are not structurally validated by the
+# gate — their `value` JSON is intentionally flexible. The manifest writer owns
+# them. Replaces the retired `_eks_schema_meta` exclusion.
+METADATA_TABLES = frozenset({"db_manifest"})
 MODE_CHECK = "check"
 MODE_APPLY = "apply"
 MODE_FORCE = "force"
@@ -197,11 +203,17 @@ class MigrationGate:
             extra_columns: List[Dict[str, Any]] = []
             extra_tables = [
                 name for name in sorted(live_tables - set(specs))
-                if name not in ("_eks_schema_meta",)
+                if name not in METADATA_TABLES
             ]
+
+            not_null_warnings: List[Dict[str, Any]] = []
 
             for table_name, spec in specs.items():
                 if table_name not in live_tables:
+                    continue
+                # I312/T1.303: metadata tables are owned by the manifest writer;
+                # skip structural diffing (flexible `value` JSON).
+                if table_name in METADATA_TABLES:
                     continue
                 live_cols = self._live_columns(conn, table_name)
                 live_by_name = {c["name"]: c for c in live_cols}
@@ -217,6 +229,27 @@ class MigrationGate:
                             "not_null": col_spec.get("nullable") is False,
                             "default": col_spec.get("default"),
                         })
+                        continue
+                    # I312/T1.303 (I196 port): always-nullable project-metadata
+                    # columns must NOT carry a NOT NULL constraint. If the live
+                    # DB mis-applied one, emit a SOFT advisory warning (this is
+                    # a validation-layer concern; the manifest records the
+                    # outcome). Never added to `structural` (non-blocking).
+                    if (
+                        col_name in ALWAYS_NULLABLE_COLUMNS
+                        and live_by_name[col_name].get("notnull") is True
+                    ):
+                        not_null_warnings.append({
+                            "table": table_name,
+                            "column": col_name,
+                        })
+                        self.logger.warning(
+                            f"Schema drift (I196, SOFT): column "
+                            f"{table_name}.{col_name} has NOT NULL but should be "
+                            "nullable (always-nullable set) — delete "
+                            "eks_registry.db and re-run to rebuild with correct DDL.",
+                            context="MigrationGate.build_plan",
+                        )
                         continue
                     live_col = live_by_name[col_name]
                     issue = self._structural_issue(col_spec, live_col)
@@ -247,6 +280,7 @@ class MigrationGate:
                 "extra_tables": extra_tables,
                 "extra_columns": extra_columns,
                 "drift": drift,
+                "not_null_warnings": not_null_warnings,
                 "destructive_required": destructive_required,
                 "blocking": bool(structural),
                 "backup": None,

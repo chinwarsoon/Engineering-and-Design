@@ -5,10 +5,15 @@ The ``main()`` function is the single console_scripts entry point.  All
 implementation is delegated to ``eks.engine.pipeline_engine.{cli,runner,exporter}``
 — this file handles only import-time sys.path bootstrap and re-exports.
 
-Revision: 2.3
-Date: 2026-08-13
+Revision: 2.4
+Date: 2026-08-14
 Author: opencode
-Summary: 2.3: I309 (T1.289) — export phase emits ONE workbook (all xlsx-enabled
+Summary: 2.4: I313 (T1.307/BLOCK-1) — export_views built by iterating
+     resolve_export_views() keys (config-driven, D-4): artifact_type derived
+     from each view's view_id; literal view_id indices + literal artifact_type
+     values removed; row-builder dispatch keyed off config column set
+     (flag_reason => flagged rows), not a literal view_id.
+2.3: I309 (T1.289) — export phase emits ONE workbook (all xlsx-enabled
      views as worksheets) via DataExporter.export_to_workbook; workbook file
      name schema-driven (system_parameters.export_workbook_file_name);
      optional column_override validated by validate_export_column_override
@@ -287,39 +292,28 @@ def main(args: Optional[list] = None, column_override: Optional[dict] = None) ->
                         f"Export: {len(run_docs)} docs total", context="main"
                     )
 
-                    export_config = resolve_export_columns(Path(safe_posix(config_dir)) / "schemas")
-                    discovery_cols = export_config["discovery_inventory"]
-                    extraction_cols = export_config["extraction_results"]
-                    review_cols = export_config["review_flags"]
-
-                    discovery_rows = _build_export_rows(run_docs, None, discovery_cols)
-                    extraction_rows = _build_export_rows(run_docs, None, extraction_cols)
-                    flagged_rows = _build_flagged_rows(run_docs, review_cols)
-
                     # I308/T1.284: schema-driven file/sheet names + artifact_type
                     # (view_id) from eks_export_view_config.json — replaces the
                     # hardcoded csv / sheet-name literals of the old export path.
+                    # I313/T1.307 (BLOCK-1/D-4): iterate resolve_export_views()
+                    # keys — artifact_type derives from each view's view_id; no
+                    # literal view_id indices or artifact_type values. Row-builder
+                    # dispatch keys off the config column set (flag_reason =>
+                    # flagged rows), not a literal view_id.
                     view_specs = resolve_export_views(Path(safe_posix(config_dir)) / "schemas")
-                    export_views = [
-                        {
-                            "artifact_type": "discovery_inventory",
-                            "rows": discovery_rows,
-                            "columns": discovery_cols,
-                            **view_specs["discovery_inventory"],
-                        },
-                        {
-                            "artifact_type": "extraction_results",
-                            "rows": extraction_rows,
-                            "columns": extraction_cols,
-                            **view_specs["extraction_results"],
-                        },
-                        {
-                            "artifact_type": "review_flags",
-                            "rows": flagged_rows,
-                            "columns": review_cols,
-                            **view_specs["review_flags"],
-                        },
-                    ]
+                    export_views = []
+                    for _view_id, _vspec in view_specs.items():
+                        _cols = list(_vspec["columns"])
+                        if "flag_reason" in _cols:
+                            _rows = _build_flagged_rows(run_docs, _cols)
+                        else:
+                            _rows = _build_export_rows(run_docs, None, _cols)
+                        export_views.append({
+                            "view_id": _view_id,
+                            "rows": _rows,
+                            "columns": _cols,
+                            **_vspec,
+                        })
 
                     # I309/T1.289: optional schema-validated per-view column
                     # override (S-C-S-0313) — applied to CSV and workbook sheets.
@@ -331,7 +325,7 @@ def main(args: Optional[list] = None, column_override: Optional[dict] = None) ->
                         )
 
                     def _view_columns(spec: dict) -> list:
-                        view_id = spec["artifact_type"]
+                        view_id = spec["view_id"]
                         if view_id in validated_override:
                             return list(validated_override[view_id])
                         return list(spec["columns"])

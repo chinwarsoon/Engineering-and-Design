@@ -12,6 +12,9 @@ Scope:
   T1.279: runtime-table column defs re-homed out of SchemaToDDL hardcoded strings
   T1.280: eks_doc_base_schema.json registry_relations → physical-FK semantics
   T1.281: §9 new-schema-set checklist + §24 audit + no-hardcoded-DDL guard
+  T1.307 (I313): §24 view-id cross-source check updated — pipeline consumes
+          view_ids via resolve_export_views() (config-driven); literal
+          artifact_type values / column indices rejected.
 
 AGENTS.md §9 checklist items verified:
   1. base defs present with $schema/$id/title/version
@@ -51,8 +54,8 @@ class TestT275BaseSchemaDbDefs:
         cls.base = _load("eks_base_schema.json")
         cls.defs = cls.base["definitions"]
 
-    def test_version_bumped_1_21_0(self):
-        assert self.base["version"] == "1.21.0"  # I309 T1.289: export_workbook_file_name added (I308 T1.282 was 1.20.0)
+    def test_version_bumped_1_22_0(self):
+        assert self.base["version"] == "1.22.0"  # pre-existing: base schema bumped past 1.21.0 without test sync (unrelated to I312)
         assert "$schema" in self.base and "$id" in self.base and "title" in self.base
 
     def test_all_6_db_layer_defs_present(self):
@@ -105,14 +108,14 @@ class TestT275BaseSchemaDbDefs:
 
 
 class TestT276SetupSchemaProperties:
-    """T1.276: eks_setup_schema.json v1.12.0 — db_tables + export_views properties."""
+    """T1.276/I312 (T1.301): eks_setup_schema.json v1.13.0 — db_tables + export_views + db_manifest_keys properties."""
 
     @classmethod
     def setup_class(cls):
         cls.setup = _load("eks_setup_schema.json")
 
-    def test_version_bumped_1_12_0(self):
-        assert self.setup["version"] == "1.12.0"
+    def test_version_bumped_1_13_0(self):
+        assert self.setup["version"] == "1.13.0"
 
     def test_db_tables_property_refs_table_spec_def(self):
         db_tables = self.setup["properties"]["db_tables"]
@@ -145,7 +148,7 @@ class TestT277DbConfig:
         # eks_processing_config.json). Added I307 follow-up for consistency.
         for k in ["$schema", "$id", "version", "title", "description"]:
             assert k in self.cfg, f"eks_db_config.json missing metadata header field: {k}"
-        assert self.cfg["version"] == "1.1.0"
+        assert self.cfg["version"] == "1.1.1"
         assert self.cfg["$schema"] == "https://eks.engineering/schemas/eks_setup_schema.json"
 
     def test_53_tables_declared(self):
@@ -331,10 +334,23 @@ class TestA24CrossSourceAudit:
         exporter_src = (_PROJECT_ROOT / "engine" / "pipeline_engine" / "exporter.py").read_text(encoding="utf-8")
         for vid in views:
             assert vid in exporter_src, f"view id {vid} not produced by exporter.resolve_export_columns"
-        # pipeline references the same artifact names
+        # pipeline consumes the same artifact names via the config-driven
+        # resolve_export_views() catalog (I313/T1.307 BLOCK-1 — view_ids are
+        # derived from each view's view_id, never hardcoded literals).
         pipeline_src = (_PROJECT_ROOT / "engine" / "eks_engine_pipeline.py").read_text(encoding="utf-8")
+        assert "resolve_export_views" in pipeline_src, (
+            "pipeline must resolve export views from config (I313/T1.307)"
+        )
+        assert "resolve_export_columns" in pipeline_src, (
+            "pipeline re-exports resolve_export_columns (test_phase1 contract)"
+        )
         for vid in views:
-            assert vid in pipeline_src, f"view id {vid} not referenced by eks_engine_pipeline.py"
+            assert f'"artifact_type": "{vid}"' not in pipeline_src, (
+                f"literal artifact_type value {vid} must not be in pipeline (I313/T1.307)"
+            )
+            assert f'export_config["{vid}"]' not in pipeline_src, (
+                f"literal column index {vid} must not be in pipeline (I313/T1.307)"
+            )
 
     def test_runtime_table_names_consistent_across_sources(self):
         cfg = _load("eks_db_config.json")

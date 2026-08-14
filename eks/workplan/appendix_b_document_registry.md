@@ -13,7 +13,7 @@
 - [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers (v1.12.0)
 - [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.3.0)
 - [`eks/config/schemas/eks_ontology_config.json`](../config/schemas/eks_ontology_config.json) — Document class hierarchy (§C4, v1.7.0)
-- [`eks/config/schemas/eks_export_view_config.json`](../config/schemas/eks_export_view_config.json) — Default export view values SSOT (I308, v1.1.0)
+- [`eks/config/schemas/eks_export_view_config.json`](../config/schemas/eks_export_view_config.json) — Default export view values SSOT (I308, v1.2.0)
 - [`eks/engine/core/schema_to_ddl.py`](../engine/core/schema_to_ddl.py) — `generate_view_ddl()` renders persistent `v_*` export views (I308)
 
 **Sub-Appendices**:
@@ -1018,9 +1018,9 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
    - Score tiers determine action: auto_register (≥0.90), optional_review (≥0.70), flag_review (≥0.50), mandatory_review (≥0.20), manual_entry (<0.20).
 
 6. **Pipeline Export** (`--export csv|xlsx|both`):
-   - **Schema-driven export view model (I308)**: 3 persistent DuckDB views — `v_discovery_inventory` (46 columns: all `x_export` fields minus extraction), `v_extraction_results` (49 columns: all `x_export` fields), `v_review_flags` (12 columns: extraction-quality triage subset + materialized `flag_reason`) — rendered by `generate_view_ddl()` as `CREATE OR REPLACE VIEW v_<view_id>` from `eks_export_view_config.json` v1.1.0, created in `_init_db()` AFTER the I311 migration gate.
+   - **Schema-driven export view model (I308)**: 3 persistent DuckDB views — `v_discovery_inventory` (46 columns: all `x_export` fields minus extraction), `v_extraction_results` (50 columns: all `x_export` fields), `v_review_flags` (12 columns: extraction-quality triage subset + materialized `flag_reason`) — rendered by `generate_view_ddl()` as `CREATE OR REPLACE VIEW v_<view_id>` from `eks_export_view_config.json` v1.2.0, created in `_init_db()` AFTER the I311 migration gate.
    - View id / source table (`documents`) / `filter` (`is_latest = TRUE`) / ordered `columns` / `file_base_name` / `sheet_name` / `formats` all read from the view config — **no hardcoded column lists** (I193/I275 `x_export` → superseded by `columns[]` SSOT; version-control columns `is_latest`/`supersedes`/`superseded_by` pruned).
-   - `export_artifact.artifact_type` = view_id; missing view config → **fail-fast** S-C-S-0312 (no partial export). Outputs: `eks/output/discovery_inventory.csv/.xlsx`, `extraction_results.csv/.xlsx`, `review_flags.csv` (one worksheet per view: Discovery / Extraction / Review Flags).
+   - `export_artifact.artifact_type` = view_id; missing view config → **fail-fast** S-C-S-0312 (no partial export). Outputs: `eks/output/discovery_inventory.csv/.xlsx`, `extraction_results.csv/.xlsx`, `review_flags.csv/.xlsx` (one worksheet per view: Discovery / Extraction / Review Flags).
 
 ### Phase 3 — Knowledge Graph Ingestion (🔷 PLANNED)
 
@@ -1063,7 +1063,7 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 
 6. **Revision Control** — Three-tier I185 check in `FileScanner.register_placeholders()`: key lookup → hash match (skip duplicate) → hash mismatch (register new revision with supersedes chain). Each registration uses UUID v4 `id` (I186). Supersedes chain auto-links `supersedes`/`superseded_by` FK pairs.
 
-7. **Pipeline Export** — I308 schema-driven **export view model**: 3 persistent DuckDB views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) rendered by `generate_view_ddl()` from `eks_export_view_config.json` v1.1.0 (view id / source table / `is_latest` filter / ordered columns / file base name / sheet name / formats), created after the I311 migration gate. `export_artifact.artifact_type` = view_id; `documents.flag_reason` materialized; version-control columns pruned; missing view config → fail-fast S-C-S-0312. Exports: `discovery_inventory` / `extraction_results` (csv + xlsx) and `review_flags` (csv) written to `eks/output/` (supersedes I193 `x_export` runtime resolution / I275 column_processing scoping).
+7. **Pipeline Export** — I308 schema-driven **export view model**: 3 persistent DuckDB views (`v_discovery_inventory`, `v_extraction_results`, `v_review_flags`) rendered by `generate_view_ddl()` from `eks_export_view_config.json` v1.2.0 (view id / source table / `is_latest` filter / ordered columns / file base name / sheet name / formats), created after the I311 migration gate. `export_artifact.artifact_type` = view_id; `documents.flag_reason` materialized; version-control columns pruned; missing view config → fail-fast S-C-S-0312. Exports: `discovery_inventory` / `extraction_results` / `review_flags` (all csv + xlsx) written to `eks/output/` (supersedes I193 `x_export` runtime resolution / I275 column_processing scoping).
 
 8. **Test Verification** — Registry CRUD, I185 three-tier dedup, UUID migration (I186), filename parsing (Appendix I), file property extraction (Appendix J), structure detection, element persistence, health scoring, and schema-driven export all passing.
 

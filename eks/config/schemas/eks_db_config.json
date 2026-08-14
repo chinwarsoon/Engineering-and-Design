@@ -1,7 +1,7 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_db_config.json",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "title": "EKS DB-Layer Table Configuration",
   "description": "Schema-driven DB-layer table values SSOT (I307 T1.277). Actual VALUES for all 53 tables live here per AGENTS.md \u00c2\u00a79/\u00c2\u00a716 (base/setup hold shape only). Each db_tables[] entry declares table_name, group_id, source_config_ref/source_path/transform, id_strategy (uuid5 namespace + natural key), ordered columns (id PK + DuckDB type + unique/nullable/default/JSON marker), and physical FK pairs (I306 Q1).",
   "db_tables": [
@@ -3670,7 +3670,7 @@
       "table_name": "db_manifest",
       "group_id": 12,
       "title": "DB Manifest",
-      "description": "Schema-driven DB provenance table (replaces _eks_schema_meta; I312/T1.301–T1.303). One row per materialized table.",
+      "description": "Schema-driven DB provenance table (replaces _eks_schema_meta; I312/T1.301–T1.303). Key-value rows: id UUID PK, key UNIQUE natural key, value JSON (shape varies per key), updated_at TIMESTAMP. Manifest is a regenerated projection of the config SSOT (never hand-edited). Key taxonomy declared in db_manifest_keys (top-level, this file).",
       "columns": [
         {
           "name": "id",
@@ -3678,40 +3678,47 @@
           "is_primary": true
         },
         {
-          "name": "table_name",
+          "name": "key",
           "column_type": "VARCHAR",
           "unique": true,
-          "comment": "Natural key (matches db_tables[].table_name)."
+          "comment": "Natural key (schema_version/engine_version/schema_hash/config:<name>/table:<name>)."
         },
         {
-          "name": "group_id",
-          "column_type": "INTEGER"
+          "name": "value",
+          "column_type": "JSON",
+          "comment": "Per-key payload (JSON because the shape varies per key)."
         },
         {
-          "name": "schema_version",
-          "column_type": "VARCHAR"
-        },
-        {
-          "name": "ddl_hash",
-          "column_type": "VARCHAR"
-        },
-        {
-          "name": "loaded_at",
-          "column_type": "VARCHAR"
-        },
-        {
-          "name": "row_count",
-          "column_type": "INTEGER"
+          "name": "updated_at",
+          "column_type": "TIMESTAMP",
+          "default": "now()"
         }
       ],
       "id_strategy": {
         "namespace": "eks:db_manifest",
         "natural_key_columns": [
-          "table_name"
+          "key"
         ],
         "algorithm": "uuid5"
       },
       "transform": "direct-map"
     }
-  ]
+  ],
+  "db_manifest_keys": {
+    "description": "I312/T1.301 — declared key taxonomy for the db_manifest provenance table. manifest.py is a generic writer over this spec (no code-literal key lists, AGENTS.md §15/§16).",
+    "global_keys": ["schema_version", "engine_version", "schema_hash"],
+    "config_version_key_prefix": "config:",
+    "table_stats_key_prefix": "table:",
+    "validation_key": "validation:not_null",
+    "config_sources": {
+      "doc_config": "eks_doc_config.json",
+      "ontology_config": "eks_ontology_config.json",
+      "processing_config": "eks_processing_config.json",
+      "project_definition_config": "eks_project_definition_config.json",
+      "db_config": "eks_db_config.json",
+      "export_view_config": "eks_export_view_config.json",
+      "asset_config": "eks_asset_config.json",
+      "eks_config": "eks_config.json"
+    }
+  }
 }

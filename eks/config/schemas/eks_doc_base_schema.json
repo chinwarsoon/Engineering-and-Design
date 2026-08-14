@@ -1643,17 +1643,15 @@
             "relation_name": "fk_doc_type_composite",
             "source_table": "documents",
             "source_columns": [
-                "project_code",
                 "document_type"
             ],
             "target_table": "project_doc_type",
             "target_columns": [
-                "project_code",
                 "local_code"
             ],
-            "relation_type": "composite",
+            "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): document_type resolves through the composite candidate key (project_code, local_code) on project_doc_type. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_pdt in eks_db_config.json db_tables[documents].foreign_keys[] with project_doc_type materialized; composite FK enforcement lands in I310/T1.292."
+            "description": "I290 (T1.253): document_type resolves to project_doc_type.local_code. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_type_composite in eks_db_config.json db_tables[documents].foreign_keys[] with project_doc_type materialized. I313 Phase 2 (D-2 option b, 2026-08-14): downgraded from composite (project_code, document_type) to single-column — project_doc_type has no UNIQUE (project_code, local_code) constraint (local_code not UNIQUE, I315), so the composite shape is a logical lookup only, not an enforceable FK."
         },
         {
             "relation_name": "fk_supersedes",
@@ -1667,7 +1665,7 @@
             ],
             "relation_type": "self",
             "declared_only": true,
-            "description": "I290 (T1.253): self-ref FK supersedes→documents.id. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_supersedes in eks_db_config.json; self-FK DDL and the _migrate_ids_to_uuid guard are handled by the I310/I311 migration gate."
+            "description": "I290 (T1.253): self-ref FK supersedes→documents.id. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_supersedes in eks_db_config.json; self-FK DDL and the _migrate_ids_to_uuid guard are handled by the I310/I311 migration gate."
         },
         {
             "relation_name": "fk_superseded_by",
@@ -1681,13 +1679,13 @@
             ],
             "relation_type": "self",
             "declared_only": true,
-            "description": "I290 (T1.253): self-ref reverse link. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_superseded_by in eks_db_config.json; enforcement lands in I310."
+            "description": "I290 (T1.253): self-ref reverse link. I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_superseded_by in eks_db_config.json; enforcement lands in I310."
         },
         {
             "relation_name": "fk_project_code",
             "source_table": "documents",
             "source_columns": [
-                "project_code"
+                "project_definition"
             ],
             "target_table": "project_definition",
             "target_columns": [
@@ -1695,7 +1693,7 @@
             ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry project_code FK to project_definition (GROUP 9). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_project_def in eks_db_config.json with project_definition materialized."
+            "description": "I290 (T1.253): registry project_definition FK to project_definition.project_code (GROUP 9). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_project_code in eks_db_config.json with project_definition materialized. I313 Phase 2 (D5, 2026-08-14): source column corrected from project_code to project_definition to match the config FK spec."
         },
         {
             "relation_name": "fk_discipline",
@@ -1709,7 +1707,7 @@
             ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry discipline FK (GROUP 1 reference). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_discipline in eks_db_config.json with discipline materialized."
+            "description": "I290 (T1.253): registry discipline FK (GROUP 1 reference). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_discipline in eks_db_config.json with discipline materialized."
         },
         {
             "relation_name": "fk_file_type",
@@ -1723,7 +1721,7 @@
             ],
             "relation_type": "simple",
             "declared_only": true,
-            "description": "I290 (T1.253): registry file_type FK to file_type.extension (GROUP 6, 5 rows). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_doc_filetype in eks_db_config.json with file_type materialized."
+            "description": "I290 (T1.253): registry file_type FK to file_type.extension (GROUP 6, 5 rows). I307 (T1.280): physical-FK intent per I306 Q1 — declared as fk_file_type in eks_db_config.json with file_type materialized."
         },
         {
             "relation_name": "fk_element_doc",

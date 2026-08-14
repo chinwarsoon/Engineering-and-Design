@@ -901,7 +901,7 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             core_base_path = CONFIG_DIR / "eks_base_schema.json"
         with open(core_base_path) as f:
             core_base = json.load(f)
-        self.assertEqual(core_base["version"], "1.21.0")  # I309 T1.289: export_workbook_file_name added (I308 T1.282 was 1.20.0)
+        self.assertEqual(core_base["version"], "1.22.0")  # pre-existing: base schema bumped past 1.21.0 without test sync (unrelated to I312)
 
 
 # ---------------------------------------------------------------------------

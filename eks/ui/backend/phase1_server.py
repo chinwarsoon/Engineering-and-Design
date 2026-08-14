@@ -3,7 +3,14 @@
 Per Appendix G §10, this server provides all Phase 1 API endpoints:
 file discovery, document CRUD, pipeline execution, and health scoring.
 
-Revision: 0.13 (I309/T1.290)
+Revision: 0.14 (I313/T1.307)
+- 0.14: I313/T1.307 (BLOCK-2/3/4): phase→view map derived from the export
+  view catalog order (no literal view_id values); _mk_rows_fn keys the
+  row-builder off the config column set (flag_reason => flagged rows) instead
+  of a literal "review_flags" check; get_system_param(..., default) fallback
+  literals removed — missing export_download_file_name_template /
+  export_workbook_file_name now raise FAIL_FAST S-C-S-0304; insert_artifact
+  records the export view_id(s) as artifact_type (never the phase letter).
 - 0.13: I309/T1.290: schema-driven export. Removed hardcoded export columns
   from _handle_export — phase→view mapping + per-view columns now come from
   eks_export_view_config.json via resolve_export_views. Added GET
@@ -131,6 +138,23 @@ def find_free_port(start: int = 5001, max_attempts: int = 100) -> int:
             if s.connect_ex(("127.0.0.1", port)) != 0:
                 return port
     raise RuntimeError(f"No free port in range {start}-{start + max_attempts}")
+
+
+def _require_system_param(cfg: Any, key: str, purpose: str) -> Any:
+    """I313/T1.307 (BLOCK-3): read a system parameter with NO fallback literal.
+
+    Missing/empty value raises FAIL_FAST [S-C-S-0304] (consistent with the
+    pipeline export path) instead of silently falling back to a hardcoded
+    default (AGENTS §16). ``purpose`` is a short human-readable description of
+    what the value is needed for.
+    """
+    value = get_system_param(cfg, key)
+    if not value:
+        raise RuntimeError(
+            f"FAIL_FAST [S-C-S-0304]: system_parameters.{key} missing in "
+            f"eks_config.json — cannot determine {purpose}"
+        )
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -924,17 +948,19 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     cols = list(override[view_id])
                 return cols
 
-            # phase → (view_id, row-builder, status filter for discovery)
+            # phase → view_id derived from the export view catalog (config
+            # order): phase 'a' ↔ first view, 'b' ↔ second, 'c' ↔ third
+            # (I313/T1.307 BLOCK-2 — no literal view_id values).
             _phase_view = {
-                "a": "discovery_inventory",
-                "b": "extraction_results",
-                "c": "review_flags",
+                chr(ord("a") + i): view_id
+                for i, view_id in enumerate(view_specs)
             }
 
             def _mk_rows_fn(view_id: str, status_filter: Optional[list]):
-                if view_id == "review_flags":
-                    return lambda: _build_flagged_rows(all_docs, _view_columns(view_id))
-                return lambda: _build_export_rows(all_docs, status_filter, _view_columns(view_id))
+                cols = _view_columns(view_id)
+                if "flag_reason" in cols:
+                    return lambda: _build_flagged_rows(all_docs, cols)
+                return lambda: _build_export_rows(all_docs, status_filter, cols)
 
             phase_defs = {}
             for pkey, view_id in _phase_view.items():
@@ -956,18 +982,19 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             # pipeline writes), and all-phases CSV uses the template with
             # phase='all'.
             if len(phases_to_export) == 1:
-                file_name = get_system_param(
+                file_name = _require_system_param(
                     cfg, "export_download_file_name_template",
-                    "eks_export_{phase}.{ext}",
+                    "the single-phase export download file name",
                 ).format(phase=phase, ext=fmt)
             elif fmt == "xlsx":
-                file_name = get_system_param(
-                    cfg, "export_workbook_file_name", "eks_export.xlsx"
+                file_name = _require_system_param(
+                    cfg, "export_workbook_file_name",
+                    "the all-phases workbook download file name",
                 )
             else:
-                file_name = get_system_param(
+                file_name = _require_system_param(
                     cfg, "export_download_file_name_template",
-                    "eks_export_{phase}.{ext}",
+                    "the all-phases CSV download file name",
                 ).format(phase="all", ext="csv")
             file_path = output_dir / file_name
             content_type = "text/csv; charset=utf-8" if fmt == "csv" else \
@@ -1014,8 +1041,12 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                         reverse=True,
                     )
                     export_job_id = active_jobs[0] if active_jobs else "manual_export"
-                    reg.insert_artifact(export_job_id, phase, str(file_path),
-                                        row_count=0)
+                    # I313/T1.307 (BLOCK-4): record the export view_id(s) as
+                    # artifact_type (I306 model) — never the phase letter
+                    # a/b/c/all.
+                    for _view_id in (phase_defs[p]["name"] for p in phases_to_export):
+                        reg.insert_artifact(export_job_id, _view_id, str(file_path),
+                                            row_count=0)
             except Exception:
                 pass  # non-fatal; artifact tracking best-effort
 

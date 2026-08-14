@@ -1579,10 +1579,10 @@ class TestPhase1(unittest.TestCase):
             conn = _duckdb.connect(str(reg_path))
             try:
                 meta = conn.execute(
-                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
+                    "SELECT value FROM db_manifest WHERE key = 'schema_hash'"
                 ).fetchone()
-                self.assertIsNotNone(meta, "Schema hash must be recorded in _eks_schema_meta")
-                self.assertIn(":", meta[0])
+                self.assertIsNotNone(meta, "Schema hash must be recorded in db_manifest")
+                self.assertIn("hash", json.loads(meta[0]))
             finally:
                 conn.close()
         finally:
@@ -1646,8 +1646,11 @@ class TestPhase1(unittest.TestCase):
         self.assertIn("project_code", ddl)
 
     def test_schema_version_tracking(self):
-        """T1.99.191 (I225): Schema version hash recorded and updated on schema change."""
+        """I312 (T1.304): db_manifest schema_version/hash are config-SSOT-derived
+        and deterministic across opens; engine_version is recorded. Replaces the
+        former _eks_schema_meta DDL-hash tracking (I312/T1.301–T1.303)."""
         from eks.engine.core.schema_to_ddl import SchemaToDDL
+        from eks import __version__ as eks_version
         schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
         ddl_gen = SchemaToDDL(schema)
         pre_generated_v1 = {
@@ -1661,36 +1664,47 @@ class TestPhase1(unittest.TestCase):
             "id VARCHAR PRIMARY KEY", "id VARCHAR PRIMARY KEY, dummy_col VARCHAR"
         )
 
+        db_config = SchemaToDDL.load_db_config(self.config_dir)
         reg_path = _PROJECT_ROOT / "test_output" / "test_schema_version.db"
         if reg_path.exists():
             reg_path.unlink()
         try:
-            reg1 = DocumentRegistry(
-                db_path=str(reg_path),
-                pre_generated_ddl=pre_generated_v1,
-            )
+            DocumentRegistry(db_path=str(reg_path), pre_generated_ddl=pre_generated_v1)
             import duckdb as _duckdb
             conn = _duckdb.connect(str(reg_path))
             try:
-                hash_v1 = conn.execute(
-                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
-                ).fetchone()[0]
+                kv1 = {
+                    r[0]: json.loads(r[1])
+                    for r in conn.execute(
+                        "SELECT key, value FROM db_manifest"
+                    ).fetchall()
+                }
             finally:
                 conn.close()
 
-            reg2 = DocumentRegistry(
-                db_path=str(reg_path),
-                pre_generated_ddl=pre_generated_v2,
-            )
+            # Re-open with *different* runtime DDL — config SSOT unchanged so the
+            # schema hash must be stable (provenance is config-driven, not DDL-driven).
+            DocumentRegistry(db_path=str(reg_path), pre_generated_ddl=pre_generated_v2)
             conn = _duckdb.connect(str(reg_path))
             try:
-                hash_v2 = conn.execute(
-                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
-                ).fetchone()[0]
+                kv2 = {
+                    r[0]: json.loads(r[1])
+                    for r in conn.execute(
+                        "SELECT key, value FROM db_manifest"
+                    ).fetchall()
+                }
             finally:
                 conn.close()
 
-            self.assertNotEqual(hash_v1, hash_v2, "Schema hash must change when DDL changes")
+            self.assertEqual(
+                kv1["schema_hash"]["hash"],
+                kv2["schema_hash"]["hash"],
+                "db_manifest schema_hash must be deterministic from config SSOT "
+                "(runtime DDL differences must not change it, I312/T1.301).",
+            )
+            self.assertEqual(kv1["schema_version"], db_config["version"])
+            self.assertEqual(kv1["engine_version"], eks_version)
+            self.assertEqual(kv1.get("config:db_config"), db_config["version"])
         finally:
             if reg_path.exists():
                 reg_path.unlink()

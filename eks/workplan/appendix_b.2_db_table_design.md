@@ -1215,6 +1215,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 | `pipeline_checkpoint` | *(no schema)* | Runtime — `insert_checkpoint()` at each phase boundary (I298/T1.261) | GROUP 12 |
 | `pipeline_event_log` | *(no schema)* | Runtime — `insert_events()` flush at pipeline completion (I299/T1.262) | GROUP 12 |
 | `export_artifact` | *(no schema)* | Runtime — `insert_artifact()` after each export file generation (I301/T1.264) | GROUP 12 |
+| `db_manifest` | `eks_db_config.json` → `db_tables[]` | Schema-driven — materialized by `_init_db()`; key-value provenance rows written by `manifest.py` after each build (I312/T1.301–T1.304, replaces `_eks_schema_meta`) | GROUP 12 |
 
 **GROUP 12 SCHEMA SOURCE MAPPING**
 
@@ -1223,6 +1224,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 | `pipeline_checkpoint` | *(no schema)* | Runtime — `insert_checkpoint(job_id, phase, state_json)` at each phase boundary (see `run_full_pipeline._after()`) |
 | `pipeline_event_log` | *(no schema)* | Runtime — `insert_events(job_id, events)` flush at pipeline completion (see `run_full_pipeline` → `_collect_pipeline_events()`) |
 | `export_artifact` | *(no schema)* | Runtime — `insert_artifact(job_id, artifact_type, file_path, row_count)` after each export in `_handle_export()` |
+| `db_manifest` | `eks_db_config.json` → `db_tables[]` | Schema-driven — `manifest.py` writes key-value provenance rows (`config_version`, `table_stats:*`, `validation`, I312/T1.301–T1.304) after each build |
 
 
 ## COMPLETE TABLE RELATIONSHIP MAP
@@ -1308,7 +1310,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 
 ## EXPORT VIEW MODEL (I308)
 
-> **SSOT:** `eks/config/schemas/eks_export_view_config.json` v1.1.0 (values) + `eks_setup_schema.json` `export_views` (shape). The 3 default views below are **persistent DuckDB VIEWs** created in `_init_db()` AFTER the I311 migration gate, rendered by `schema_to_ddl.generate_view_ddl()` (`CREATE OR REPLACE VIEW v_<view_id> AS SELECT <columns> FROM <source_table>` — idempotent, no hardcoded view SQL). View id, columns, order, source table, file base name, sheet name and formats all come from the view config — no literals in engine code.
+> **SSOT:** `eks/config/schemas/eks_export_view_config.json` v1.2.0 (values) + `eks_setup_schema.json` `export_views` (shape). The 3 default views below are **persistent DuckDB VIEWs** created in `_init_db()` AFTER the I311 migration gate, rendered by `schema_to_ddl.generate_view_ddl()` (`CREATE OR REPLACE VIEW v_<view_id> AS SELECT <columns> FROM <source_table>` — idempotent, no hardcoded view SQL). View id, columns, order, source table, file base name, sheet name and formats all come from the view config — no literals in engine code.
 
 | View ID (`view_id` = `export_artifact.artifact_type`) | Source Table | Filter | File Base Name (`file_base_name`) | Sheet Name (`sheet_name`) | Formats |
 |:---|:---|:---|:---|:---|:---|
@@ -1330,7 +1332,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 ### Column provenance
 
 - `discovery_inventory`: 46 ordered columns — project/meta fields first (project_title → verified_by), then file/embedded metadata (file_size → embedded_sheet_count), then document fields (document_title → vendor_name).
-- `extraction_results`: 49 ordered columns — adds extraction fields (page_count, extract_status, extraction_confidence, extraction_notes) after asset_tags.
+- `extraction_results`: 50 ordered columns — adds extraction fields (page_count, extract_status, extraction_confidence, extraction_notes) after asset_tags.
 - `review_flags`: 12 ordered columns — review focus: project/doc identity + extract_status/extraction_confidence/extraction_notes + `flag_reason` + ingested_at.
 
 ### GAP-016 — two-tier gap RESOLVED
@@ -1518,6 +1520,7 @@ eks/config/schemas/
 49. pipeline_checkpoint (GROUP 12; populated at phase boundaries by I298/T1.261)                                                                                   ← new
 50. pipeline_event_log   (GROUP 12; flushed at pipeline completion by I299/T1.262)                                                                                  ← new
 51. export_artifact      (GROUP 12; tracked after each export by I301/T1.264)                                                                                       ← new
+52. db_manifest          (GROUP 12; schema-driven DB provenance, I312/T1.301–T1.304, replaces _eks_schema_meta)                                                       ← I312
 ```
 
 > **Runtime Table load-order notes** (I297/T1.260 RESOLVED 2026-08-10): Load order expanded from 45→48 steps to include all GROUP 11 runtime tables. `documents` (I290) inserted at step 43 — all 8 FK targets (doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition) verified loaded before registry. `document_elements` (I291) at step 44 — FK→documents+element_type satisfied. `document_reference` (I295) at step 45 — FK→documents (source_doc_id, target_doc_id) satisfied. Runtime group renumbered: batch_run 43→46, health_score 44→47, health_batch 45→48. **I298/I299/I301 (2026-08-10)**: GROUP 12 tables added at steps 49-51 — no FK dependencies, populated during pipeline execution. Load order 48→51, code execution in `registry.py _init_db()` already creates these tables. Documentation-only alignment.

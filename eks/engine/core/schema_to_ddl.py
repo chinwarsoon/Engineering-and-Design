@@ -59,6 +59,13 @@ ERR_DB_MATERIALIZATION = "S-R-S-0411"   # system — DDL materialization failed
 # I308/T1.282: registered view-config error code.
 ERR_VIEW_CONFIG = "S-C-S-0312"          # system — export view config missing/unreadable
 
+# I312/T1.303: SSOT set of always-nullable project-metadata columns. Used by both
+# the DDL generators and the migration gate's I196 NOT NULL advisory check so the
+# two never diverge (AGENTS.md §10 SSOT). Last synced from I196 (T1.99.164).
+ALWAYS_NULLABLE_COLUMNS = frozenset(
+    {"project_title", "project_number", "area", "discipline", "department", "project_code"}
+)
+
 
 class SchemaToDDL:
     """
@@ -101,7 +108,7 @@ class SchemaToDDL:
             req = self.definitions.get(def_name, {}).get("required", [])
             required_fields.update(req)
 
-        always_nullable = {"project_title", "project_number", "area", "discipline", "department"}
+        always_nullable = ALWAYS_NULLABLE_COLUMNS
 
         # T1.99.150 (I186): id is a UUID (stored as VARCHAR in DuckDB, system-generated)
         columns = ["id VARCHAR PRIMARY KEY"]
@@ -649,9 +656,8 @@ class SchemaToDDL:
             # T1.99.164 (I196): Apply always_nullable override for migration DDL
             # — matches generate_documents_ddl() behavior so that columns added
             # via ALTER TABLE get the same nullability as columns created via
-            # CREATE TABLE.
-            always_nullable = {"project_title", "project_number", "area", "discipline", "department", "project_code"}
-            required_fields = required_fields - always_nullable
+            # CREATE TABLE. SSOT = ALWAYS_NULLABLE_COLUMNS (I312/T1.303).
+            required_fields = required_fields - ALWAYS_NULLABLE_COLUMNS
         elif table_name == "document_elements":
             el_def = self.definitions.get("document_element_def", {})
             all_props = el_def.get("properties", {})

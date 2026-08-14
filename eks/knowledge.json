@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "2.10.0",
+  "version": "2.12.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
@@ -9,26 +9,31 @@
     "version": "2.6.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 through I283 — four-level Class→Type→Template→Element structure detection implemented (2026-08-07): element_type_code 8→11 (title_block/grid/signature_block), template expected_elements is the element-set SSOT, cover type schema-first (classify_cover_type() retired, detection fallback only when unavailable), StructureDetector.detect() gated by expected_element_types, detection output wired to HealthInput.cover_type (I284 base). See U271/TL046.",
-    "last_updated": "2026-08-07"
+    "status": "Phase 1 through I306/I313 closure — schema-driven DB layer fully materialized (2026-08-14): all 53 tables (42 definition + 9 runtime + 2 metadata) created in eks_registry.db via eks_db_config.json; persistent v_* views (discovery_inventory/extraction_results/review_flags) from eks_export_view_config.json; db_manifest provenance table (I312); migration/validation gate (I311); Excel single-workbook export (I309); §24 cross-source audit + output-name literal removal closed (I313 phases 1–3; Phase 4 closure of I313 ✅ + I306 📐 Aligned). See U286–U304, TL053–TL062.",
+    "last_updated": "2026-08-14"
   },
   "architecture_overview": {
     "key_modules": [
       "engine/core/ - Foundation: registry, revision, config, schema_loader, project_definition (ProjectDefinitionResolver/RuntimeProjectConfiguration, I265), pipeline orchestration, context, base engine, telemetry, validator, factories, setup_validator",
+      "engine/core/schema_to_ddl.py + definition_loader.py - Schema-driven DB materialization: all 53 tables rendered from eks_db_config.json (I307/I310), UUIDv5 ids, physical FK enforcement, topological load",
+      "engine/core/migration_gate.py - PRAGMA-diff validation/plan gate (additive auto / destructive blocked, backup before destructive, --db-check/--db-apply/--db-force) (I311)",
+      "engine/core/manifest.py - db_manifest provenance table writer (schema_version/engine_version/schema_hash/config:* /table:* keys, transactional retried UPSERT) (I312)",
+      "engine/pipeline_engine/exporter.py - Config-driven export views (resolve_export_columns/resolve_export_views), workbook export, column-override validation S-C-S-0313 (I308/I309); no hardcoded output literals (I313/T1.307)",
       "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG) with parser_router",
       "engine/logging/ - Tiered logging infrastructure (levels 0-3)",
       "engine/discovery/ - CLI entry points for scheduling engines",
       "engine/health/ - CLI entry points for health scorer",
-      "ui/backend/ - HTTP API endpoints for independent engine execution (12 endpoints + log streaming)",
+      "ui/backend/ - HTTP API endpoints for independent engine execution (12 endpoints + log streaming); schema-driven export downloads + export_views catalog (I309/I313)",
       "ui/ - Interactive dashboard (phase1_ingestion.html, eks.css, eks.js, ui_help.json)",
-      "config/schemas/ - 3-layer schema pattern (base/setup/config) for 6 schema sets + 4 fragments + project definition (eks_project_definition_config.json — project rules retired in T1.196)"
+      "config/schemas/ - 3-layer schema pattern (base/setup/config) for 8 schema sets + 4 fragments + project definition; DB-layer configs eks_db_config.json (53 tables) + eks_export_view_config.json (3 views, v1.2.0)"
     ],
     "data_flows": [
       "File Scanner → Parser Router → Parser → Structure Detector → Health Scorer → Document Registry",
       "Schema Loader validates base/setup/config chain with $ref resolution",
       "ConfigRegistry provides SSOT access to global parameters",
       "ProjectDefinitionResolver loads eks_project_definition_config.json → builds immutable RuntimeProjectConfiguration registry → per-module configuration slices (I265)",
-      "common.library.config normalizes system_parameters across EKS flat-object and DCC array-entry config shapes"
+      "common.library.config normalizes system_parameters across EKS flat-object and DCC array-entry config shapes",
+      "Definition config (eks_db_config.json) → SchemaToDDL/DefinitionLoader → 53 materialized tables in eks_registry.db → persistent v_* views → export files (CSV/XLSX), all names from eks_export_view_config.json (I306–I313)"
     ],
     "integration_points": [
       "Main server (port 5000) proxies /api/* to Phase 1 backend (port 5001), serves static UI from eks/ui/",
@@ -71,9 +76,11 @@
     ]
   },
     "key_schemas": [
-      "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.9.0, incl. DCC-aligned setup defs, system_parameters_def, workflow_file_entry_def, tool_file_entry_def)",
-      "config/schemas/eks_setup_schema.json - Core property declarations (v1.7.0, incl. top-level setup values, system_parameters, workflow_files, tool_files)",
-      "config/schemas/eks_config.json - Core config values (v1.7.0, incl. discovery_rules, system_parameters, workflow_files, tool_files)",
+      "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.22.0, incl. db-layer shared defs table_spec/column_spec/fk_spec/id_strategy/transform/export_view, system_parameters_def with export_workbook_file_name + export_download_file_name_template)",
+      "config/schemas/eks_setup_schema.json - Core property declarations (v1.13.0, incl. db_tables + export_views + db_manifest_keys properties)",
+      "config/schemas/eks_config.json - Core config values (v1.14.0, incl. system_parameters.export_workbook_file_name + export_download_file_name_template)",
+      "config/schemas/eks_db_config.json - DB-layer SSOT: 53 table specs (42 definition + 9 runtime + 2 metadata), FK pairs, id strategies (v1.1.1, I307/I310/I312)",
+      "config/schemas/eks_export_view_config.json - Export view SSOT: 3 default views (view_id/source_table/columns/file_base_name/sheet_name/formats/filter; view_id = export_artifact.artifact_type) (v1.2.0, I307/I308/I309)",
       "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
       "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.17.0, incl. element_type_code enum 11 values + B3.2 structural_profile_def)",
       "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
@@ -215,7 +222,13 @@
       "I288 - Real-PDF fixture absence under eks/data/twrp/ (3 full-suite failures; fixture files not committed) - Phase 1",
       "I311 - Resolved 2026-08-12 (T1.297-T1.300, U294, TL055) - DB migration/validation gate delivered; `_eks_table_relations` PK cross-source misalignment fixed (runtime follows config `id` PK). Residual: flaky phase1_server Windows DuckDB file-lock race (I053 class) - Phase 1",
       "I308 - Resolved 2026-08-13 (T1.282-T1.286, U295, TL056) - schema-driven default export views; `eks_export_view_config.json` v1.1.0 filter/is_latest; exporter resolve_export_columns()/resolve_export_views() config SSOT (hardcoded lists + _fallback deleted, S-C-S-0312 fail-fast); generate_view_ddl() persistent v_* views after I311 gate; documents.flag_reason materialized; GAP-016 (two-tier gap) RESOLVED - Phase 1",
-      "I309 - Resolved 2026-08-13 (T1.287-T1.291, U297, TL057) - Excel single-workbook export + export backend: `export_to_workbook(sheets, path, columns=None)` (common/library/export/exporter.py) + export_multi_sheet delegate; pipeline ONE workbook all 3 views incl. review_flags xlsx, schema-driven `export_workbook_file_name`; column override validated S-C-S-0313 EXPORT_COLUMN_NOT_ALLOWED; phase1_server `GET /api/v1/export_views` + run POST `export_columns` override; frontend column multi-select/re-order UI deferred to I314 (⏸️ Deferred) - Phase 1"
+      "I309 - Resolved 2026-08-13 (T1.287-T1.291, U297, TL057) - Excel single-workbook export + export backend: `export_to_workbook(sheets, path, columns=None)` (common/library/export/exporter.py) + export_multi_sheet delegate; pipeline ONE workbook all 3 views incl. review_flags xlsx, schema-driven `export_workbook_file_name`; column override validated S-C-S-0313 EXPORT_COLUMN_NOT_ALLOWED; phase1_server `GET /api/v1/export_views` + run POST `export_columns` override; frontend column multi-select/re-order UI deferred to I314 (⏸️ Deferred) - Phase 1",
+      "I307 - Resolved 2026-08-11 (T1.275-T1.281, U287, TL053) - schema-driven DB-layer schema set: base/setup 6 shared defs, eks_db_config.json 53 tables, eks_export_view_config.json 3 views, SchemaToDDL config-driven runtime DDL - Phase 1",
+      "I310 - Resolved 2026-08-12 (T1.292-T1.296, U290, TL054) - full materialization: SchemaToDDL renders all 53 tables, DefinitionLoader loads 42 definition tables (UUIDv5 ids, JSON, topological order), physical FK enforcement + `_eks_table_relations` audit - Phase 1",
+      "I312 - Resolved 2026-08-14 (T1.301-T1.304, U300, TL058) - db_manifest provenance table replaces `_eks_schema_meta`: key-value JSON model, key taxonomy schema-declared (db_manifest_keys), transactional retried UPSERT, schema_version = config SSOT, engine_version from eks/__init__.py - Phase 1",
+      "I313 - Resolved 2026-08-14 (T1.305-T1.308, U301-U304, TL059-TL062) - audit & verification closed: Phase 1 53-table live matrix verified (findings I315/I316 logged); Phase 2 §24 cross-source audit + D1-D6/O1 doc/schema drift fixes; Phase 3 output-name literal removal BLOCK-1-4 (config-driven view iteration, catalog-order phase map, _require_system_param fail-fast, view_id artifact_type); Phase 4 full suite 788 PASS / 3 FAIL (pre-existing I288 fixture absences only) - Phase 1",
+      "I315 - Open 2026-08-14 (finding from I313 Phase 1) - 14 definition tables lack natural-key UNIQUE (13 composite-key junctions + project_revision_pattern); SchemaToDDL emits per-column UNIQUE only - Phase 1",
+      "I316 - Open 2026-08-14 (finding from I313 Phase 1) - 5 FK pairs / 336 orphan rows; validate_relationships flags but warning suppressed at default log level - Phase 1"
     ],
     "total_issues_resolved": 42,
     "total_issues_deferred": 4,
@@ -311,7 +324,7 @@
         "summary": "I311 resolved (2026-08-12) — DB migration/validation gate delivered (T1.297–T1.300 ✅, U294, TL055). Root cause: `_eks_table_relations` PK cross-source misalignment — config declared `id` PK (uuid5) while runtime manifest kept legacy `relation_name` PK → gate correctly blocked every fresh test DB (P1-R-P-0004). Fixed per design review (runtime follows config `id` PK; config SSOT unchanged): schema_to_ddl.py `generate_relations_manifest_ddl()` renders config-shaped DDL (`id VARCHAR PRIMARY KEY, relation_name VARCHAR UNIQUE`) + `INSERT ... ON CONFLICT (id) DO UPDATE SET ... EXCLUDED` (DuckDB rejects OR REPLACE on dual-unique) + uuid5 id; registry.py `_init_db()` un-excludes `_eks_table_relations` from config pre-creation; error codes S-C-S-0311/P1-R-P-0004/0005 registered (eks_error_config.json v1.9.0, total_codes 138). Gate wired through eks_engine_pipeline/runner/discovery_cli/health_cli (--db-check/--db-apply/--db-force, non-destructive default policy). Full suite 751 passed / 4 failed (3 pre-existing I288 real-PDF fixture absences + 1 flaky phase1_server DuckDB lock race, 2x repeat pass). See U294, TL055, issue log v109."
       },
       {
-        "version": "2.10.0",
+  "version": "2.12.0",
         "date": "2026-08-13",
         "author": "opencode",
         "summary": "I308 resolved (2026-08-13) — schema-driven default export views delivered (T1.282–T1.286 ✅, U295, TL056). `eks_export_view_config.json` v1.1.0 adds schema-driven `filter` (is_latest = TRUE) per view; exporter `resolve_export_columns()`/`resolve_export_views()` read view config SSOT (hardcoded ordered lists + `_fallback` dicts deleted; missing config → fail-fast S-C-S-0312, eks_error_config.json total_codes 139); `schema_to_ddl.generate_view_ddl()` renders idempotent `CREATE OR REPLACE VIEW v_<view_id>` — persistent views (v_discovery_inventory / v_extraction_results / v_review_flags) created in `_init_db()` AFTER the I311 migration gate; `documents.flag_reason` materialized at ingest via `core/flag_utils` (no SQL CASE in view DDL); view_id = `export_artifact.artifact_type`; schema-driven file_base_name/sheet_name/formats; version-control columns pruned from exports. Docs: appendix_b.2 EXPORT VIEW MODEL + GAP-016 (two-tier gap) RESOLVED, appendix_b_document_registry §B6/B7.2, appendix_b.1 v1.7. test_i308_default_views.py 9 tests (TL056); full suite 759 passed / 5 failed (3 pre-existing I288 + 2 fixed import-path). See U295, TL056, issue log v110."
@@ -321,6 +334,12 @@
         "date": "2026-08-13",
         "author": "opencode",
         "summary": "I309 resolved (2026-08-13) — Excel single-workbook export + export backend delivered (T1.287–T1.291 ✅, U297, TL057). `exporter.export_to_workbook(sheets, path, columns=None)` in common/library/export/exporter.py (re-exported via __init__.py) with `export_multi_sheet` delegate and sheet names from view config `sheet_name`; pipeline export rework (eks_engine_pipeline.py) writes ONE workbook with all 3 views incl. review_flags (xlsx) + per-view CSVs; workbook file name schema-driven `export_workbook_file_name` (eks_config.json); per-run `column_override` validated as subset of view config + table schema → fail-fast S-C-S-0313 EXPORT_COLUMN_NOT_ALLOWED (eks_error_config.json); phase1_server `GET /api/v1/export_views` (views + ordered columns from resolve_export_columns()) + run POST `export_columns` override + `_mk_rows_fn`/`_handle_export`. Frontend export column multi-select/re-order panel DEFERRED to I314 (⏸️ Deferred, Phase 1.2.22 T1.2.22.3/.4). test_i309_exports.py 18 tests (TL057) 18/18; full suite 778 passed / 4 failed (3 pre-existing I288 real-PDF fixture absences + 1 known flaky phase1_server DuckDB lock race — no I309 regressions). See U297, TL057, issue log v112."
+      },
+      {
+        "version": "2.12.0",
+        "date": "2026-08-14",
+        "author": "opencode",
+        "summary": "I306 📐 Aligned + I313 ✅ Resolved (2026-08-14) — schema-driven DB layer umbrella closed (T1.269–T1.308). Phases: I307 schema set, I308 export views, I309 Excel export, I310 materialization, I311 migration gate, I312 db_manifest, I313 audit & verification (matrix + §24 audit + output-name literal removal + full-suite closure). knowledge.json updated for the DB-layer architecture (53 materialized tables, views, db_manifest, migration gate, config-driven exports). Full suite 788 PASS / 3 FAIL (pre-existing I288 real-PDF fixture absences). See U286–U304, TL053–TL062, issue log v122."
       }
     ]
   }

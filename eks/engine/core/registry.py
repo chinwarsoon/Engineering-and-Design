@@ -1,31 +1,36 @@
-"""
+﻿"""
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 1.6
-Date: 2026-08-13
+Revision: 1.7
+Date: 2026-08-14
 Author: opencode
-Summary: 1.6: I308 (T1.283) — persistent v_* export views now created by
+Summary: 1.7: I312 (T1.301–T1.303) — retired _ensure_schema_version() and
+          _migrate_schema(); added _refresh_manifest() which writes the
+          schema-driven db_manifest provenance table (replaces _eks_schema_meta).
+          I196 NOT NULL advisory check ported into migration_gate.py (SOFT warn);
+          gate skips structural validation on db_manifest (metadata table).
+1.6: I308 (T1.283) — persistent v_* export views now created by
           _create_export_views() AFTER _run_migration_gate() so additive
           migrations (e.g. flag_reason on a stale registry) are applied
           before the views referencing them are created.
 1.5: I311 (T1.297) — migration gate replaces the silent
           _migrate_schema() call; added migration_policy/migration_mode/
           migration_archive_dir constructor params + _run_migration_gate().
-1.4: I310 (T1.296) — _eks_table_relations keeps legacy manifest
+1.4: I310 (T1.296) â€” _eks_table_relations keeps legacy manifest
           shape (relation_name PK) for I290 population.
-1.3: I310 (T1.294/T1.296) — documents/document_elements keep
+1.3: I310 (T1.294/T1.296) â€” documents/document_elements keep
           schema-def DDL; health CRUD preserves runtime batch references.
-1.2: I310 (T1.292–T1.295) — materialize all configured tables,
+1.2: I310 (T1.292â€“T1.295) â€” materialize all configured tables,
           load definition data through DefinitionLoader, and validate
           relationships after loading.
-1.1: T1.256/T1.257/T1.258 (I293/I294/I295) — added GROUP 11 runtime
+1.1: T1.256/T1.257/T1.258 (I293/I294/I295) â€” added GROUP 11 runtime
           table CRUD: insert_batch()/update_batch()/get_batch() (batch_run stage
           stats); store_health_score()/store_health_batch()/get_health_scores()
           (health_score/health_batch with document_id UUID); store_document_reference()/
           list_document_references()/delete_document_references()/get_document_by_id()
           (document_reference junction). _init_db() now creates the 4 runtime tables.
-1.0: T1.254 (I291) — store_elements() now injects surrogate UUID `id`, validates
+1.0: T1.254 (I291) â€” store_elements() now injects surrogate UUID `id`, validates
           element_type against the 11-code enum (ValueError otherwise) via new cached
           _element_type_codes(), and validates doc_id existence (declared_only
           fk_element_doc enforcement); _element_type_codes() reads valid codes from the
@@ -33,15 +38,15 @@ Summary: 1.6: I308 (T1.283) — persistent v_* export views now created by
 0.9: T1.200/T1.201 (I274) -- removed hardcoded COLUMN_ALLOWLIST fallback;
           _get_column_allowlist() now resolves doc base schema via schema-driven
           paths (CWD-independent) and raises a descriptive error on absence.
-0.8: T1.99.191 (I225) — added pre_generated_ddl param to reuse bootstrap
-          DDL; added _ensure_schema_version() metadata table for schema hash tracking.
-0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_id lookup.
-          0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
-         0.5: T1.99.148 (I187) — migrated synthetic key generation to common.library.utility.synthetic_key.
+0.8: T1.99.191 (I225) â€” added pre_generated_ddl param to reuse bootstrap
+          DDL; _ensure_schema_version() retired in I312 (T1.303) — db_manifest now holds provenance.
+0.7: T1.106 (I232) â€” added get_document_by_file_path() for SSOT doc_id lookup.
+          0.6: T1.99.153 (I189/F1) â€” added optional db_path parameter for test-isolated databases.
+         0.5: T1.99.148 (I187) â€” migrated synthetic key generation to common.library.utility.synthetic_key.
           Removed ad-hoc hashlib usage for key generation.
-          T1.99.150 (I186) — changed id from business-key to pure UUID, INSERT OR REPLACE → INSERT.
-          T1.99.152 (I184) — added diff logging to update_document_status().
-          Prior: T1.99.141–T1.99.146 — document metadata completeness.
+          T1.99.150 (I186) â€” changed id from business-key to pure UUID, INSERT OR REPLACE â†’ INSERT.
+          T1.99.152 (I184) â€” added diff logging to update_document_status().
+          Prior: T1.99.141â€“T1.99.146 â€” document metadata completeness.
 """
 import duckdb
 import hashlib
@@ -69,8 +74,8 @@ class DocumentRegistry:
 
     _SCHEMA_DERIVED_ALLOWLIST: Optional[set] = None
 
-    # T1.99.165 (I196): SSOT fallback — the authoritative source is
-    # eks_doc_config.json → document_title_config → boilerplate_prefixes.
+    # T1.99.165 (I196): SSOT fallback â€” the authoritative source is
+    # eks_doc_config.json â†’ document_title_config â†’ boilerplate_prefixes.
     # This constant is used only when that config cannot be loaded.
     _BOILERPLATE_PREFIXES_FALLBACK = (
         "Microsoft Word", "AutoCAD Drawing", "Microsoft Excel"
@@ -81,7 +86,7 @@ class DocumentRegistry:
         """Resolve the config dir holding ``eks_doc_base_schema.json`` from any CWD.
 
         T1.201 (I274): replaces the hardcoded ``Path("eks/config")`` literal.
-        Resolution order (AGENTS.md §15 - no hardcoded path literals):
+        Resolution order (AGENTS.md Â§15 - no hardcoded path literals):
           1. The already-resolved ``SchemaLoader.config_dir`` from the
              ConfigRegistry singleton (bootstrap path - CWD-independent once
              bootstrapped).
@@ -89,7 +94,7 @@ class DocumentRegistry:
              root, then schema-driven ``resolve_paths()`` (global_paths) derives
              the config dir - works from any working directory.
         Raises a descriptive ``FileNotFoundError`` when the config dir cannot be
-        resolved - there is NO silent fallback (AGENTS.md §16).
+        resolved - there is NO silent fallback (AGENTS.md Â§16).
         """
         from .config_registry import ConfigRegistry
         from common.library.paths.root_discovery import default_base_path
@@ -132,7 +137,7 @@ class DocumentRegistry:
 
         T1.200 (I274): the schema-derived set is the ONLY source - no hardcoded
         fallback list. On genuine schema absence, a descriptive error is raised
-        instead of silently degrading (AGENTS.md §16).
+        instead of silently degrading (AGENTS.md Â§16).
         """
         if cls._SCHEMA_DERIVED_ALLOWLIST is not None:
             return cls._SCHEMA_DERIVED_ALLOWLIST
@@ -214,14 +219,14 @@ class DocumentRegistry:
         self._schema_to_ddl: Optional[SchemaToDDL] = None
         self._init_db()
         # I311 (T1.297): the schema-driven migration gate replaces the narrow
-        # silent `_migrate_schema()` (which stays defined below until I312 retires
-        # it alongside `_eks_schema_meta`, T1.301–T1.303).
+        # silent `_migrate_schema()` retired in I312/T1.303 (replaced by the migration gate).
+        # it alongside `_eks_schema_meta`, T1.301â€“T1.303).
         self._run_migration_gate()
         # I308 (T1.283): persistent export views are created AFTER the migration
-        # gate — a stale registry first gets additive columns (e.g. flag_reason)
+        # gate â€” a stale registry first gets additive columns (e.g. flag_reason)
         # so the v_* views never reference a column the gate still has to add.
         self._create_export_views()
-        self._ensure_schema_version()
+        self._refresh_manifest()
 
     @log_depth
     def _init_db(self):
@@ -253,7 +258,7 @@ class DocumentRegistry:
                 els_ddl = SchemaToDDL(self._load_doc_schema()).generate_document_elements_ddl()
                 indexes = SchemaToDDL(self._load_doc_schema()).generate_indexes()
 
-        # T1.256/T1.257/T1.258 (I293/I294/I295): runtime GROUP 11 tables —
+        # T1.256/T1.257/T1.258 (I293/I294/I295): runtime GROUP 11 tables â€”
         # batch_run, health_score, health_batch, document_reference. These are
         # pipeline-execution tables with no base-schema definition; DDL is
         # generated by SchemaToDDL and created unconditionally (IF NOT EXISTS).
@@ -283,7 +288,7 @@ class DocumentRegistry:
         }
         # I310/T1.294: documents/document_elements keep their schema-def DDL
         # shape (full merged metadata + lifecycle defaults) and are excluded
-        # here. I311 (T1.297): _eks_table_relations is no longer excluded —
+        # here. I311 (T1.297): _eks_table_relations is no longer excluded â€”
         # its manifest DDL is rendered from eks_db_config.json (SSOT) with an
         # `id` PRIMARY KEY, so config pre-creation governs its shape and the
         # migration gate sees no drift.
@@ -333,7 +338,7 @@ class DocumentRegistry:
         config_dir = Path(getattr(getattr(self.config, "_loader", None), "config_dir", ""))
         sddl = getattr(self, "_schema_to_ddl", None)
         if sddl is None:
-            # Should not happen — _init_db() sets it — but keep a safe fallback.
+            # Should not happen â€” _init_db() sets it â€” but keep a safe fallback.
             loader = getattr(self.config, "_loader", None)
             if loader and hasattr(loader, "doc_base_schema") and loader.doc_base_schema:
                 sddl = SchemaToDDL(loader.doc_base_schema, self.logger)
@@ -382,12 +387,12 @@ class DocumentRegistry:
         if not policy:
             try:
                 policy = self.config.get_system_param("migration_policy", "additive")
-            except Exception:  # nocv — config may not be bootstrapped yet
+            except Exception:  # nocv â€” config may not be bootstrapped yet
                 policy = "additive"
         if policy not in ("additive", "destructive"):
             policy = "additive"
             self.logger.warning(
-                "Invalid migration_policy in config — falling back to 'additive' "
+                "Invalid migration_policy in config â€” falling back to 'additive' "
                 "(S-C-S-0311, I311/T1.297)",
                 context="DocumentRegistry._run_migration_gate",
             )
@@ -403,10 +408,47 @@ class DocumentRegistry:
         self._migration_plan = self._migration_gate.run(
             include_drift=(self._migration_mode == "check")
         )
+        # I312/T1.303: capture gate-side validation outcomes (I196 NOT NULL etc.)
+        # so the manifest can record them without re-running validation.
+        self._last_gate_not_null = self._migration_plan.get("not_null_warnings", []) or []
         if self._migration_mode == "check":
             self.logger.status(
                 self._migration_gate.render_report(self._migration_plan),
                 context="DocumentRegistry._run_migration_gate",
+            )
+
+    @log_depth
+    def _refresh_manifest(self) -> None:
+        """I312/T1.302â€“T1.303: refresh the schema-driven ``db_manifest`` provenance table.
+
+        Replaces the retired ``_ensure_schema_version()`` (and the retired
+        ``_eks_schema_meta`` table). The manifest is a regenerated projection of
+        the config SSOT (AGENTS.md Â§16); it is written transactionally with a
+        retried UPSERT on the natural key. Gate validation outcomes (I196 NOT
+        NULL warnings) are recorded into the manifest by the writer.
+        """
+        from .manifest import DBManifestWriter
+
+        loader = getattr(self.config, "_loader", None)
+        db_config = getattr(loader, "db_config", None) if loader else None
+        if not db_config:
+            self.logger.warning(
+                "db_manifest refresh skipped â€” db_config not available",
+                context="DocumentRegistry._refresh_manifest",
+            )
+            return
+        config_dir = getattr(loader, "config_dir", None) if loader else None
+        writer = DBManifestWriter(db_config, config_dir, self.logger)
+        try:
+            self._with_retry(
+                lambda: writer.refresh(
+                    self.db_path, validation={"not_null": self._last_gate_not_null}
+                )
+            )
+        except Exception as exc:  # nocv â€” manifest is advisory, never fatal
+            self.logger.warning(
+                f"db_manifest refresh failed ({exc})",
+                context="DocumentRegistry._refresh_manifest",
             )
 
     @log_depth
@@ -424,7 +466,7 @@ class DocumentRegistry:
         the `_eks_table_relations` manifest table.
 
         I290 (T1.253): FK definitions live in
-        eks_doc_base_schema.json#/registry_relations (SSOT, AGENTS.md §16).
+        eks_doc_base_schema.json#/registry_relations (SSOT, AGENTS.md Â§16).
         The runtime DuckDB registry does NOT emit physical FOREIGN KEY
         constraints (targets are definition-layer tables that are not
         materialized here; self-FKs would block the UUID migration). Instead
@@ -451,116 +493,12 @@ class DocumentRegistry:
                     f"persisted to _eks_table_relations (I290/T1.253)",
                     context="DocumentRegistry._create_relations_manifest",
                 )
-        except Exception as exc:  # nocv — manifest is advisory, never fatal
+        except Exception as exc:  # nocv â€” manifest is advisory, never fatal
             self.logger.warning(
                 f"FK relations manifest skipped ({exc})",
                 context="DocumentRegistry._create_relations_manifest",
             )
 
-    @log_depth
-    def _migrate_schema(self):
-        """Handle schema evolution by adding missing columns via SchemaToDDL.
-        
-        T1.99.191 (I225): Uses pre-generated DDL doc_base_schema from bootstrap
-        if available, avoiding redundant schema loading.
-        """
-        conn = duckdb.connect(str(self.db_path))
-        try:
-            for table_name in ["documents", "document_elements"]:
-                res = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
-                existing_cols = {row[1] for row in res}
-
-                if self._pre_generated_ddl and "doc_base_schema" in self._pre_generated_ddl:
-                    ddl_gen = SchemaToDDL(
-                        self._pre_generated_ddl["doc_base_schema"], self.logger
-                    )
-                else:
-                    loader = getattr(self.config, '_loader', None)
-                    if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
-                        ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
-                    else:
-                        ddl_gen = SchemaToDDL(self._load_doc_schema())
-
-                migration_stmts = ddl_gen.generate_migration_ddl(table_name, existing_cols)
-                for stmt in migration_stmts:
-                    conn.execute(stmt)
-
-            # T1.99.166 (I196): Diagnose misapplied NOT NULL constraints on
-            # project-metadata columns.  These columns should be nullable
-            # (always_nullable set in SchemaToDDL) but old DDL may have
-            # applied NOT NULL.  Pragma NOTNULL check is advisory only —
-            # DuckDB does not support ALTER COLUMN DROP NOT NULL.
-            always_nullable_cols = {"project_title", "project_number", "area", "discipline", "department"}
-            null_check = conn.execute(
-                "SELECT name FROM pragma_table_info('documents') WHERE \"notnull\" = 1"
-            ).fetchall()
-            bogus_notnull = [row[0] for row in null_check if row[0] in always_nullable_cols]
-            if bogus_notnull:
-                self.logger.warning(
-                    f"Schema drift: {len(bogus_notnull)} project-metadata column(s) "
-                    f"have NOT NULL constraint but should be nullable: {bogus_notnull}. "
-                    f"Delete eks_registry.db and re-run to rebuild with correct DDL.",
-                    context="DocumentRegistry._migrate_schema",
-                )
-
-            # T1.99.150 (I186): Migrate existing business-key ids to UUIDs
-            self._migrate_ids_to_uuid(conn)
-        finally:
-            conn.close()
-
-    @log_depth
-    def _ensure_schema_version(self):
-        """Track schema version in a metadata table.
-        
-        Creates ``_eks_schema_meta`` table on first run and stores a hash
-        of the current DDL. On subsequent runs, compares the stored hash
-        against the current DDL to detect schema drift.
-        
-        T1.99.191 (I225): Schema version tracking for auto-migration audit trail.
-        """
-        conn = duckdb.connect(str(self.db_path))
-        try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS _eks_schema_meta (
-                    key VARCHAR PRIMARY KEY,
-                    value VARCHAR,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            if self._pre_generated_ddl:
-                docs_md5 = hashlib.md5(
-                    self._pre_generated_ddl.get("documents_ddl", "").encode()
-                ).hexdigest()
-                els_md5 = hashlib.md5(
-                    self._pre_generated_ddl.get("elements_ddl", "").encode()
-                ).hexdigest()
-                schema_hash = f"{docs_md5}:{els_md5}"
-
-                existing = conn.execute(
-                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
-                ).fetchone()
-                if existing:
-                    if existing[0] != schema_hash:
-                        self.logger.warning(
-                            f"Schema hash mismatch: stored={existing[0]}, current={schema_hash}. "
-                            f"Schema definitions have changed since last bootstrap.",
-                            context="DocumentRegistry._ensure_schema_version",
-                        )
-                        conn.execute(
-                            "UPDATE _eks_schema_meta SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'schema_hash'",
-                            [schema_hash],
-                        )
-                else:
-                    conn.execute(
-                        "INSERT INTO _eks_schema_meta (key, value) VALUES ('schema_hash', ?)",
-                        [schema_hash],
-                    )
-                    self.logger.info(
-                        f"Schema version recorded: {schema_hash[:16]}...",
-                        context="DocumentRegistry._ensure_schema_version",
-                    )
-        finally:
-            conn.close()
 
     @log_depth
     def _migrate_ids_to_uuid(self, conn):
@@ -568,7 +506,7 @@ class DocumentRegistry:
         Convert existing business-key-derived ids (e.g. 'DWG-001-A')
         to pure UUIDs.  Also updates FK references in document_elements.
 
-        T1.99.150 (I186): One-time migration — idempotent (only runs on rows
+        T1.99.150 (I186): One-time migration â€” idempotent (only runs on rows
         whose id does not already match UUID format).
         """
         import uuid as _uuid
@@ -577,7 +515,7 @@ class DocumentRegistry:
             "SELECT COUNT(*) FROM documents WHERE length(id) != 36 OR id NOT LIKE '%-%-%-%-%'"
         ).fetchone()
         if not sample or sample[0] == 0:
-            return  # Already UUIDs — nothing to migrate
+            return  # Already UUIDs â€” nothing to migrate
 
         count = sample[0]
         self.logger.status(
@@ -626,7 +564,7 @@ class DocumentRegistry:
     def _get_boilerplate_prefixes(self) -> tuple:
         """
         Read boilerplate title prefixes from eks_doc_config.json
-        → document_title_config → boilerplate_prefixes (SSOT).
+        â†’ document_title_config â†’ boilerplate_prefixes (SSOT).
         Falls back to class-level _BOILERPLATE_PREFIXES_FALLBACK.
 
         T1.99.165 (I196): Replaces hardcoded in-function list per SSOT rule.
@@ -709,9 +647,9 @@ class DocumentRegistry:
         Insert structural elements for a document. Returns count inserted.
         I291 (T1.254): (a) surrogate UUID id injected per element;
         (b) element_type validated against the 11-code enum
-        (fk_element_type declared_only — validation-layer enforcement, no
+        (fk_element_type declared_only â€” validation-layer enforcement, no
         physical DuckDB FK); (c) doc_id existence enforced (fk_element_doc
-        declared_only — writes to unknown documents are rejected).
+        declared_only â€” writes to unknown documents are rejected).
         """
         valid_types = self._element_type_codes()
         conn = duckdb.connect(str(self.db_path))
@@ -721,7 +659,7 @@ class DocumentRegistry:
                 el_type = el.get("element_type", "unknown")
                 if el_type not in valid_types:
                     raise ValueError(
-                        f"Unknown element_type '{el_type}' for document {doc_id} — "
+                        f"Unknown element_type '{el_type}' for document {doc_id} â€” "
                         f"expected one of {sorted(valid_types)} (I291/T1.254)"
                     )
                 exists = conn.execute(
@@ -851,7 +789,7 @@ class DocumentRegistry:
                      doc_count: Optional[int] = None) -> None:
         """
         Update stage statistics on an existing batch_run row (called at each
-        phase boundary). I293 (T1.256) — only non-None fields are updated; the
+        phase boundary). I293 (T1.256) â€” only non-None fields are updated; the
         row is created by ``insert_batch()``.
         """
         fields: Dict[str, Any] = {
@@ -1012,8 +950,8 @@ class DocumentRegistry:
     def store_health_score(self, run_id: str, document_id: str, score_row: Dict[str, Any]) -> str:
         """
         Persist one per-document health score row (GROUP 8/11).
-        I294 (T1.257): `document_id` is the registry UUID (declared_only FK →
-        documents.id enforced at the validation layer — no physical FK DDL).
+        I294 (T1.257): `document_id` is the registry UUID (declared_only FK â†’
+        documents.id enforced at the validation layer â€” no physical FK DDL).
         If a row for ``(run_id, document_id)`` already exists it is replaced.
         """
         import json as _json
@@ -1117,9 +1055,9 @@ class DocumentRegistry:
                                  relation_type: str) -> str:
         """
         Insert a single document_reference junction row.
-        I295 (T1.258): both endpoints are declared_only FKs → documents.id;
+        I295 (T1.258): both endpoints are declared_only FKs â†’ documents.id;
         relation_type must be one of the 10 document-level relationship types
-        (Appendix B §B2.1 §5). Validates doc_id existence and relation_type.
+        (Appendix B Â§B2.1 Â§5). Validates doc_id existence and relation_type.
         """
         if relation_type not in self._DOCUMENT_RELATION_TYPES:
             raise ValueError(
@@ -1192,18 +1130,18 @@ class DocumentRegistry:
         Register a new document revision in the registry.
         Handles 'is_latest' flag update and JSON serialization for complex fields.
 
-        T1.99.120: L3 null-tolerant — generates synthetic UNRESOLVED-{hash} key
+        T1.99.120: L3 null-tolerant â€” generates synthetic UNRESOLVED-{hash} key
         instead of raising KeyError when document_number is missing.
         """
         doc_number = metadata.get("document_number")
         revision = metadata.get("revision", "00")
 
-        # T1.99.148 (I187): L3 — generate synthetic key via common library
+        # T1.99.148 (I187): L3 â€” generate synthetic key via common library
         if not doc_number:
             file_path = metadata.get("file_path", "")
             synthetic_key = generate_synthetic_key(file_path)
             self.logger.warning(
-                f"document_number missing — generating synthetic key {synthetic_key}",
+                f"document_number missing â€” generating synthetic key {synthetic_key}",
                 context="DocumentRegistry.register_document"
             )
             metadata["document_number"] = synthetic_key
@@ -1212,7 +1150,7 @@ class DocumentRegistry:
                 revision = "00"
                 metadata["revision"] = revision
 
-        # T1.99.150 (I186): id is now a pure UUID — business-key derived id is retired
+        # T1.99.150 (I186): id is now a pure UUID â€” business-key derived id is retired
         doc_id = str(uuid.uuid4())
         
         self.logger.debug(f"Registering document: {doc_id}", context="DocumentRegistry.register_document")
@@ -1319,7 +1257,7 @@ class DocumentRegistry:
             values = [core_meta[col] for col in columns]
             col_list = ", ".join(columns)
 
-            # T1.99.150 (I186): Pure INSERT — every call creates a new row unconditionally.
+            # T1.99.150 (I186): Pure INSERT â€” every call creates a new row unconditionally.
             # I185 (three-tier check) is the sole gatekeeper that decides whether to call this.
             conn.execute(
                 f"INSERT INTO documents ({col_list}) VALUES ({placeholders})",
