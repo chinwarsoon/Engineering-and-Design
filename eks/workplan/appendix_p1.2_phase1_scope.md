@@ -1,9 +1,9 @@
 # Appendix P1.2: Phase 1 — Scope Summary, Files & Modules, and Deliverables
 
 **Document ID**: WP-EKS-P1-APX-1.2  
-**Version**: 1.3  
-**Last Updated**: 2026-07-24  
-**Status**: 🔷 IN PROGRESS — Gap analysis review; caveat updated for I228 (1 remaining open) + I227, I229–I234 (7 resolved). All 8 pipeline audit issues now closed or deferred.  
+**Version**: 1.4  
+**Last Updated**: 2026-08-18  
+**Status**: 🔷 IN PROGRESS — Gap analysis review; caveat updated for I228 (1 remaining open) + I227, I229–I234 (7 resolved). All 8 pipeline audit issues now closed or deferred. 2026-08-18: R39 status split into schema ✅ / runtime 🔶 PARTIAL (I228); Phase 1.2 asset-loader de-risking spike I318 (T1.309–T1.312) proposed.  
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.4, IN PROGRESS)
 
 ---
@@ -41,7 +41,7 @@
 | R34 | Logging & Debug      | Debug Object & Trace Table | Debug dict → debug_log.json, trace table with timestamps                                   | T1.13          | ✅ PASS |
 | R35 | Module Design        | SSOT Global Parameters    | All global keys, paths, codes in schema-driven config; no hardcoding                        | T1.14, T1.50  | ✅ PASS |
 | R36 | Asset Schema         | Universal Plant Item Schema | 13 reusable fragment definitions covering all 7 datadrop categories; base/setup/config pattern | T1.17–T1.20, T1.51 | ✅ PASS |
-| R39 | Asset Schema         | Zero-Code Asset Extensibility | New asset types added via config only; no code changes required; `conditional_fragments` structure | T1.20 | ✅ PASS |
+| R39 | Asset Schema         | Zero-Code Asset Extensibility | New asset types added via config only; no code changes required. Schema layer ✅ (T1.20, `conditional_fragments` structure). Runtime layer 🔶 PARTIAL — no code executes fragment composition/validation; deferred to Phase 3 (T3.9–T3.15, I228); Phase 1.2 de-risking spike I318 (T1.309–T1.312) | T1.20, T3.9 | 🔶 PARTIAL |
 | R44 | Schema               | ISO 15926 Ontology Integration | Define dynamic, config-driven ontology schema (classes, properties, relationships) for EKS | T1.23–T1.29  | ✅ PASS |
 | R51 | Logging & Debug      | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`), run_id correlation (T1.69), ErrorManager/MessageManager activation in server (T1.75), persisted debug/message/status JSON logs to `eks/output/` (T1.76) per AGENTS.md §19 | T1.30–T1.32, T1.41, T1.60, T1.68, T1.69, T1.75, T1.76 | ✅ PASS |
 | R52 | Schema               | Document Schema Reorganization | Separate document definitions from pipeline config into dedicated 3-layer pattern (`eks_doc_base/setup/config`); align with asset schema pattern for SSOT compliance | T1.34 | ✅ PASS |
@@ -61,7 +61,7 @@
 > | Issue | Scope Affected | Status |
 > |:------|:---------------|:-------|
 > | **I227** ✅ | R57 | Phase B re-scans — **RESOLVED:** DuckDB SSOT, code + tests complete |
-> | **I228** 🔴 | R36, R39 | Asset schema fragments have zero runtime pipeline code — **OPEN:** deferred to Phase 3 |
+> | **I228** 🔴 | R36, R39 | Asset schema fragments have zero runtime pipeline code — **OPEN:** deferred to Phase 3 (T3.9–T3.15); Phase 1.2 de-risking spike **I318** proposed (T1.309–T1.312) |
 > | **I229** ✅ | R33, R34, R51 | Per-file telemetry — **RESOLVED:** batch milestones 25%/50%/75%/100% |
 > | **I230** ✅ | R57 | Validation gates — **RESOLVED:** `validate_phase_transition()` wired |
 > | **I231** ✅ | R99 | Version SSOT — **RESOLVED:** `eks.__version__` canonical, all 8 subpackages import from `eks` |
@@ -254,6 +254,7 @@
 
 | Version | Date       | Author    | Summary |
 | :------ | :--------- | :-------- | :------ |
+| 1.4     | 2026-08-18 | opencode  | R39 status split into schema ✅ (T1.20) / runtime 🔶 PARTIAL (I228, T3.9–T3.15); I228 caveat row references Phase 1.2 de-risking spike I318 (T1.309–T1.312). |
 | 1.3     | 2026-07-24 | opencode  | Updated §2 caveat note/table and §5 issue cross-reference to include I234 (7/8 pipeline issues resolved). |
 | 1.2     | 2026-07-23 | opencode  | Updated §2 caveat: 1 open (I228) + 6 resolved (I227, I229–I233). I233 status changed 🔴→✅ (monolith split aligned, workplan §56 added). Updated §5 cross-reference to reflect 6/7 resolved status. |
 | 1.1     | 2026-07-22 | opencode  | §4 deliverable list converted to structured table (D001–D056) with columns: Category, Status, Tasks, Issues, Workplan Ref. All 56 entries preserved — includes bootstrap-fix artifacts (D046–D048), pipeline contracts (D049–D051), and common library modules (D052–D055). |

@@ -1,9 +1,9 @@
 # Appendix P1.3: Phase 1 — Data Export Design (CSV/Excel)
 
 **Document ID**: WP-EKS-P1-APX-1.3
-**Version**: 1.4
-**Last Updated**: 2026-07-24 (I234 Aligned, §5.1 caveat updated — 7/8 pipeline issues resolved)
-**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). As of 2026-07-24, pipeline issues I227/I229–I234 resolved (7 of 8); I228 remains open. Layout restructure for design-first flow completed in v1.1.
+**Version**: 1.5
+**Last Updated**: 2026-08-18 (I228 §5.1 row corrected to SSOT — was mislabeled "post-parse validation gate"; Phase 1.2 spike I318 proposed)
+**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). As of 2026-07-24, pipeline issues I227/I229–I234 resolved (7 of 8); I228 remains open. 2026-08-18: I228 §5.1 row corrected to match SSOT title (was mislabeled "post-parse schema/dependency/health validation gate"); Phase 1.2 asset-loader de-risking spike I318 (T1.309–T1.312) proposed — Phase 1 exports contain no asset data until Phase 3 loaders land. Layout restructure for design-first flow completed in v1.1.
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.4, IN PROGRESS)
 
 ---
@@ -197,7 +197,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 | Issue | Title | Impact on Data Export | Status |
 |:---|:---|:---|:---:|
 | I227 | 2× I/O scan (no doc-level caching) | Export queries may reflect stale registry state if `scan()` is re-run post-export | ✅ |
-| I228 | No post-parse schema/dependency/health validation gate | Documents with `extract_status = "success"` may still have incomplete metadata → exported as-is | 🔴 |
+| I228 | Asset schema (Appendix A) zero runtime pipeline integration | Phase 1 exports contain no asset (datadrop) data — asset loaders deferred to Phase 3 (T3.9–T3.15); Phase 1.2 de-risking spike I318 proposed | 🔴 |
 | I229 | File-by-file logging without aggregation | No per-run export summary statistics (row counts, column coverage, flag distribution) | ✅ |
 | I230 | No phase-level validation gate (checkpoint quality) | Documents entering Phase B/C without validated Phase A output affect extraction/review exports | ✅ |
 | I231 | Version SSOT | Single `__version__` in `eks/__init__.py`. All subpackages import from `eks` | ✅ |
@@ -452,6 +452,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 
 | Version | Date | Author | Changes |
 |:---|:---|:---|:---|
+| **1.5** | 2026-08-18 | opencode | Corrected §5.1 I228 row — was mislabeled "No post-parse schema/dependency/health validation gate"; now matches SSOT ("Asset schema (Appendix A) zero runtime pipeline integration"). Added I318 Phase 1.2 spike reference. |
 | **1.4** | 2026-07-24 | opencode | Updated §5.1 caveat, §6.4 Issue Log, §6.5 Update Log for I234 alignment (CLI default pipeline output, 7/8 pipeline issues resolved, 6 resolved export issues). |
 | **1.3** | 2026-07-23 | opencode | Updated §5.1 caveat: 6/7 pipeline issues resolved (I227/I229–I233 ✅; I228 🔴 remains open). I233 status changed from `install_eks_deps()` description to module split. Added Status column to caveat table. Updated status line and §6.3 cross-reference. |
 | **1.2** | 2026-07-22 | AI Agent (SSOT alignment) | §5.3–§5.5 root cause/fix narrative removed (I188 Discovery + Root Causes & Fixes, I189 Discovery + Root Causes + Fix Design, I192 Problem/Fix/Result). Only task tables + SC checklists retained per SSOT rule (issue detail lives only in `issue_log.md`). §5 intro updated. |

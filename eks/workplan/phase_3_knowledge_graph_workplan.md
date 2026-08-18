@@ -123,7 +123,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.6 | Implement chunk node builder | Register chunks as Neo4j nodes linked to document nodes | 🔷 | — |
 | T3.7 | Implement Neo4j graph store | `neo4j_store.py`: CRUD operations, Cypher query execution, batch inserts | 🔷 | — |
 | T3.8 | Write unit tests for graph store | Connection, node CRUD, relationship CRUD, type safety | 🔷 | — |
-| T3.9 | Implement base asset loader | `base_asset_loader.py`: read sheet data by tag_type; apply conditional_fragments from config; map columns to fragment properties; skip unmapped columns | 🔷 | — |
+| T3.9 | Implement base asset loader | `base_asset_loader.py`: read sheet data by tag_type; apply conditional_fragments from config; map columns to fragment properties; skip unmapped columns. **Acceptance (I020/I021):** (a) 7-sheet full-column coverage pre-check vs `column_normalization` — no silent unmapped-column drops; (b) null-field tolerance + per-asset health score; (c) reuse Phase 1.2 spike skeleton (I318 T1.309–T1.312) if approved | 🔷 | I228 |
 | T3.10 | Implement equipment loader | `equipment_loader.py`: AT_EQUIP, AT_EQPMP, AT_EQTNK, AT_EQVES, AT_EQEXC | 🔷 | — |
 | T3.11 | Implement instrument loader | `instrument_loader.py`: AT_INST_, AT_INST_CS, AT_INST_FLO | 🔷 | — |
 | T3.12 | Implement valve loader | `valve_loader.py`: AT_CVALVE, AT_PSV, AT_HVALVE | 🔷 | — |

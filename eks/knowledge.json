@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "2.12.0",
+  "version": "2.14.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
@@ -9,8 +9,8 @@
     "version": "2.6.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 through I306/I313 closure — schema-driven DB layer fully materialized (2026-08-14): all 53 tables (42 definition + 9 runtime + 2 metadata) created in eks_registry.db via eks_db_config.json; persistent v_* views (discovery_inventory/extraction_results/review_flags) from eks_export_view_config.json; db_manifest provenance table (I312); migration/validation gate (I311); Excel single-workbook export (I309); §24 cross-source audit + output-name literal removal closed (I313 phases 1–3; Phase 4 closure of I313 ✅ + I306 📐 Aligned). See U286–U304, TL053–TL062.",
-    "last_updated": "2026-08-14"
+    "status": "Phase 1 through I306/I313 closure — schema-driven DB layer fully materialized (2026-08-14): all 53 tables (42 definition + 9 runtime + 2 metadata) created in eks_registry.db via eks_db_config.json; persistent v_* views (discovery_inventory/extraction_results/review_flags) from eks_export_view_config.json; db_manifest provenance table (I312); migration/validation gate (I311); Excel single-workbook export (I309); §24 cross-source audit + output-name literal removal closed (I313 phases 1–3; Phase 4 closure of I313 ✅ + I306 📐 Aligned). See U286–U304, TL053–TL062. I318 de-risking spike (T1.309–T1.312, U305, TL063) completed 2026-08-18 — BaseAssetLoader skeleton delivered (datadrop Excel → column_normalization → conditional_fragments canonical asset records, 18 loader tests).",
+    "last_updated": "2026-08-18"
   },
   "architecture_overview": {
     "key_modules": [
@@ -20,6 +20,7 @@
       "engine/core/manifest.py - db_manifest provenance table writer (schema_version/engine_version/schema_hash/config:* /table:* keys, transactional retried UPSERT) (I312)",
       "engine/pipeline_engine/exporter.py - Config-driven export views (resolve_export_columns/resolve_export_views), workbook export, column-override validation S-C-S-0313 (I308/I309); no hardcoded output literals (I313/T1.307)",
       "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG) with parser_router",
+      "engine/extractors/ - BaseAssetLoader (I318 de-risking spike): datadrop Excel sheets → column_normalization → conditional_fragments canonical asset records (dotted routing, config-wins/native item_core fallback, pre-materialised nested objects, null/blank tolerance + per-asset HealthScorer, column_coverage pre-check)",
       "engine/logging/ - Tiered logging infrastructure (levels 0-3)",
       "engine/discovery/ - CLI entry points for scheduling engines",
       "engine/health/ - CLI entry points for health scorer",
@@ -214,6 +215,8 @@
     ]
   },
     "known_issues": [
+      "I228 - Open (2026-07-20) - Asset schema (Appendix A) has zero runtime pipeline integration: eks_asset_* schemas exist and validate, but no runtime loader executes fragment composition/validation (R39 runtime PARTIAL). Deferred to Phase 3 (T3.9-T3.15); Phase 1.2 de-risking spike I318 (T1.309-T1.312) completed 2026-08-18 — BaseAssetLoader skeleton delivered (datadrop Excel -> column_normalization -> conditional_fragments, 18 tests); full integration still deferred to Phase 3 - Phase 1/3",
+      "I318 - Resolved 2026-08-18 (T1.309-T1.312, U305, TL063) - Phase 1.2 asset-loader de-risking spike: minimal base_asset_loader (datadrop Excel -> column_normalization -> conditional_fragments) delivered + 18 loader tests in eks/test/test_asset_loader.py + 7-sheet column-coverage pre-check report rp_p1.2_asset_column_coverage.md (I020 — config vs real datadrop header drift surfaced, no silent drops) + null-field tolerance/per-asset health score (I021). Reduces Phase 3 blocking risk (I228); engine-side, independent of Phase 1.2 UI deferral - Phase 1.2",
       "I015 - DGN parser stub (48 CAD files unparseable) - Phase 3",
       "I016 - Revision folder hierarchy inconsistency - Phase 2",
       "I019 - Two project codes (131101 vs 131242) - Phase 2",
@@ -340,6 +343,18 @@
         "date": "2026-08-14",
         "author": "opencode",
         "summary": "I306 📐 Aligned + I313 ✅ Resolved (2026-08-14) — schema-driven DB layer umbrella closed (T1.269–T1.308). Phases: I307 schema set, I308 export views, I309 Excel export, I310 materialization, I311 migration gate, I312 db_manifest, I313 audit & verification (matrix + §24 audit + output-name literal removal + full-suite closure). knowledge.json updated for the DB-layer architecture (53 materialized tables, views, db_manifest, migration gate, config-driven exports). Full suite 788 PASS / 3 FAIL (pre-existing I288 real-PDF fixture absences). See U286–U304, TL053–TL062, issue log v122."
+      },
+      {
+        "version": "2.13.0",
+        "date": "2026-08-18",
+        "author": "opencode",
+        "summary": "I228 review actioned — asset runtime gap tracked in known_issues: I228 (Open) + I318 (Planned, Phase 1.2 de-risking spike T1.309–T1.312). Cross-source alignment: p1_issue_log v124 (I318 added, priority row 1 = I228+I318), appendix_p1.3 v1.5 (I228 §5.1 row corrected — was mislabeled 'post-parse validation gate'), appendix_p1.2 v1.4 (R39 split schema ✅ / runtime 🔶 PARTIAL), p3_issue_log (I228 resolution references spike + T3.9 acceptance I020/I021), phase_3 workplan T3.9 acceptance criteria (column-coverage pre-check + null tolerance). See issue log v124."
+      },
+      {
+        "version": "2.14.0",
+        "date": "2026-08-18",
+        "author": "opencode",
+        "summary": "I318 ✅ Resolved (2026-08-18) — Phase 1.2 asset-loader de-risking spike delivered (T1.309–T1.312, U305, TL063): new eks/engine/extractors/ package — BaseAssetLoader reads datadrop Equipment/Motor sheets by tag_type, applies column_normalization (dotted routing + config-wins/native item_core fallback), composes conditional_fragments, pre-materialises nested objects (asset_context/location_hierarchy/system_hierarchy/lifecycle_context), null/blank tolerance + per-asset HealthScorer (I021), column_coverage() 7-sheet pre-check (I020 — real datadrop header vs config drift surfaced in rp_p1.2_asset_column_coverage.md). 18 runtime loader tests (eks/test/test_asset_loader.py). Full suite 805 PASS / 4 FAIL (3 pre-existing I288 real-PDF fixture absences + 1 flaky phase1_server lock race — zero new failures). De-risks I228/Phase 3 T3.9. See issue log v125, U305, TL063."
       }
     ]
   }
