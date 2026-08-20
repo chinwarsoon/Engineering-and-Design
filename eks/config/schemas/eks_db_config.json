@@ -862,6 +862,12 @@
           "target_column": "template_id",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "template_id",
+          "cover_type"
+        ]
       ]
     },
     {
@@ -922,6 +928,12 @@
           "target_column": "element_type",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "template_id",
+          "element_type"
+        ]
       ]
     },
     {
@@ -965,6 +977,12 @@
           "target_column": "element_type",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "element_type",
+          "cover_type"
+        ]
       ]
     },
     {
@@ -1155,6 +1173,11 @@
           "target_column": "class_id",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "column_name"
+        ]
       ]
     },
     {
@@ -1385,6 +1408,12 @@
           "target_column": "name",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "class_id",
+          "fragment_id"
+        ]
       ]
     },
     {
@@ -1687,6 +1716,12 @@
           "target_column": "column_name",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "profile_id",
+          "source_key"
+        ]
       ]
     },
     {
@@ -1783,6 +1818,12 @@
           "target_column": "template_id",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "project_code",
+          "local_code"
+        ]
       ]
     },
     {
@@ -2206,6 +2247,12 @@
           "target_column": "project_code",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "project_code",
+          "standard_cat"
+        ]
       ]
     },
     {
@@ -2256,6 +2303,12 @@
           "target_column": "discipline_code",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "project_code",
+          "discipline_code"
+        ]
       ]
     },
     {
@@ -2303,6 +2356,11 @@
           "target_column": "project_code",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "project_code"
+        ]
       ]
     },
     {
@@ -2410,6 +2468,12 @@
           "target_column": "fragment_id",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "fragment_id",
+          "field_name"
+        ]
       ]
     },
     {
@@ -2534,6 +2598,12 @@
           "target_column": "fragment_id",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "asset_type_code",
+          "fragment_id"
+        ]
       ]
     },
     {
@@ -2588,6 +2658,12 @@
           "target_column": "asset_type_code",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "asset_type_code",
+          "source_column_name"
+        ]
       ]
     },
     {
@@ -2658,6 +2734,12 @@
           "target_column": "relation_name",
           "on_delete": "NO ACTION"
         }
+      ],
+      "unique_keys": [
+        [
+          "asset_type_code",
+          "trigger_id"
+        ]
       ]
     },
     {
@@ -2791,7 +2873,7 @@
         {
           "name": "flag_reason",
           "column_type": "VARCHAR",
-          "comment": "I308/T1.283: materialized at ingest (Python-written) so v_review_flags is a pure projection — no SQL CASE duplication. Null when no flag."
+          "comment": "I308/T1.283: materialized at ingest (Python-written) so v_review_flags is a pure projection \u00e2\u20ac\u201d no SQL CASE duplication. Null when no flag."
         },
         {
           "name": "verified_by",
@@ -3609,7 +3691,7 @@
       "table_name": "_eks_table_relations",
       "group_id": 12,
       "title": "EKS Table Relations (deprecated)",
-      "description": "Declared-only FK manifest (I290). DEPRECATED 2026-08-11 (I306 Q1) — physical FKs in foreign_keys[] replace it; removal on next additive migration (I310/T1.295).",
+      "description": "Declared-only FK manifest (I290). DEPRECATED 2026-08-11 (I306 Q1) \u00e2\u20ac\u201d physical FKs in foreign_keys[] replace it; removal on next additive migration (I310/T1.295).",
       "columns": [
         {
           "name": "id",
@@ -3670,7 +3752,7 @@
       "table_name": "db_manifest",
       "group_id": 12,
       "title": "DB Manifest",
-      "description": "Schema-driven DB provenance table (replaces _eks_schema_meta; I312/T1.301–T1.303). Key-value rows: id UUID PK, key UNIQUE natural key, value JSON (shape varies per key), updated_at TIMESTAMP. Manifest is a regenerated projection of the config SSOT (never hand-edited). Key taxonomy declared in db_manifest_keys (top-level, this file).",
+      "description": "Schema-driven DB provenance table (replaces _eks_schema_meta; I312/T1.301\u00e2\u20ac\u201cT1.303). Key-value rows: id UUID PK, key UNIQUE natural key, value JSON (shape varies per key), updated_at TIMESTAMP. Manifest is a regenerated projection of the config SSOT (never hand-edited). Key taxonomy declared in db_manifest_keys (top-level, this file).",
       "columns": [
         {
           "name": "id",
@@ -3705,8 +3787,12 @@
     }
   ],
   "db_manifest_keys": {
-    "description": "I312/T1.301 — declared key taxonomy for the db_manifest provenance table. manifest.py is a generic writer over this spec (no code-literal key lists, AGENTS.md §15/§16).",
-    "global_keys": ["schema_version", "engine_version", "schema_hash"],
+    "description": "I312/T1.301 \u00e2\u20ac\u201d declared key taxonomy for the db_manifest provenance table. manifest.py is a generic writer over this spec (no code-literal key lists, AGENTS.md \u00c2\u00a715/\u00c2\u00a716).",
+    "global_keys": [
+      "schema_version",
+      "engine_version",
+      "schema_hash"
+    ],
     "config_version_key_prefix": "config:",
     "table_stats_key_prefix": "table:",
     "validation_key": "validation:not_null",

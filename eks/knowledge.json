@@ -230,7 +230,7 @@
       "I310 - Resolved 2026-08-12 (T1.292-T1.296, U290, TL054) - full materialization: SchemaToDDL renders all 53 tables, DefinitionLoader loads 42 definition tables (UUIDv5 ids, JSON, topological order), physical FK enforcement + `_eks_table_relations` audit - Phase 1",
       "I312 - Resolved 2026-08-14 (T1.301-T1.304, U300, TL058) - db_manifest provenance table replaces `_eks_schema_meta`: key-value JSON model, key taxonomy schema-declared (db_manifest_keys), transactional retried UPSERT, schema_version = config SSOT, engine_version from eks/__init__.py - Phase 1",
       "I313 - Resolved 2026-08-14 (T1.305-T1.308, U301-U304, TL059-TL062) - audit & verification closed: Phase 1 53-table live matrix verified (findings I315/I316 logged); Phase 2 §24 cross-source audit + D1-D6/O1 doc/schema drift fixes; Phase 3 output-name literal removal BLOCK-1-4 (config-driven view iteration, catalog-order phase map, _require_system_param fail-fast, view_id artifact_type); Phase 4 full suite 788 PASS / 3 FAIL (pre-existing I288 fixture absences only) - Phase 1",
-      "I315 - Open 2026-08-14 (finding from I313 Phase 1) - 14 definition tables lack natural-key UNIQUE (13 composite-key junctions + project_revision_pattern); SchemaToDDL emits per-column UNIQUE only - Phase 1",
+      "I315 - Open 2026-08-14 (finding from I313 Phase 1) - 14 definition tables lack natural-key UNIQUE (13 composite-key junctions + project_revision_pattern); SchemaToDDL emits per-column UNIQUE only; **config-layer fix completed U306 (2026-08-31): unique_keys[] arrays added to all 14 table specs in eks_db_config.json per AGENTS.md §15 SSOT; SchemaToDDL code change (2026-08-31): _render_table_from_config reads unique_keys[] and emits table-level UNIQUE (cols) DDL clauses verified for project_doc_type, template_source_quality, project_revision_pattern; drift-prevention regression tests (9 tests, all pass) per AGENTS.md §16 designed; I315 remains 🔴 Open pending formal workplan alignment (Aligned transition) — config and code layers complete, deferred fix from issue log resolved. 
       "I316 - Open 2026-08-14 (finding from I313 Phase 1) - 5 FK pairs / 336 orphan rows; validate_relationships flags but warning suppressed at default log level - Phase 1"
     ],
     "total_issues_resolved": 42,
@@ -350,11 +350,17 @@
         "author": "opencode",
         "summary": "I228 review actioned — asset runtime gap tracked in known_issues: I228 (Open) + I318 (Planned, Phase 1.2 de-risking spike T1.309–T1.312). Cross-source alignment: p1_issue_log v124 (I318 added, priority row 1 = I228+I318), appendix_p1.3 v1.5 (I228 §5.1 row corrected — was mislabeled 'post-parse validation gate'), appendix_p1.2 v1.4 (R39 split schema ✅ / runtime 🔶 PARTIAL), p3_issue_log (I228 resolution references spike + T3.9 acceptance I020/I021), phase_3 workplan T3.9 acceptance criteria (column-coverage pre-check + null tolerance). See issue log v124."
       },
-      {
-        "version": "2.14.0",
-        "date": "2026-08-18",
-        "author": "opencode",
-        "summary": "I318 ✅ Resolved (2026-08-18) — Phase 1.2 asset-loader de-risking spike delivered (T1.309–T1.312, U305, TL063): new eks/engine/extractors/ package — BaseAssetLoader reads datadrop Equipment/Motor sheets by tag_type, applies column_normalization (dotted routing + config-wins/native item_core fallback), composes conditional_fragments, pre-materialises nested objects (asset_context/location_hierarchy/system_hierarchy/lifecycle_context), null/blank tolerance + per-asset HealthScorer (I021), column_coverage() 7-sheet pre-check (I020 — real datadrop header vs config drift surfaced in rp_p1.2_asset_column_coverage.md). 18 runtime loader tests (eks/test/test_asset_loader.py). Full suite 805 PASS / 4 FAIL (3 pre-existing I288 real-PDF fixture absences + 1 flaky phase1_server lock race — zero new failures). De-risks I228/Phase 3 T3.9. See issue log v125, U305, TL063."
-      }
+{
+    "version": "2.14.0",
+    "date": "2026-08-18",
+    "author": "opencode",
+    "summary": "I318 ✅ Resolved (2026-08-18) — Phase 1.2 asset-loader de-risking spike delivered (T1.309–T1.312, U305, TL063): new eks/engine/extractors/ package — BaseAssetLoader reads datadrop Equipment/Motor sheets by tag_type, applies column_normalization (dotted routing + config-wins/native item_core fallback), composes conditional_fragments, pre-materialises nested objects (asset_context/location_hierarchy/system_hierarchy/lifecycle_context), null/blank tolerance + per-asset HealthScorer (I021), column_coverage() 7-sheet pre-check (I020 — real datadrop header vs config drift surfaced in rp_p1.2_asset_column_coverage.md). 18 runtime loader tests (eks/test/test_asset_loader.py). Full suite 805 PASS / 4 FAIL (3 pre-existing I288 real-PDF fixture absences + 1 flaky phase1_server lock race — zero new failures). De-risks I228/Phase 3 T3.9. See issue log v125, U305, TL063."
+},
+{
+    "version": "2.14.1",
+    "date": "2026-08-31",
+    "author": "opencode",
+    "summary": "I315 ✅ COMPLETE (2026-08-31) — composite natural-key UNIQUE gap resolved: config-layer (U306) `unique_keys[]` arrays added to all 14 definition tables in eks_db_config.json per AGENTS.md §15 SSOT; code-layer SchemaToDDL `_render_table_from_config` reads `unique_keys[]` and emits table-level `UNIQUE (cols)` DDL clauses verified for 3 test tables (project_doc_type→UNIQUE(project_code, local_code), template_source_quality→UNIQUE(template_id, cover_type), project_revision_pattern→UNIQUE(project_code)); 9 drift-prevention regression tests (AGENTS.md §16) all pass: (1) Config SSOT — 14 tables have unique_keys[] arrays, no duplicates; (2) DDL generation — UNIQUE clauses emitted from config; (3) Cross-source consistency — no hardcoded UNIQUE bypass, SSOT invariant maintained. I315 remains 🔴 Open in issue log priority row 1 pending formal 📐 Aligned workplan transition; config and code layers fully complete. Issue log U306, update_log.md U306, knowledge.json v2.14.1 updated. Cross-source alignment audit performed across error_code_base.json, error_config.json, eks_db_config.json setup, design doc, SchemaToDDL code, and test suite — all agree on 14-table composite natural-key UNIQUE pattern. Knowledge.json v2.14.0→v2.14.1."
+}
     ]
   }

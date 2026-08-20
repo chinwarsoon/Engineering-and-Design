@@ -366,6 +366,15 @@ class SchemaToDDL:
                     parts.append(f"DEFAULT '{default}'")
             lines.append("    " + " ".join(parts))
 
+        # I315 (T1.309-T1.312): emit table-level UNIQUE constraints from
+        # unique_keys[] array in eks_db_config.json. Each sub-array is a
+        # composite natural-key column list that must be unique.
+        unique_keys = spec.get("unique_keys", [])
+        for uks in unique_keys:
+            if uks:
+                quoted = ", ".join(self._quote_identifier(c) for c in uks)
+                lines.append(f"    UNIQUE ({quoted}),")
+
         if include_fk:
             for fk_spec in spec.get("foreign_keys", []):
                 if isinstance(include_fk, set) and fk_spec.get("fk_name") not in include_fk:
