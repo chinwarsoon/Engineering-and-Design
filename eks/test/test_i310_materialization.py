@@ -8,6 +8,8 @@ Summary: 0.2: T1.296 — added materialization error-code coverage
           (registration + resolver + structured loader errors).
 0.1: T1.296 — renderer, definition extraction, materialization, and
          idempotency coverage.
+0.3: I316/Q6 — added zero-FK-orphan regression test on fresh build
+         (asset_sheet/asset_trigger_scope lookup tables).
 """
 
 import json
@@ -34,13 +36,13 @@ def _load_db_config():
 
 
 def test_i310_renders_all_configured_tables_and_quotes_identifiers():
-    """T1.292: render all 53 tables and reserved identifiers safely."""
+    """T1.292: render all 55 tables (I316: 53→55) and reserved identifiers safely."""
     config = _load_db_config()
     generator = SchemaToDDL({}, db_config=config)
 
     statements = generator.generate_db_tables_ddl()
 
-    assert len(statements) == 53
+    assert len(statements) == 55
     assert any('"symmetric" BOOLEAN' in statement for statement in statements)
     assert any("FOREIGN KEY" in statement for statement in statements)
 
@@ -134,3 +136,16 @@ def test_i310_loader_raises_structured_error_on_missing_source():
     with pytest.raises(DefinitionLoadError) as excinfo:
         loader.extract_rows(spec)
     assert excinfo.value.code == "P1-R-P-0003"
+
+
+def test_i316_zero_fk_orphans_on_fresh_build():
+    """I316/Q6: a fresh registry build has zero FK orphans (was 336 rows / 5 pairs)."""
+    config = _load_db_config()
+    with tempfile.TemporaryDirectory() as directory:
+        db_path = Path(directory) / "i316_orphans.db"
+        DocumentRegistry(db_path=str(db_path))
+        conn = duckdb.connect(str(db_path), read_only=True)
+        loader = DefinitionLoader(config, _CONFIG_DIR)
+        violations = loader.validate_relationships(conn)
+        conn.close()
+    assert violations == []

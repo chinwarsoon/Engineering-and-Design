@@ -2,10 +2,13 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 1.7
-Date: 2026-08-14
+Revision: 1.8
+Date: 2026-08-20
 Author: opencode
-Summary: 1.7: I312 (T1.301–T1.303) — retired _ensure_schema_version() and
+Summary: 1.8: I316 (T1.313) — FK-orphan detection now emits a level-1 status
+          summary (WARNING_FK_ORPHANS catalog) plus level-2 per-pair detail,
+          so drift is visible at default verbosity instead of suppressed.
+1.7: I312 (T1.301–T1.303) — retired _ensure_schema_version() and
           _migrate_schema(); added _refresh_manifest() which writes the
           schema-driven db_manifest provenance table (replaces _eks_schema_meta).
           I196 NOT NULL advisory check ported into migration_gate.py (SOFT warn);
@@ -317,11 +320,21 @@ class DocumentRegistry:
             definition_loader.load_all(conn)
             relationship_violations = definition_loader.validate_relationships(conn)
             if relationship_violations:
-                self.logger.warning(
+                # I316/Q5: emit a level-1 (visible at default verbosity) summary
+                # plus level-2 per-pair detail; matches WARNING_FK_ORPHANS catalog.
+                self.logger.status(
                     f"Definition relationship validation found "
-                    f"{len(relationship_violations)} violations",
+                    f"{len(relationship_violations)} FK orphan pair(s) "
+                    f"(WARNING_FK_ORPHANS)",
                     context="DocumentRegistry._init_db",
                 )
+                for violation in relationship_violations:
+                    self.logger.warning(
+                        f"FK orphan: {violation['table']}.{violation['column']} -> "
+                        f"{violation['target_table']}.{violation['target_column']}: "
+                        f"{violation['violations']} row(s)",
+                        context="DocumentRegistry._init_db",
+                    )
         finally:
             conn.close()
 

@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "title": "EKS Asset Setup Schema — Registry & Column Normalization",
     "description": "Declares the asset_type_registry (type→fragment mapping including conditional_fragments for zero-code extensibility) and column normalization rules for ingesting the project Excel datadrop. 14 fragments (13 pre-existing + asset_context for explicit relationship and location/system hierarchy context).",
     "allOf": [
@@ -97,8 +97,34 @@
                 "type": "object",
                 "additionalProperties": { "type": "string" }
             }
+        },
+        "sheet_registry": {
+            "type": "array",
+            "description": "Registered sheet names referenced by asset_column_normalization.asset_type_code (I316/Q1 — lookup table asset_sheet source).",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "sheet_name": { "type": "string" }
+                },
+                "required": ["sheet_name"],
+                "additionalProperties": false
+            },
+            "minItems": 1
+        },
+        "trigger_scope_registry": {
+            "type": "array",
+            "description": "Registered trigger scopes (relationship_triggers, document_triggers) referenced by asset_trigger.asset_type_code (I316/Q1 — lookup table asset_trigger_scope source).",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "scope_name": { "type": "string" }
+                },
+                "required": ["scope_name"],
+                "additionalProperties": false
+            },
+            "minItems": 1
         }
     },
-    "required": ["asset_type_registry", "column_normalization"],
+    "required": ["asset_type_registry", "column_normalization", "sheet_registry", "trigger_scope_registry"],
     "additionalProperties": false
 }

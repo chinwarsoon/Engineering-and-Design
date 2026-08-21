@@ -55,7 +55,7 @@ class TestT275BaseSchemaDbDefs:
         cls.defs = cls.base["definitions"]
 
     def test_version_bumped_1_22_0(self):
-        assert self.base["version"] == "1.22.0"  # pre-existing: base schema bumped past 1.21.0 without test sync (unrelated to I312)
+        assert self.base["version"] == "1.23.0"  # I316: table_spec_def.unique_keys added (I315 regression fix)
         assert "$schema" in self.base and "$id" in self.base and "title" in self.base
 
     def test_all_6_db_layer_defs_present(self):
@@ -148,11 +148,11 @@ class TestT277DbConfig:
         # eks_processing_config.json). Added I307 follow-up for consistency.
         for k in ["$schema", "$id", "version", "title", "description"]:
             assert k in self.cfg, f"eks_db_config.json missing metadata header field: {k}"
-        assert self.cfg["version"] == "1.1.1"
+        assert self.cfg["version"] == "1.2.0"  # I316: +asset_sheet/asset_trigger_scope (53→55)
         assert self.cfg["$schema"] == "https://eks.engineering/schemas/eks_setup_schema.json"
 
     def test_53_tables_declared(self):
-        assert len(self.cfg["db_tables"]) == 53
+        assert len(self.cfg["db_tables"]) == 55  # I316: +asset_sheet/asset_trigger_scope
         names = [t["table_name"] for t in self.cfg["db_tables"]]
         assert len(names) == len(set(names)), "duplicate table_name"
 
@@ -313,7 +313,7 @@ class TestT281SchemaLoaderDiscovery:
 
     def test_both_configs_discovered_and_validated(self):
         result = self.loader.load_all()
-        assert len(self.loader.db_config.get("db_tables", [])) == 53
+        assert len(self.loader.db_config.get("db_tables", [])) == 55  # I316: 53→55
         assert len(self.loader.export_view_config.get("views", [])) == 3
         assert result  # load_all returns config; no exception = valid
 

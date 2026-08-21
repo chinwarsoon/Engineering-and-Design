@@ -1,9 +1,9 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_db_config.json",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "title": "EKS DB-Layer Table Configuration",
-  "description": "Schema-driven DB-layer table values SSOT (I307 T1.277). Actual VALUES for all 53 tables live here per AGENTS.md \u00c2\u00a79/\u00c2\u00a716 (base/setup hold shape only). Each db_tables[] entry declares table_name, group_id, source_config_ref/source_path/transform, id_strategy (uuid5 namespace + natural key), ordered columns (id PK + DuckDB type + unique/nullable/default/JSON marker), and physical FK pairs (I306 Q1).",
+  "description": "Schema-driven DB-layer table values SSOT (I307 T1.277). Actual VALUES for all 55 tables live here per AGENTS.md \u00c2\u00a79/\u00c2\u00a716 (base/setup hold shape only). Each db_tables[] entry declares table_name, group_id, source_config_ref/source_path/transform, id_strategy (uuid5 namespace + natural key), ordered columns (id PK + DuckDB type + unique/nullable/default/JSON marker), and physical FK pairs (I306 Q1). v1.2.0 (I316): asset_sheet + asset_trigger_scope lookup tables added (53\u219255); fk_acn_type re-pointed to asset_sheet.sheet_name, fk_atrig_type to asset_trigger_scope.scope_name, fk_pdt_project to project_code.proj_code; ontology_relation description 18\u219221 rows.",
   "db_tables": [
     {
       "table_name": "project",
@@ -300,7 +300,7 @@
       "table_name": "ontology_relation",
       "group_id": 5,
       "title": "Ontology Relation",
-      "description": "Ontology relationship types (GROUP 5). Loaded from eks_ontology_config.json relationships[] (18 rows).",
+      "description": "Ontology relationship types (GROUP 5). Loaded from eks_ontology_config.json relationships[] (21 rows).",
       "columns": [
         {
           "name": "id",
@@ -1176,7 +1176,8 @@
       ],
       "unique_keys": [
         [
-          "column_name"
+          "column_name",
+          "class_id"
         ]
       ]
     },
@@ -1800,8 +1801,8 @@
         {
           "fk_name": "fk_pdt_project",
           "column": "project_code",
-          "target_table": "project",
-          "target_column": "project_code",
+          "target_table": "project_code",
+          "target_column": "proj_code",
           "on_delete": "NO ACTION"
         },
         {
@@ -2607,6 +2608,66 @@
       ]
     },
     {
+      "table_name": "asset_sheet",
+      "group_id": 10,
+      "title": "Asset Sheet",
+      "description": "Excel/CSV sheet-name lookup for asset column normalization (GROUP 10, I316/Q1). Loaded from eks_asset_config.json sheet_registry[]; FK target of asset_column_normalization.asset_type_code.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "sheet_name",
+          "column_type": "VARCHAR",
+          "source_path": "sheet_name",
+          "unique": true,
+          "comment": "Natural key (sheet tab name)."
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_sheet",
+        "natural_key_columns": [
+          "sheet_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "sheet_registry",
+      "transform": "array-of-objects"
+    },
+    {
+      "table_name": "asset_trigger_scope",
+      "group_id": 10,
+      "title": "Asset Trigger Scope",
+      "description": "Trigger-scope lookup for asset relationship/document triggers (GROUP 10, I316/Q1). Loaded from eks_asset_config.json trigger_scope_registry[]; FK target of asset_trigger.asset_type_code.",
+      "columns": [
+        {
+          "name": "id",
+          "column_type": "VARCHAR",
+          "is_primary": true
+        },
+        {
+          "name": "scope_name",
+          "column_type": "VARCHAR",
+          "source_path": "scope_name",
+          "unique": true,
+          "comment": "Natural key (relationship_triggers / document_triggers)."
+        }
+      ],
+      "id_strategy": {
+        "namespace": "eks:asset_trigger_scope",
+        "natural_key_columns": [
+          "scope_name"
+        ],
+        "algorithm": "uuid5"
+      },
+      "source_config_ref": "eks_asset_config.json",
+      "source_path": "trigger_scope_registry",
+      "transform": "array-of-objects"
+    },
+    {
       "table_name": "asset_column_normalization",
       "group_id": 10,
       "title": "Asset Column Normalization",
@@ -2620,7 +2681,7 @@
         {
           "name": "asset_type_code",
           "column_type": "VARCHAR",
-          "comment": "FK to asset_type."
+          "comment": "Sheet name (FK to asset_sheet.sheet_name) — I316/Q1 re-point from asset_type."
         },
         {
           "name": "source_column_name",
@@ -2654,8 +2715,8 @@
         {
           "fk_name": "fk_acn_type",
           "column": "asset_type_code",
-          "target_table": "asset_type",
-          "target_column": "asset_type_code",
+          "target_table": "asset_sheet",
+          "target_column": "sheet_name",
           "on_delete": "NO ACTION"
         }
       ],
@@ -2680,7 +2741,7 @@
         {
           "name": "asset_type_code",
           "column_type": "VARCHAR",
-          "comment": "FK to asset_type."
+          "comment": "Trigger scope name (FK to asset_trigger_scope.scope_name) — I316/Q1 re-point from asset_type."
         },
         {
           "name": "trigger_id",
@@ -2723,8 +2784,8 @@
         {
           "fk_name": "fk_atrig_type",
           "column": "asset_type_code",
-          "target_table": "asset_type",
-          "target_column": "asset_type_code",
+          "target_table": "asset_trigger_scope",
+          "target_column": "scope_name",
           "on_delete": "NO ACTION"
         },
         {

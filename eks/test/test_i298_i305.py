@@ -306,7 +306,7 @@ class TestI304ProjectDefinitionSetupSchema(unittest.TestCase):
         path = self.schema_dir / "eks_project_definition_config.json"
         data = json.loads(path.read_text())
         self.assertIn("eks_project_definition_setup_schema.json", data.get("$schema", ""))
-        self.assertEqual(data.get("version"), "1.5.0")
+        self.assertEqual(data.get("version"), "1.6.0")
 
 
 class TestI305OntologyRelationDrift(unittest.TestCase):
@@ -318,15 +318,15 @@ class TestI305OntologyRelationDrift(unittest.TestCase):
         cls.doc_config_path = _PROJECT_ROOT / "config" / "schemas" / "eks_doc_config.json"
 
     def test_ontology_version_1_9_0(self):
-        """I305(1): Ontology version is v1.9.0."""
+        """I305(1): Ontology version is v1.10.0 (I316/Q4 extended 18→21)."""
         data = json.loads(self.ontology_path.read_text())
-        self.assertEqual(data.get("version"), "1.9.0")
+        self.assertEqual(data.get("version"), "1.10.0")
 
     def test_relationships_count_18(self):
-        """I305(2): Ontology relationships array has 18 rows (16→18)."""
+        """I305(2): Ontology relationships array has 21 rows (18→21 I316/Q4)."""
         data = json.loads(self.ontology_path.read_text())
         rels = data.get("relationships", [])
-        self.assertEqual(len(rels), 18)
+        self.assertEqual(len(rels), 21)
 
     def test_references_asset_added(self):
         """I305(3): REFERENCES_ASSET is a standalone relation with inverse REFERENCED_ASSET_BY."""

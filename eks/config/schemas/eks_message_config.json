@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "version": "1.2.0",
-    "last_updated": "2026-07-31",
-    "total_messages": 52
+    "version": "1.3.0",
+    "last_updated": "2026-08-20",
+    "total_messages": 53
   },
   "messages": {
     "MILESTONE_BOOTSTRAP_START": {
@@ -283,6 +283,12 @@
       "level": 0,
       "category": "error",
       "icon": "✗"
+    },
+    "WARNING_FK_ORPHANS": {
+      "template": "Definition relationship validation found {count} FK orphan pair(s) — reference-data config drift (I316)",
+      "level": 1,
+      "category": "warning",
+      "icon": "⚠"
     }
   }
 }

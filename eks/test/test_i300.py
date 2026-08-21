@@ -54,11 +54,11 @@ class TestI300OntologyTrigger(unittest.TestCase):
         self.assertEqual(len(triggers), len(set(triggers.keys())))
 
     def test_ontology_config_has_stage_relationship(self):
-        """T1.263 (I300)(4): HAS_STAGE now declared in ontology relationships (18 — I305 added REFERENCES_ASSET + HAS_FORMAT)."""
+        """T1.263 (I300)(4): HAS_STAGE now declared in ontology relationships (21 — I305 added REFERENCES_ASSET + HAS_FORMAT; I316 added CONTROLLED_BY/FLOWS_FROM/HAS_ACTUATOR)."""
         ontology = _load("eks_ontology_config.json")
         rel_names = [r["name"] for r in ontology["relationships"]]
         self.assertIn("HAS_STAGE", rel_names)
-        self.assertEqual(len(rel_names), 18)
+        self.assertEqual(len(rel_names), 21)
 
     def test_schema_loader_resolves_both_configs(self):
         """T1.263 (I300)(5): SchemaLoader validates both configs end-to-end."""

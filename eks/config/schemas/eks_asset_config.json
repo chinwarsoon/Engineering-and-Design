@@ -1,8 +1,21 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_asset_config_wsd11.json",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "title": "EKS Asset Config — WSD11 Project",
+    "sheet_registry": [
+        { "sheet_name": "Equipment" },
+        { "sheet_name": "Inline Component" },
+        { "sheet_name": "Instrument" },
+        { "sheet_name": "Motor" },
+        { "sheet_name": "Pipeline" },
+        { "sheet_name": "CONTROLVALVE" },
+        { "sheet_name": "MANUALVALVE" }
+    ],
+    "trigger_scope_registry": [
+        { "scope_name": "relationship_triggers" },
+        { "scope_name": "document_triggers" }
+    ],
     "relationship_triggers": {
         "p_and_id_file":        "REFERENCED_BY_DWG",
         "mcc_fed_from":         "ENERGIZED_BY",

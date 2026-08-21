@@ -7,6 +7,7 @@
 
 | Revision | Date | Author | Summary |
 |:---------|:-----|:-------|:--------|
+| 1.9 | 2026-08-20 | opencode | I316 (T1.313/T1.314): TABLE SUMMARY — asset_sheet (T43, 7 rows) + asset_trigger_scope (T44, 2 rows) added, ontology_relation 18→21, pipeline_message 52→53, count 42→44 Tables; schema-to-table master index + load order updated (asset_sheet step 43, asset_trigger_scope step 44, runtime renumbered 43–52→45–54); asset config source mapping + sheet_registry/trigger_scope_registry; note on 55 total tables per eks_db_config.json. |
 | 1.0 | 2026-08-09 | AI Assistant | Initial table layout, 27 tables with FK relationships |
 | 1.1 | 2026-08-09 | AI Assistant | Added schema-to-table mapping, field provenance, SSOT compliance |
 | 1.2 | 2026-08-09 | AI Assistant | Added project definition (GROUP 9), asset system (GROUP 10), reference tables (department/discipline/facility/project_code) |
@@ -20,7 +21,7 @@
 ```
 ================================================================================
                  EKS DEFINITION DATABASE — FULL TABLE LAYOUT
-                           v1.8 / 2026-08-13
+                           v1.9 / 2026-08-20
 ================================================================================
 ```
 
@@ -1266,7 +1267,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 │ T15  │ score_weight_tier             │   3  │ standalone                        │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T16  │ ontology_class                │  35  │ self-ref (subClassOf)             │
-│ T17  │ ontology_relation             │  18  │ standalone                        │
+│ T17  │ ontology_relation             │  21  │ standalone                        │
 │ J04  │ onto_class_fragment           │  12  │ → ontology_class                  │
 │ T18  │ ontology_trigger              │   7  │ → data_column,ontology_relation   │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
@@ -1278,7 +1279,7 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 │ T23  │ file_type                     │   5  │ standalone                        │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T24  │ error_code                    │ 128  │ standalone                        │
-│ T25  │ pipeline_message              │  52  │ → error_code (nullable)           │
+│ T25  │ pipeline_message              │  53  │ → error_code (nullable)           │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │ T26  │ health_score                  │   N  │ → batch_run,doc_class,template    │
 │ T27  │ health_batch                  │   N  │ → batch_run                       │
@@ -1294,6 +1295,8 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 │ T37  │ asset_fragment_field          │ 210  │ → asset_fragment                  │
 │ T38  │ asset_column_normalization    │  80  │ → asset_type                      │
 │ T39  │ asset_trigger                 │  18  │ → asset_type,ontology_relation    │
+│ T43  │ asset_sheet                   │   7  │ standalone (reference)             │
+│ T44  │ asset_trigger_scope           │   2  │ standalone (reference)             │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
 │——    │ **GROUP 12 — PIPELINE RUNTIME** (I298/I299/I301)                  │
 ├──────┼───────────────────────────────┼──────┼──────────────────────────────────┤
@@ -1302,10 +1305,11 @@ They are created by `_init_db()` via SchemaToDDL and populated during pipeline r
 │ T42  │ export_artifact              │   N  │ → batch_run_(job_id)             │
 └──────┴───────────────────────────────┴──────┴──────────────────────────────────┘
 
-                  42 Tables (39 definition + 3 pipeline runtime)
+                  44 Tables (41 definition + 3 pipeline runtime)
                   ~1,500 definition rows at rest
                   + 3 persistent export VIEWs (I308): v_discovery_inventory, v_extraction_results, v_review_flags
 ```
+> **Note (I316, 2026-08-20)**: 55 tables total in `eks_db_config.json` (incl. runtime + metadata groups). asset_sheet (T43) + asset_trigger_scope (T44) added as lookup tables for FK re-points; ontology_relation 18→21; pipeline_message 52→53.
 
 
 ## EXPORT VIEW MODEL (I308)
@@ -1457,7 +1461,9 @@ eks/config/schemas/
 │   │     fragments[]
 │   ├── column_normalization.<type>[] →  asset_column_normalization (~80 rows)
 │   ├── relationship_triggers[]       →  asset_trigger         (~12 rows)
-│   └── document_triggers[]           →  asset_trigger         (~6 rows)
+│   ├── document_triggers[]           →  asset_trigger         (~6 rows)
+│   ├── sheet_registry[]              →  asset_sheet           (7 rows, I316)
+│   └── trigger_scope_registry[]      →  asset_trigger_scope   (2 rows, I316)
 │
 └── (runtime only — no schema) ────────────────────────────────────────────────────
     └── health_scorer.py output       →  health_score          (N rows per run)
@@ -1509,18 +1515,20 @@ eks/config/schemas/
 40. asset_type_fragment (FK → asset_type, asset_fragment)
 41. asset_column_normalization  (FK → asset_type)
 42. asset_trigger       (FK → asset_type, ontology_relation)
+43. asset_sheet         (no FKs; I316 — sheet_registry lookup)
+44. asset_trigger_scope (no FKs; I316 — trigger_scope_registry lookup)
 --- runtime tables (populated during pipeline execution) ---
-43. documents           (GROUP 11; FK → doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition)  ← I290
-44. document_elements   (GROUP 11; FK → documents.id, element_type)                                                                                            ← I291
-45. document_reference  (GROUP 11; FK → documents.id × 2: source_doc_id, target_doc_id)                                                                       ← I295
-46. batch_run           (FK → project)                                                                                                                         ← was 43
-47. health_score        (FK → batch_run, doc_class, document_template, documents)                                                                              ← was 44
-48. health_batch        (FK → batch_run)                                                                                                                       ← was 45
+45. documents           (GROUP 11; FK → doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition)  ← I290
+46. document_elements   (GROUP 11; FK → documents.id, element_type)                                                                                            ← I291
+47. document_reference  (GROUP 11; FK → documents.id × 2: source_doc_id, target_doc_id)                                                                       ← I295
+48. batch_run           (FK → project)                                                                                                                         ← was 43
+49. health_score        (FK → batch_run, doc_class, document_template, documents)                                                                              ← was 44
+50. health_batch        (FK → batch_run)                                                                                                                       ← was 45
 --- pipeline runtime tables (GROUP 12) ---
-49. pipeline_checkpoint (GROUP 12; populated at phase boundaries by I298/T1.261)                                                                                   ← new
-50. pipeline_event_log   (GROUP 12; flushed at pipeline completion by I299/T1.262)                                                                                  ← new
-51. export_artifact      (GROUP 12; tracked after each export by I301/T1.264)                                                                                       ← new
-52. db_manifest          (GROUP 12; schema-driven DB provenance, I312/T1.301–T1.304, replaces _eks_schema_meta)                                                       ← I312
+51. pipeline_checkpoint (GROUP 12; populated at phase boundaries by I298/T1.261)                                                                                   ← new
+52. pipeline_event_log   (GROUP 12; flushed at pipeline completion by I299/T1.262)                                                                                  ← new
+53. export_artifact      (GROUP 12; tracked after each export by I301/T1.264)                                                                                       ← new
+54. db_manifest          (GROUP 12; schema-driven DB provenance, I312/T1.301–T1.304, replaces _eks_schema_meta)                                                       ← I312
 ```
 
 > **Runtime Table load-order notes** (I297/T1.260 RESOLVED 2026-08-10): Load order expanded from 45→48 steps to include all GROUP 11 runtime tables. `documents` (I290) inserted at step 43 — all 8 FK targets (doc_class, project_doc_type, document_template, element_type, file_type, discipline, project_code, project_definition) verified loaded before registry. `document_elements` (I291) at step 44 — FK→documents+element_type satisfied. `document_reference` (I295) at step 45 — FK→documents (source_doc_id, target_doc_id) satisfied. Runtime group renumbered: batch_run 43→46, health_score 44→47, health_batch 45→48. **I298/I299/I301 (2026-08-10)**: GROUP 12 tables added at steps 49-51 — no FK dependencies, populated during pipeline execution. Load order 48→51, code execution in `registry.py _init_db()` already creates these tables. Documentation-only alignment.

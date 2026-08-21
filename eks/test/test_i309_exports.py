@@ -76,7 +76,7 @@ def test_i309_workbook_file_name_in_base_schema():
     """T1.289 (Q6): export_workbook_file_name declared (required) in
     system_parameters_def of eks_base_schema.json."""
     base = _load_json("eks_base_schema.json")
-    assert base["version"] == "1.22.0"
+    assert base["version"] == "1.23.0"
     sp_def = base["definitions"]["system_parameters_def"]
     assert "export_workbook_file_name" in sp_def["properties"]
     prop = sp_def["properties"]["export_workbook_file_name"]

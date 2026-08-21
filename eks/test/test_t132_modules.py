@@ -901,7 +901,7 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             core_base_path = CONFIG_DIR / "eks_base_schema.json"
         with open(core_base_path) as f:
             core_base = json.load(f)
-        self.assertEqual(core_base["version"], "1.22.0")  # pre-existing: base schema bumped past 1.21.0 without test sync (unrelated to I312)
+        self.assertEqual(core_base["version"], "1.23.0")  # I316: table_spec_def.unique_keys added (I315 regression fix)
 
 
 # ---------------------------------------------------------------------------
