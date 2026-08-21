@@ -129,7 +129,6 @@ Examples:
             checkpoint_state = self._load_checkpoint(parsed_args.checkpoint)
             input_data.checkpoint_state = checkpoint_state
         
-        # T1.56.2 (I093): wire to the real health scorer instead of a placeholder.
         # Scores documents already registered in the DuckDB document registry
         # (populated by discovery / the pipeline) using HealthScorer.
         logger = EKSLogger("HealthScorerEngineCLI", level=3 if parsed_args.verbose else 1)

@@ -23,13 +23,21 @@ Revision: 0.1
 Date: 2026-08-08
 Author: opencode
 Summary: T1.247 — I288 regression tests (real-PDF end-to-end + context SSOT + _LogCapture).
+
+Revision: 0.2
+Date: 2026-08-21
+Author: opencode
+Summary: T1.315/I317 — real-PDF fixture resolver rewritten: glob eks/test/data/*.pdf as
+  primary (committed TWRP samples), non-fatal local fallback repointed to
+  eks/data/twrp/project_spec/Volume 5, recorded SkipTest (warn) when no fixture exists.
 """
 import shutil
 import sys
 import tempfile
 import uuid
+import warnings
 from pathlib import Path
-from unittest import TestCase
+from unittest import TestCase, SkipTest
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_ROOT) not in sys.path:
@@ -64,25 +72,48 @@ class _SilentLogger:
 
 
 def _real_pdf_fixture() -> Path:
-    """Return the first available real PDF fixture under eks/data/twrp/."""
-    candidates = [
-        _ROOT / "eks/data/twrp/tenderspec/Volume 3 (Final)/P06 ICA Works/131101-WSW41-SP-SP-0600_2-Stage.pdf",
-        _ROOT / "eks/data/twrp/tenderspec/Volume 3 (Final)/P06 ICA Works/131101-WSW41-SP-SP-0602.pdf",
-        _ROOT / "eks/data/twrp/tenderspec/Volume 4 (Final)/00a_Cover Page - Vol 4_C4B_2-Stage.pdf",
-        _ROOT / "eks/data/twrp/tenderspec/Volume 4 (Final)/00c_Contents - Vol 4_C4B.pdf",
-    ]
-    for cand in candidates:
-        if cand.exists():
-            return cand
-    raise FileNotFoundError("No real PDF fixture found under eks/data/twrp/ — I288 test requires one")
+    """Locate a real PDF fixture for the I288 real-PDF regression tests (I317).
+
+    Resolution order (non-fatal — returns ``None`` if nothing is found):
+      1. Committed sample PDFs under ``eks/test/data/*.pdf`` — a curated subset of
+         real TWRP documents tracked in git (3 samples covering 3 projects / 3
+         doc-types SG·DR·DS / 3 disciplines). PRIMARY, CI-safe source.
+      2. Optional local fallback to the real (gitignored) TWRP corpus at
+         ``eks/data/twrp/project_spec/Volume 5`` — only present on developer
+         machines that checked out the full corpus; never required in CI. (The
+         stale ``tenderspec/Volume 3 (Final)|Volume 4 (Final)`` paths were
+         removed — the real corpus lives under ``project_spec/Volume 5``.)
+    """
+    primary = sorted(_ROOT.glob("eks/test/data/*.pdf"))
+    if primary:
+        return primary[0]
+    for d in (_ROOT / "eks/data/twrp/project_spec/Volume 5",):
+        if d.exists():
+            hits = sorted(d.rglob("*.pdf"))
+            if hits:
+                return hits[0]
+    return None
 
 
 def _make_pdf_data_dir() -> Path:
-    """Copy a real parseable PDF into a temp data dir under eks/test_output/."""
+    """Copy a real parseable PDF into a temp data dir under eks/test_output/.
+
+    Skips (never hard-fails) when no real PDF fixture is available — see I317:
+    CI without the committed samples stays green while the gap is still surfaced.
+    """
+    src = _real_pdf_fixture()
+    if src is None:
+        warnings.warn(
+            "I317: no real PDF fixture available (eks/test/data/*.pdf absent and no "
+            "local eks/data/twrp/project_spec/Volume 5 corpus) — skipping real-PDF "
+            "regression tests so CI stays green.",
+            stacklevel=2,
+        )
+        raise SkipTest("no real PDF fixture available (I317)")
     tag = uuid.uuid4().hex[:8]
     pdir = _ROOT / "eks" / "test_output" / f"i288_pdf_{tag}"
     pdir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(_real_pdf_fixture(), pdir / "TWRP-0300-REV0.pdf")
+    shutil.copy(src, pdir / "TWRP-0300-REV0.pdf")
     return pdir
 
 

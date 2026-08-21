@@ -211,12 +211,17 @@ dcc/output/
 *.log
 .aider*
 
-# EKS data files
+# EKS real/production data — huge, never committed (gitignored)
 eks/data
 
-# EKS output files (generated DB, logs, debug artifacts)
+# EKS generated output (DB, logs, debug artifacts, runtime test artifacts) — never committed
 eks/output/
 eks/test_output/
+
+# EKS committed test fixtures (I317 regression) — MUST be tracked.
+# eks/test/data/ holds a small curated subset of real TWRP sample PDFs + mocks;
+# it is intentionally committed (AGENTS.md §6.1) and must never be ignored.
+!eks/test/data/
 
 #deepcode
 .deepcode/
