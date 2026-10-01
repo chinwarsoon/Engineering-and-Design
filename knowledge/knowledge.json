@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "knowledge_network/knowledge.json",
+  "version": "0.1.0",
+  "title": "Knowledge Network Viewer Project Knowledge Base",
+  "description": "Machine-readable software blueprint and charter for the Knowledge Network Viewer (knowledge_network): a standalone interactive graph viewer that renders any project's knowledge.json as a navigable vis-network of modules, domain entities, schemas, workflows, functions, dependencies and known issues.",
+  "project_metadata": {
+    "name": "Knowledge Network Viewer (knowledge_network)",
+    "version": "0.1.0",
+    "description": "Standalone interactive viewer that turns a project knowledge.json into a 'nero network' (vis-network graph) of its structure, relationships and open issues.",
+    "purpose": "Give non-specialist users and AI agents a one-glance visual map of a project's knowledge base so modules, domain concepts, dependencies and known issues are obvious and navigable.",
+    "status": "Phase 0 — planning and repository compliance established (T00, 2026-10-01). No runtime code implemented yet; this knowledge base is the project inception charter.",
+    "last_updated": "2026-10-01"
+  },
+  "architecture_overview": {
+    "key_modules": [
+      "engine/build_knowledge_network.py (T02) - reads a target project's knowledge.json and emits a self-contained HTML with the graph data inlined (openable via file://, no server)",
+      "engine/graph_model.py (T01) - the canonical mapping knowledge.json -> {nodes, edges}; pure functions, unit-testable, no I/O",
+      "ui/knowledge_network.html (T03) - the generated viewer: vis-network canvas + shared common/universal_ui_design base + project CSS override; type filter, click-to-inspect side panel",
+      "cli/main.py or engine entry (T04) - parameter matrix: --source <path>, --out <path>, --filter <types>, --theme <name>",
+      "test/ (T05) - mapping unit tests on fixture knowledge.json; build-integration tests on web_tracer + eks knowledge.json; offline-open sanity check"
+    ],
+    "data_flows": [
+      "Target knowledge.json -> graph_model.py maps to {nodes, edges} by node/edge type",
+      "graph_model output -> build_knowledge_network.py inlines JSON into a vis-network HTML template",
+      "ui/knowledge_network.html -> browser renders interactive graph; user filters node types / clicks a node to inspect its source text"
+    ],
+    "integration_points": [
+      "Target projects: any <project>/knowledge.json (web_tracer/knowledge.json, eks/knowledge.json verified as fixtures)",
+      "Shared common/universal_ui_design.css + .js - base UI design system (5 themes, shell layout, toast/modal/file/table utils), project CSS overrides only (AGENTS.md §18)",
+      "vis-network - graph rendering library (CDN with documented offline fallback, Q2)",
+      "Python 3.10+ standard library for the builder (no heavy deps required for the inline-HTML approach)"
+    ]
+  },
+  "domain_concepts": {
+    "core_entities": [
+      "KnowledgeNetwork - the rendered graph: {nodes, edges, entry_points, hotspots, stats}",
+      "Node - a graph vertex typed by kind: project / module / entity / relation / term / schema / workflow / function / dependency / issue",
+      "Edge - a graph link typed by edge type: belongs_to / part_of / defines / uses / in / supports / affects / connects / references",
+      "ProjectHub - the root node (project_metadata.name) that every other node connects to",
+      "IssueNode - a known_issues entry, coloured red, with an affects edge to the module/entity it references",
+      "Hotspot - a high-degree node (many connections) auto-flagged in stats for emphasis",
+      "NodeType - the category used for colour + filter (one of the 10 kinds above)",
+      "EdgeType - the relationship category used for line style/label"
+    ],
+    "relationships": [
+      "belongs_to - a module/schema/workflow belongs to the project hub",
+      "part_of - a domain entity or term is part of the project's domain",
+      "defines - a schema defines/describes a module or entity",
+      "uses - a workflow or function uses a module (entry_point)",
+      "in - a function lives in a module",
+      "supports - a dependency (service/library/infra) supports the project or a module",
+      "affects - a known issue affects a module/entity",
+      "connects - a relationship-type concept connects the entities it names",
+      "references - a node references another node by name (loose link)"
+    ],
+    "terminology": [
+      "knowledge.json - the machine-readable project charter each project must carry (AGENTS.md §5.10)",
+      "nero network - the user's name for this knowledge-graph view (vis-network of a knowledge base)",
+      "vis-network - the JavaScript graph-rendering library used by the viewer",
+      "inline data - the knowledge.json graph is embedded in the HTML so it opens from file:// without a server",
+      "node type / edge type - the category driving colour, size and filter behaviour",
+      "shared UI design system - common/universal_ui_design.css + .js base layer (AGENTS.md §18)"
+    ]
+  },
+  "key_schemas": [
+    "Graph model spec (T01, planned) - this workplan §8.3 freeze of knowledge.json -> {nodes, edges}; not a JSON Schema file, a mapping contract",
+    "NOTE: AGENTS.md §2.4 references a shared config/schemas/knowledge_base_schema.json to validate knowledge.json; that shared schema is absent (web_tracer I003, blocked). knowledge_network therefore parses knowledge.json structurally and tolerates unknown keys; it does NOT require the shared schema to exist"
+  ],
+  "workflows": [
+    {
+      "name": "Build a knowledge network for a project",
+      "entry_point": "engine/build_knowledge_network.py --source <project>/knowledge.json --out ui/knowledge_network.html",
+      "phases": [
+        "graph_model.map(knowledge_json) -> {nodes, edges}",
+        "build_knowledge_network.render(template, graph) -> self-contained HTML with inlined data",
+        "open ui/knowledge_network.html in a browser (file://) and explore"
+      ]
+    }
+  ],
+  "functions": [
+    "graph_model.map(kb) - pure mapping knowledge.json -> {nodes, edges} with node/edge typing",
+    "graph_model.node_id / edge_id helpers - stable ids for collapse/filter/inspect",
+    "build_knowledge_network.render(graph, template, theme) - emit HTML with inlined JSON + vis-network options",
+    "cli args: --source (required path to knowledge.json), --out (output html), --filter (comma list of node types to show), --theme (shared UI theme name)"
+  ],
+  "data_flows": [
+    {
+      "name": "knowledge.json -> interactive graph",
+      "source": "A target project's knowledge.json (e.g. web_tracer/knowledge.json)",
+      "transformations": [
+        "graph_model.map() builds nodes (project hub + modules + entities + relations + schemas + workflows + functions + dependencies + issues) and typed edges",
+        "build_knowledge_network.render() inlines the graph JSON into a vis-network HTML template using the shared UI base",
+        "Browser renders the graph; user filters node types and clicks nodes to inspect source text"
+      ],
+      "destination": "ui/knowledge_network.html (self-contained, opens from file://)"
+    }
+  ],
+  "data_quality_checks": [
+    "Mapping must never crash on unknown keys (lenient structural parse)",
+    "Every node except the project hub has at least one edge (no orphans)",
+    "Generated HTML must be valid and open offline (file://) without a server",
+    "Build must succeed on both web_tracer/knowledge.json and eks/knowledge.json fixtures (T05)",
+    "Version field surfaced in the UI header; mismatch between knowledge.json version and rendered banner is flagged"
+  ],
+  "initiation_integrity": {
+    "layers": [
+      "L1: Project structure validation - the ten required folders exist (T00 established)",
+      "L2: Source readability - --source knowledge.json is readable and valid JSON",
+      "L3: Output writability - --out directory is writable",
+      "L4: Dependency probe - vis-network available (CDN reachable) or offline fallback configured (Q2)"
+    ],
+    "error_codes": [
+      "KNV-SRC-001 - --source knowledge.json missing or not valid JSON",
+      "KNV-OUT-001 - output directory not writable",
+      "KNV-MAP-001 - unmappable knowledge.json shape (no project_metadata.name); render with a warning banner"
+    ]
+  },
+  "dependencies": {
+    "external_services": [
+      "vis-network CDN (unpkg/jsdelivr) for graph rendering; offline fallback via bundled copy or pyvis server mode (Q2)"
+    ],
+    "libraries": [
+      "vis-network (front-end, CDN) - graph rendering",
+      "Python 3.10+ standard library (json, argparse, pathlib) for the builder - no heavy back-end deps",
+      "pyvis (optional, T06) - alternative server-rendered mode if CDN is blocked"
+    ],
+    "infrastructure": [
+      "Python 3.10+ (conda or system)",
+      "Any modern browser to open the generated HTML",
+      "Native Linux (current workstation); other OSes open the HTML equally"
+    ]
+  },
+  "known_issues": [
+    "KNV-I001 - Resolved 2026-10-01 (T00) - knowledge/ folder compliance: ten folders + knowledge.json + logs created",
+    "KNV-I002 - Needs Decision (Q2/Q3) - offline CDN policy and default --source: decide whether to bundle vis-network for true offline use, and what the default target knowledge.json should be when --source is omitted",
+    "Inherited - web_tracer I003 (blocked) - the shared knowledge_base_schema.json is absent, so knowledge_network parses structurally and does not validate against a schema; revisit if I003 closes"
+  ],
+  "total_issues_resolved": 1,
+  "total_issues_deferred": 0,
+  "revision_history": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-01",
+      "author": "AI assistant",
+      "summary": "Inception knowledge base created in T00 alongside the workplan (WP-KNV-001): declares canonical name 'Knowledge Network Viewer' and abbreviation 'knowledge_network'; full AGENTS.md §2.4 structure. Built to the documented field contract because the shared config/schemas/knowledge_base_schema.json is absent (web_tracer I003). Ten required folders scaffolded."
+    }
+  ]
+}

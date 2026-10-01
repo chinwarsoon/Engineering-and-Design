@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "web_tracer/knowledge.json",
+  "version": "0.1.0",
+  "title": "Web Application Tracer Project Knowledge Base",
+  "description": "Machine-readable software blueprint and charter for the Web Application Tracer (web_tracer): a cross-layer tracer that records one user action and reconstructs it as an interactive execution tree spanning the browser, HTTP transport, backend service, database and external calls.",
+  "project_metadata": {
+    "name": "Web Application Tracer (web_tracer)",
+    "version": "0.1.0",
+    "description": "Cross-layer web application tracer that records a single user action and rebuilds it as an interactive execution tree across the browser, HTTP, backend, database and external-service layers.",
+    "purpose": "Let non-specialist users and developers see exactly which functions, endpoints and database calls one click triggers, across every software layer, to support troubleshooting, onboarding and change-impact analysis.",
+    "status": "Phase 1 — repository compliance established (T00, 2026-09-30). No runtime code implemented yet; this knowledge base is the project inception charter and will be updated at each phase completion.",
+    "last_updated": "2026-09-30"
+  },
+  "architecture_overview": {
+    "key_modules": [
+      "engine/config.py (T01) - single source of truth for constants: canonical name 'Web Application Tracer', abbreviation 'web_tracer', service port :8100, centralised error/message catalogue (AGENTS.md §19)",
+      "engine/capability.py (T01) - dependency probe; probe_all() returns FATAL when a required package is missing and the UI shows a red banner (R12 mitigation)",
+      "engine/paths.py (T02) - path-resolution single point with three-level priority (CLI > schema default > code fallback) and PathEscapeError for out-of-bounds paths",
+      "engine/ids.py (T05) - trace_id (32 hex) / span_id (16 hex) / traceparent format '00-<trace>-<span>-01' generation",
+      "engine/clock.py (T05) - clock-offset normalisation so browser and backend clocks align for correlation",
+      "engine/logging_setup.py (T01) - tiered status/warning/error logging for every module (AGENTS.md §5.9, no silent failure)",
+      "schema/ (T03, T04) - span_schema.json, execution_tree_schema.json, unified_graph_schema.json plus validate.py (planned, not yet created)",
+      "backend/web_server.py (T21) - serves the interactive dashboard on :8100",
+      "backend/routes/system.py (T21) - GET /api/capabilities exposes the dependency FATAL state to the UI",
+      "browser/ (T22-T28, Phase 2) - BrowserTracer abstraction, playwright_adapter.py, initiator_script.js, traceparent.py, actions.py, recorder.py; maps DOM events and HTTP initiators into spans; user action becomes the trace root",
+      "static/ (T41-T44, Phase 5) - Python static analyser using tree-sitter-python; emits python_call_graph.json (node kinds function/endpoint, edges static_call/dynamic_call)",
+      "correlation engine (T31-T38, Phase 3/4) - joins browser spans to backend spans via traceparent / a correlation edge into a UnifiedGraph",
+      "cli/main.py (T21) - command line entry: analyze / record / correlate / serve",
+      "launch.py - one-command entry point (also runs the Phase 0 spike via scripts/run_spike.py)",
+      "ui/ - interactive dashboard built on shared common/universal_ui_design.css + .js base layer with project CSS as override only (AGENTS.md §18)"
+    ],
+    "data_flows": [
+      "Browser events (click/submit/fetch) -> initiator mapping -> HTTP spans carrying traceparent",
+      "HTTP request -> backend OpenTelemetry span (Python, @traced decorator, Q1) -> downstream DB / external spans",
+      "Browser spans + backend spans -> correlation engine (traceparent match) -> UnifiedGraph {nodes, edges, entry_points, hotspots, stats}",
+      "UnifiedGraph -> interactive dashboard tree on :8100 (expand/collapse, jump to source line)",
+      "Static Python analysis (tree-sitter-python) -> python_call_graph.json -> merged into UnifiedGraph as static_call edges"
+    ],
+    "integration_points": [
+      "Target application Case A: dcc pipeline UI served by dcc/serve.py (Python 3.13, port 5000); web_tracer drives a pipeline run and traces it cross-layer",
+      "OpenTelemetry OTLP receiver (Phase 0/3) - backend spans arrive over OTLP",
+      "Playwright (Phase 2) - browser runtime capture; Selenium BiDi / CDP adapters deferred to Phase 8",
+      "tree-sitter-python (Phase 5) - static call-graph extraction",
+      "Shared common/universal_ui_design.css + .js - base UI design system (5 themes, shell layout, toast/modal/file/table utils)",
+      "W3C traceparent - the correlation key joining browser and backend traces"
+    ]
+  },
+  "domain_concepts": {
+    "core_entities": [
+      "Trace - one complete cross-layer recording of a single user action, rooted at the browser action",
+      "Span - a timed unit of work (DOM handler, HTTP call, backend function, DB query) with trace_id/span_id/parent",
+      "SpanEvent - a structured point-in-time event carried by a span (the canonical span payload, T03)",
+      "ExecutionTree - the per-layer tree of spans before correlation",
+      "UnifiedGraph - merged cross-layer graph {nodes, edges, entry_points, hotspots, stats} (T04)",
+      "Node - a graph vertex: kind page/component/function/endpoint; layer browser/http/python/db/external; carries file_path + start_line",
+      "Edge - a graph link: type event_bind/static_call/dynamic_call/http_call/initiator/correlation",
+      "Endpoint - an HTTP route recorded on a node (node.endpoints[]) and matched browser<->backend",
+      "Traceparent - W3C propagation header '00-<trace_id>-<span_id>-01' that joins the layers",
+      "UserAction - the recorded trigger (e.g. click:#toolbarRunBtn) that seeds the trace root",
+      "Hotspot - a node flagged as costly or frequently on the critical path, surfaced in stats"
+    ],
+    "relationships": [
+      "event_bind - DOM element bound to a JS handler (browser layer)",
+      "static_call - determinable function/method call resolved by static analysis",
+      "dynamic_call - call resolved only at runtime (e.g. dispatch by name)",
+      "http_call - browser fetch/XHR to a backend endpoint (becomes node.endpoints[])",
+      "initiator - an HTTP request linked to its response span",
+      "correlation - the edge that joins a browser trace to its backend trace via traceparent"
+    ],
+    "terminology": [
+      "UnifiedGraph - the merged cross-layer execution graph (browser + HTTP + backend + DB + external)",
+      "traceparent - W3C distributed-tracing header used as the correlation key across layers",
+      "SpanEvent - the canonical span payload schema frozen in T03",
+      "hotspot - a node on the critical path or with high cost, highlighted in the dashboard",
+      "entry point - the browser action or endpoint that roots a trace or subgraph",
+      "Correlation Engine - the component that stitches browser and backend spans into one tree",
+      "Case A - cross-layer target: dcc pipeline UI served on :5000 (Correlation Engine active)",
+      "Case B - standalone interactive HTML opened via file:// (browser-only; Correlation Engine idle)"
+    ]
+  },
+  "key_schemas": [
+    "schema/span_schema.json (T03, planned) - SpanEvent schema; must accept both proposal examples and the three §8.3 examples; rejects illegal spans",
+    "schema/execution_tree_schema.json (T04, planned) - per-layer execution-tree schema; the §8.3.2 example must validate",
+    "schema/unified_graph_schema.json (T04, planned) - merged graph schema {nodes, edges, entry_points, hotspots, stats}; the §8.3.3 example must validate",
+    "schema/validate.py (T03/T04, planned) - validator invoked before any artefact is written",
+    "NOTE: AGENTS.md §2.4 references a shared config/schemas/knowledge_base_schema.json for this file; that shared schema is absent (I003, blocked), so this knowledge.json is built to the documented AGENTS.md §2.4 field contract and will be re-validated once I003 closes"
+  ],
+  "workflows": [
+    {
+      "name": "Phase 0 Spike - cross-layer trace of a dcc pipeline run (Case A)",
+      "entry_point": "scripts/run_spike.py",
+      "phases": [
+        "Drive dcc/serve.py on :5000 and trigger a pipeline run from the dashboard",
+        "Capture browser spans + backend OpenTelemetry spans across the serve.py -> dcc_engine_pipeline.py subprocess boundary",
+        "Verify traceparent is propagated across the subprocess boundary; otherwise the tree splits (key Phase 0 gate)"
+      ]
+    },
+    {
+      "name": "Record a user action (Phase 2)",
+      "entry_point": "cli/main.py record --url <app> --action <selector>",
+      "description": "Browser captures DOM events, maps HTTP initiators to spans, and the user action becomes the trace root; also starts the OTLP receiver"
+    },
+    {
+      "name": "Correlate and build the tree (Phase 3/4)",
+      "entry_point": "cli/main.py correlate --run <run-id>",
+      "description": "Correlation Engine matches browser and backend spans by traceparent and prints/returns the UnifiedGraph"
+    },
+    {
+      "name": "Serve the dashboard (Phase 1)",
+      "entry_point": "cli/main.py serve / launch.py",
+      "description": "Start the web server on :8100 and open the interactive execution-tree dashboard"
+    },
+    {
+      "name": "Static analysis (Phase 5)",
+      "entry_point": "cli/main.py analyze --path <project>",
+      "description": "tree-sitter-python extracts python_call_graph.json and merges static_call edges into the UnifiedGraph"
+    }
+  ],
+  "functions": [
+    "engine.config - canonical constants (name, abbreviation, port :8100, error/message catalogue SSOT)",
+    "engine.capability.probe_all() - dependency availability probe; returns FATAL on a missing required package",
+    "engine.paths.resolve_paths() - three-level-priority path resolver; raises PathEscapeError out of bounds",
+    "engine.ids.new_trace_id() / new_span_id() / make_traceparent() - W3C id/header generation",
+    "engine.clock.normalize_offset() - reverse an injected clock offset for correlation",
+    "engine.logging_setup.configure() - tiered logging setup",
+    "schema.validate.validate(instance, schema) - validate before writing any artefact",
+    "backend.web_server.run() - serve dashboard on :8100",
+    "backend.routes.system.capabilities() - GET /api/capabilities (dependency FATAL state)",
+    "browser.recorder.record_action() - capture a user action as the trace root (Phase 2)",
+    "correlation.engine.correlate(run) - join browser + backend spans into UnifiedGraph (Phase 3/4)",
+    "static.analyze(path) - tree-sitter-python -> python_call_graph.json (Phase 5)",
+    "cli.main (analyze / record / correlate / serve) - command-line entry points",
+    "launch.main() - one-command entry point"
+  ],
+  "data_flows": [
+    {
+      "name": "Cross-layer trace assembly",
+      "source": "A single user action in the browser (e.g. click:#toolbarRunBtn on the dcc pipeline dashboard)",
+      "transformations": [
+        "BrowserTracer records DOM events and maps HTTP initiators to spans carrying traceparent",
+        "Backend OpenTelemetry SDK emits spans for the Python handler (@traced) and downstream DB/external calls",
+        "traceparent is propagated across the serve.py -> dcc_engine_pipeline.py subprocess boundary",
+        "Correlation Engine matches browser and backend spans by traceparent",
+        "UnifiedGraph is built and rendered as an interactive tree in the dashboard"
+      ],
+      "destination": "output/ UnifiedGraph artefacts + interactive dashboard on :8100"
+    },
+    {
+      "name": "Static augmentation",
+      "source": "Project source tree (Python, Case A target dcc)",
+      "transformations": [
+        "tree-sitter-python parses functions and calls",
+        "Edges typed static_call / dynamic_call; endpoints recorded on nodes",
+        "python_call_graph.json merged into the UnifiedGraph"
+      ],
+      "destination": "output/python_call_graph.json + merged UnifiedGraph"
+    }
+  ],
+  "data_quality_checks": [
+    "Span schema validation (T03) - illegal spans rejected before write",
+    "UnifiedGraph / ExecutionTree schema validation (T04) - §8.3.2/§8.3.3 examples must pass",
+    "Contract checker (T06) - injected mismatched endpoint fails CI and names the URL",
+    "Undefined-function static check (T07) - scans ui/ for calls with no definition; no false positives on static_dashboard.html",
+    "Capability probe (T01) - a missing required dependency makes the UI show FATAL, never a bare crash",
+    "Clean-env verification (T08/T56) - verify_clean_env.py exits 0"
+  ],
+  "initiation_integrity": {
+    "layers": [
+      "L1: Project structure validation - the ten required folders exist (T00 established)",
+      "L2: Environment probe - Python version + conda env + key packages (engine.capability, T01)",
+      "L3: Output-path validation - output/ is writable (engine.paths, T02)",
+      "L4: User-input readability - target app path accessible (Phase 0 intake, §12.2)",
+      "L5: Dependency probe - per-package availability report (engine.capability, T01)",
+      "L6: Readiness override - --skip-readiness CLI bypass (planned, T01)"
+    ],
+    "error_codes": [
+      "FATAL (capability) - a required dependency is missing; UI shows a red banner",
+      "PathEscapeError - a resolved path leaves the allowed root",
+      "Contract drift - front end calls a URL the backend does not expose (T06)"
+    ]
+  },
+  "dependencies": {
+    "external_services": [
+      "dcc pipeline UI (Case A target) served by dcc/serve.py on :5000 (Python 3.13 conda env 'dcc')",
+      "OpenTelemetry OTLP collector/receiver - backend span ingestion (Phase 0/3)",
+      "Playwright - browser runtime capture (Phase 2)",
+      "W3C traceparent - correlation key (no external service, a header convention)",
+      "Java/Spring (optional template only, P8) - non-dcc targets; Spring AOP strategy kept as a template, off by default"
+    ],
+    "libraries": [
+      "opentelemetry (Python SDK) - backend instrumentation, @traced decorator (Q1)",
+      "tree-sitter / tree-sitter-python - static call-graph extraction (Phase 5)",
+      "networkx - graph construction/merge for UnifiedGraph",
+      "jsonschema / referencing - schema validation (T03/T04)",
+      "playwright - browser automation (Phase 2)"
+    ],
+    "infrastructure": [
+      "Python 3.13 (conda environment; web_tracer env to be created in Phase 1, T01)",
+      "Native Linux (current workstation); WSL Ubuntu / Docker Desktop / EKS deferred to later phases",
+      "Service port :8100 for the web_tracer dashboard; :5000 for the Case A dcc target"
+    ]
+  },
+  "known_issues": [
+    "I002 - Resolved 2026-09-30 (T00) - web_tracer/knowledge.json missing; created v0.1.0 with canonical name + abbreviation and full AGENTS.md §2.4 structure; all ten required folders created",
+    "I003 - Blocked - config/schemas/knowledge_base_schema.json (referenced by AGENTS.md §2.4) does not exist; this knowledge.json is built to the documented field contract until the shared schema is provided or AGENTS.md is corrected. Blocked on a repository-owner decision",
+    "R12 (design risk, tracked in workplan risk register) - subprocess trace-propagation boundary: dcc/serve.py spawns dcc_engine_pipeline.py as a subprocess; if traceparent is not forwarded (e.g. via OTEL_TRACEPARENT env) the cross-layer tree splits. Validated by the Phase 0 spike (Case A). Not a separate issue ID yet",
+    "Documentation debt - a few stale Java references remain in the workplan debugging guide (§8.9) and §9 from the original Java/Spring framing; to be cleared in the next workplan hygiene pass (outside T00)"
+  ],
+  "total_issues_resolved": 1,
+  "total_issues_deferred": 0,
+  "revision_history": [
+    {
+      "version": "0.1.0",
+      "date": "2026-09-30",
+      "author": "AI assistant",
+      "summary": "Inception knowledge base created in T00: declares canonical name 'Web Application Tracer' and abbreviation 'web_tracer'; full AGENTS.md §2.4 structure (project_metadata, architecture_overview, domain_concepts, key_schemas, workflows, functions, data_flows, dependencies, known_issues). Built to the documented field contract because the shared config/schemas/knowledge_base_schema.json is absent (I003). Ten required folders scaffolded (config/ data/ docs/ output/ test/ ui/ engine/ added). I002 resolved."
+    }
+  ]
+}
