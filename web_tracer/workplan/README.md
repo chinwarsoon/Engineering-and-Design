@@ -11,7 +11,7 @@
 
 | Workplan ID | Title | Status | Revision | Document |
 |---|---|---|---|---|
-| `WP-WEB-TRACER-001` | Web Application Tracer (Cross-Layer Web Tracing) | ACTIVE DRAFT — pending user approval | r3 | [`web_application_tracing_workplan.md`](web_application_tracing_workplan.md) |
+| `WP-WEB-TRACER-001` | Web Application Tracer (Cross-Layer Web Tracing) | ACTIVE — T00–T10,T21,T22–T28,T29–T33,T34–T40 done; Phase 5 next | r4 | [`web_application_tracing_workplan.md`](web_application_tracing_workplan.md) |
 
 Scope in one line: trace one user action across the browser and (when present) a backend, and show it as one interactive execution tree. Two target profiles: **Case A** cross-layer (`dcc` pipeline UI, served) and **Case B** standalone browser-only HTML (§12.4).
 
@@ -22,10 +22,10 @@ Reports are written into this folder at the completion of each phase (`workplan/
 | Phase | Report | Status |
 |---|---|---|
 | P0 — Spike | _pending_ | Not started (target re-scoped to `dcc`, two profiles defined §12.4) |
-| P1 — Skeleton and contracts | _pending_ | Not started |
-| P2 — Browser runtime | _pending_ | Not started |
-| P3 — Backend (Python) runtime | _pending_ | Not started |
-| P4 — Correlation and execution tree | _pending_ | Not started |
+| P1 — Skeleton and contracts | done | complete (2026-10-02); Phase 2 next |
+| P2 — Browser runtime | done | complete (2026-10-02); Phase 3 next |
+| P3 — Java runtime hardening | done | complete (2026-10-02); Phase 4 next |
+| P4 — Correlation and execution tree | [`reports/phase4_report.md`](reports/phase4_report.md) | complete (2026-10-02); Phase 5 next |
 | P5 — Python static analysis | _pending_ | Not started |
 | P6 — Web static analysis | _pending_ | Not started |
 | P7 — Unified graph and dashboard | _pending_ | Not started |

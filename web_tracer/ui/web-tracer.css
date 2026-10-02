@@ -1,0 +1,114 @@
+/* ui/web-tracer.css — Web Application Tracer override layer (workplan T10).
+ *
+ * This is the project-specific override layer on top of the shared design system
+ * (AGENTS.md §18, common/universal_ui_design.css). The shared system is wired in
+ * during T39; this file carries web_tracer-specific branding and layout tweaks so
+ * the dashboard can be themed independently. No React/Vite output is present.
+ */
+
+:root {
+  --wt-accent: #58a6ff;       /* browser layer blue (workplan §8.8 layer band) */
+  --wt-bg: #0d1117;
+  --wt-fg: #e6edf3;
+  --wt-panel: #161b22;
+}
+
+body {
+  background: var(--wt-bg);
+  color: var(--wt-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.wt-header {
+  border-bottom: 2px solid var(--wt-accent);
+  padding: 8px 12px;
+}
+
+.wt-header h1 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--wt-accent);
+}
+
+/* ── Layer colour band (workplan §8.4 LAYERS, T54) ──────────────────────────
+   One colour per layer so a glance at the tree tells you which tier of the
+   stack a node belongs to. Values mirror engine/config.py LAYERS. */
+.wt-layer-user     { background:#8957e5; }
+.wt-layer-browser  { background:#58a6ff; }
+.wt-layer-http     { background:#3fb950; }
+.wt-layer-java     { background:#d29922; }
+.wt-layer-db       { background:#db6d28; }
+.wt-layer-external { background:#f85149; }
+
+/* ── Execution tree (T39) ─────────────────────────────────────────────────── */
+.wt-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wt-tree-row:hover { background: var(--wt-panel); }
+.wt-tree-row.wt-selected { background: var(--wt-panel); outline: 1px solid var(--wt-accent); }
+
+.wt-layer-chip {
+  display: inline-block;
+  min-width: 58px;
+  text-align: center;
+  color: #fff;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  text-transform: uppercase;
+}
+
+.wt-tree-name { font-weight: 600; color: var(--wt-fg); }
+.wt-tree-file { color: #8b949e; font-size: 11px; }
+
+/* bar showing this node's share of the root duration, with the self time darker */
+.wt-timebar {
+  position: relative;
+  height: 8px;
+  min-width: 80px;
+  flex: 1;
+  background: #21262d;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wt-timebar > span { position: absolute; top: 0; height: 100%; }
+.wt-timebar-total { background: #30363d; }
+.wt-timebar-self  { background: var(--wt-accent); }
+
+.wt-tree-ms { font-family: ui-monospace, monospace; color: #8b949e; font-size: 11px; }
+.wt-tree-badge {
+  font-size: 10px; padding: 0 4px; border-radius: 3px;
+  border: 1px solid #30363d; color: #8b949e;
+}
+.wt-tree-badge.wt-unmatched { border-color:#f85149; color:#f85149; }
+.wt-tree-badge.wt-fallback  { border-color:#d29922; color:#d29922; }
+
+/* ── Correlation summary strip ────────────────────────────────────────────── */
+.wt-report {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  padding: 6px 12px; font-size: 11px;
+  border-bottom: 1px solid #30363d; background: var(--wt-panel); color: #8b949e;
+}
+.wt-report b { color: var(--wt-fg); }
+.wt-report .wt-rate-good { color:#3fb950; }
+.wt-report .wt-rate-bad  { color:#f85149; }
+
+/* ── Inspector cross-layer sections (T40) ─────────────────────────────────── */
+.wt-kv { display: grid; grid-template-columns: 120px 1fr; gap: 2px 8px; font-size: 11px; }
+.wt-kv dt { color:#8b949e; }
+.wt-kv dd { margin: 0; color: var(--wt-fg); font-family: ui-monospace, monospace; word-break: break-all; }
+.wt-stack { font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.6; }
+.wt-stack div { padding-left: 8px; border-left: 2px solid #30363d; }
+.wt-empty { color:#8b949e; font-size: 11px; font-style: italic; }
+.wt-json {
+  font-family: ui-monospace, monospace; font-size: 10px; color:#8b949e;
+  white-space: pre-wrap; word-break: break-all;
+}

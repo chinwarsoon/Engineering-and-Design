@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-20260929-101233",
+  "nodes": [
+    { "id": "n:page", "layer": "browser", "kind": "page", "confidence": 1.0, "source_of_truth": "static", "label": "index.html", "file": "static/index.html", "line": 88 },
+    { "id": "n:submit", "layer": "browser", "kind": "function", "confidence": 1.0, "source_of_truth": "both", "label": "submitDocument", "file": "static/js/document.js", "line": 142 },
+    { "id": "n:api", "layer": "http", "kind": "endpoint", "confidence": 1.0, "source_of_truth": "both", "label": "POST /api/document", "endpoints": ["/api/document"] },
+    { "id": "n:svc", "layer": "java", "kind": "method", "confidence": 1.0, "source_of_truth": "runtime", "label": "DocumentService.create", "span_count": 1, "total_duration_ms": 32.7, "error_count": 0 }
+  ],
+  "edges": [
+    { "source": "n:page", "target": "n:submit", "type": "event_bind", "confidence": 1.0, "line": 88, "metadata": { "count": 1 } },
+    { "source": "n:submit", "target": "n:api", "type": "http_call", "confidence": 1.0, "line": 145, "metadata": { "count": 1 } },
+    { "source": "n:api", "target": "n:svc", "type": "correlation", "confidence": 1.0, "line": null, "metadata": { "count": 1 } }
+  ],
+  "entry_points": ["n:page"],
+  "hotspots": [{ "id": "n:svc", "total_duration_ms": 32.7 }],
+  "stats": { "modules": 2, "functions": 1, "edges": 3, "entry_points": 1, "hotspots": 1, "layers": { "browser": 2, "http": 1, "java": 1 }, "correlation_rate": 1.0, "span_count": 1, "trace_count": 1 }
+}

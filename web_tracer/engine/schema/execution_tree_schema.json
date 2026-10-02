@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution_tree_schema.json",
+  "title": "ExecutionTree",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "trace_id", "run_id", "clock", "root", "stats"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "run_id": { "type": "string" },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "offset_ms"],
+      "properties": {
+        "base": { "type": "string" },
+        "offset_ms": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "root": { "$ref": "#/$defs/node" },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_count", "max_depth", "total_duration_ms", "layers", "unmatched_count", "correlation_rate"],
+      "properties": {
+        "node_count": { "type": "integer" },
+        "max_depth": { "type": "integer" },
+        "total_duration_ms": { "type": "number" },
+        "layers": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "unmatched_count": { "type": "integer" },
+        "correlation_rate": { "type": "number" }
+      }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "name", "start_offset_ms", "duration_ms", "children"],
+      "properties": {
+        "id": { "type": "string" },
+        "span_id": { "type": "string" },
+        "layer": { "enum": ["user", "browser", "http", "java", "db", "external"] },
+        "name": { "type": "string" },
+        "kind": { "enum": ["function", "method", "request", "statement", "event"] },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file"],
+          "properties": {
+            "file": { "type": "string" },
+            "line": { "type": "integer" },
+            "symbol": { "type": "string" }
+          }
+        },
+        "start_offset_ms": { "type": "number" },
+        "duration_ms": { "type": "number" },
+        "self_time_ms": { "type": "number" },
+        "status": { "enum": ["ok", "error", "timeout", "aborted", "unknown"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "correlation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "score", "reason"],
+          "properties": {
+            "method": { "enum": ["trace_id", "url_time_window", "inferred", "unmatched"] },
+            "score": { "type": "number" },
+            "reason": { "type": ["string", "null"] }
+          }
+        },
+        "attributes": { "type": "object" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/node" } }
+      }
+    }
+  }
+}

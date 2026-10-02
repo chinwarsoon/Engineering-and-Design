@@ -228,3 +228,10 @@ eks/test_output/
 
 #codex
 .codex/
+
+# web_tracer runtime artifacts — generated, never committed
+# (AGENTS.md §6 keeps the folder structure; only generated contents are ignored)
+web_tracer/output/.target
+web_tracer/output/*.json
+web_tracer/output/runs/*
+!web_tracer/output/runs/.gitkeep

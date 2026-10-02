@@ -1,0 +1,15 @@
+# web_tracer optional / later-phase dependencies (NOT required for T01 skeleton)
+# Install only the ones a given phase needs; the capability probe does not FATAL on these.
+# Phase 0/3 backend instrumentation (Q1):
+opentelemetry-api>=1.20
+opentelemetry-sdk>=1.20
+# Phase 2 browser capture:
+playwright>=1.40
+# Phase 5 static analysis:
+tree-sitter>=0.22
+tree-sitter-python>=0.22
+# Offline HTML network viewer (shared UI / knowledge_network):
+pyvis>=0.3.2
+# Phase 3 OTLP receiver dual channel (T29): protobuf lets the receiver accept OTLP/HTTP
+# protobuf payloads. Missing -> the receiver auto-downgrades to OTLP/HTTP json + WARN (not silent).
+protobuf>=4.25

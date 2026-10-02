@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "span_schema.json",
+  "title": "SpanEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "trace_id", "span_id", "parent_span_id", "layer",
+    "event_type", "name", "kind", "source", "start_time_unix_ns",
+    "duration_ms", "status", "confidence", "correlation", "attributes",
+    "clock_offset_ms", "collector"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "parent_span_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
+    "layer": { "enum": ["user", "browser", "http", "java", "db", "external"] },
+    "event_type": {
+      "enum": [
+        "user_action", "dom_event", "js_function", "navigation", "resource",
+        "http_request", "http_response", "controller", "service", "repository",
+        "method", "sql", "external_call", "console", "error"
+      ]
+    },
+    "name": { "type": "string" },
+    "kind": { "enum": ["function", "method", "request", "statement", "event"] },
+    "language": { "enum": ["javascript", "typescript", "java", "sql", "html", null] },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "symbol": { "type": "string" },
+        "class_name": { "type": "string" },
+        "package": { "type": "string" }
+      }
+    },
+    "start_time": { "type": "string" },
+    "start_time_unix_ns": { "type": "integer" },
+    "end_time": { "type": ["string", "null"] },
+    "duration_ms": { "type": "number" },
+    "status": { "enum": ["ok", "error", "timeout", "aborted", "unknown"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "score", "reason"],
+      "properties": {
+        "method": { "enum": ["trace_id", "url_time_window", "inferred", "unmatched"] },
+        "score": { "type": "number" },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+    "attributes": { "type": "object" },
+    "clock_offset_ms": { "type": "number" },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "run_id"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "run_id": { "type": "string" }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service_name": { "type": "string" },
+        "host": { "type": "string" },
+        "env": { "enum": ["local", "docker", "eks"] },
+        "thread": { "type": "string" }
+      }
+    }
+  }
+}

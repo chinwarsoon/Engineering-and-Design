@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "trace_id": "8f3a1c2e4b5d6a7f8f3a1c2e4b5d6a7f",
+  "span_id": "0a9b8c7d6e5f4031", "parent_span_id": null,
+  "layer": "java", "event_type": "service",
+  "class": "com.example.doc.DocumentService", "method": "create",
+  "kind": "method", "language": "java",
+  "source": { "file": "com/example/doc/DocumentService.java", "line": 84 },
+  "start_time_unix_ns": 1759145553498000000, "duration_ms": 32.7, "status": "ok",
+  "confidence": 1.0, "correlation": { "method": "trace_id", "score": 1.0, "reason": null },
+  "attributes": { "strategy": "spring_aop" },
+  "clock_offset_ms": 3.2,
+  "collector": { "name": "otlp-receiver", "version": "0.1.0", "run_id": "run-20260929-101233" }
+}

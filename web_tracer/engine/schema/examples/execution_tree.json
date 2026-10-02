@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "trace_id": "8f3a1c2e4b5d6a7f8f3a1c2e4b5d6a7f",
+  "run_id": "run-20260929-101233",
+  "clock": { "base": "browser", "offset_ms": { "browser": 0.0, "java": -3.2 } },
+  "root": {
+    "id": "span:deadbeef00000001", "span_id": "deadbeef00000001",
+    "layer": "user", "name": "Click \"Submit\"", "kind": "event",
+    "source": { "file": "static/index.html", "line": 88, "symbol": "#submit" },
+    "start_offset_ms": 0.0, "duration_ms": 61.2, "self_time_ms": 0.4,
+    "status": "ok", "confidence": 1.0,
+    "correlation": { "method": "trace_id", "score": 1.0, "reason": null },
+    "attributes": {},
+    "children": [
+      { "layer": "browser", "name": "submitDocument",
+        "start_offset_ms": 1.1, "duration_ms": 18.4, "self_time_ms": 2.0,
+        "children": [
+          { "layer": "http", "name": "POST /api/document",
+            "start_offset_ms": 8.0, "duration_ms": 42.1,
+            "children": [
+              { "layer": "java", "name": "DocumentController.create",
+                "start_offset_ms": 12.3, "duration_ms": 37.0,
+                "children": [
+                  { "layer": "java", "name": "DocumentService.create",
+                    "start_offset_ms": 13.0, "duration_ms": 32.7,
+                    "children": [
+                      { "layer": "db", "name": "INSERT INTO document",
+                        "start_offset_ms": 30.0, "duration_ms": 9.8,
+                        "self_time_ms": 9.8, "children": [] }
+                    ] }
+                ] }
+            ] }
+        ] }
+    ]
+  },
+  "stats": { "node_count": 6, "max_depth": 5, "total_duration_ms": 61.2,
+             "layers": { "user": 1, "browser": 1, "http": 1, "java": 2, "db": 1 },
+             "unmatched_count": 0, "correlation_rate": 1.0 }
+}

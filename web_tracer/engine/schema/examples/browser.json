@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "trace_id": "8f3a1c2e4b5d6a7f8f3a1c2e4b5d6a7f",
+  "span_id": "a1b2c3d4e5f60718",
+  "parent_span_id": "0f1e2d3c4b5a6978",
+  "layer": "browser", "event_type": "js_function", "name": "submitDocument",
+  "kind": "function", "language": "javascript",
+  "source": { "file": "static/js/document.js", "line": 142, "column": 7, "symbol": "submitDocument" },
+  "start_time": "2026-09-29T10:12:33.482Z",
+  "start_time_unix_ns": 1759145553482000000,
+  "end_time": "2026-09-29T10:12:33.500Z",
+  "duration_ms": 18.4, "status": "ok", "confidence": 1.0,
+  "correlation": { "method": "trace_id", "score": 1.0, "reason": null },
+  "attributes": { "stack": ["submitDocument@142:7", "onSubmit@88:21"], "http_requests": 1 },
+  "clock_offset_ms": 0.0,
+  "collector": { "name": "playwright-adapter", "version": "0.1.0", "run_id": "run-20260929-101233" },
+  "resource": { "service_name": "web-frontend", "host": "linux-ws", "env": "local" }
+}

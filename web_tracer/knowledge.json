@@ -9,8 +9,8 @@
     "version": "0.1.0",
     "description": "Cross-layer web application tracer that records a single user action and rebuilds it as an interactive execution tree across the browser, HTTP, backend, database and external-service layers.",
     "purpose": "Let non-specialist users and developers see exactly which functions, endpoints and database calls one click triggers, across every software layer, to support troubleshooting, onboarding and change-impact analysis.",
-    "status": "Phase 1 — repository compliance established (T00, 2026-09-30). No runtime code implemented yet; this knowledge base is the project inception charter and will be updated at each phase completion.",
-    "last_updated": "2026-09-30"
+    "status": "Phase 4 complete (T34-T40, 2026-10-02): correlation engine (trace_id + URL/time fallback), execution tree, correlation report and a dashboard (served at GET /) with the tree tab and a cross-layer span inspector. Phase 5 (Python static analysis) is next.",
+    "last_updated": "2026-10-02"
   },
   "architecture_overview": {
     "key_modules": [
@@ -20,6 +20,34 @@
       "engine/ids.py (T05) - trace_id (32 hex) / span_id (16 hex) / traceparent format '00-<trace>-<span>-01' generation",
       "engine/clock.py (T05) - clock-offset normalisation so browser and backend clocks align for correlation",
       "engine/logging_setup.py (T01) - tiered status/warning/error logging for every module (AGENTS.md §5.9, no silent failure)",
+      "engine/paths.py (T02) - single path-resolution point: resolve_base() three-level priority (.target -> TRACER_TARGET -> cwd); assert_within_base() raises PathEscapeError on escape (AGENTS.md §5.16 no hardcoded fallback)",
+      "engine/schema/validate.py (T03) - JSON Schema validators for SpanEvent/ExecutionTree/UnifiedGraph + compat_load (legacy proposal top-level class/method -> source.class_name/name)",
+      "engine/schema/span_schema.json / execution_tree_schema.json / unified_graph_schema.json (T03/T04) - frozen SpanEvent / ExecutionTree / UnifiedGraph contracts (workplan §8.3)",
+      "engine/browser/base.py (T22) - BrowserTracer ABC + RecordConfig + Action + make_span + new_run_id (single SpanEvent builder shared by all adapters)",
+      "engine/browser/playwright_adapter.py (T23) - full Playwright capture adapter: six event types (navigation/click/XHR/console/error/screenshot) -> SpanEvents; playwright import guarded; _to_span validates each span; performs user actions via begin_user_span/perform_action/end_user_span",
+      "engine/browser/mock.py (T22) - MockBrowserAdapter with no real browser: covers CI + the T22 acceptance (abstraction runnable by a mock) and exercises all six event types",
+      "engine/browser/initiator_script.js (T24) - add_init_script patch wrapping window.fetch/XMLHttpRequest to capture the initiating function+line via Error().stack (project's key advantage)",
+      "engine/browser/traceparent.py (T24) - ensure_headers hook + probe_cors() OPTIONS preflight that carries traceparent; allowed=False flags a correlation downgrade",
+      "engine/browser/actions.py (T25) - user action becomes the layer=user trace root; run_actions drives the adapter through configured Action steps",
+      "engine/browser/recorder.py (T22/T27) - record()/persist() to output/runs/<run_id>/browser_trace.json; package() zips a run for offline replay; import_zip()/import_payload() unpack on another machine",
+      "engine/clock.py (T05/T26) - normalize/estimate_offset/reverse_offset + calibrate()/normalize_spans() for cross-collector clock-offset alignment (T26)",
+      "backend/routes/browser.py (T28) - five Phase-2 endpoints: /browser/record/start, /stop, /status, /trace/{run_id}, /import (json or zip); tracer factory is overridable for tests",
+      "engine/java/otlp_decode.py (T29) - decode OTLP/HTTP protobuf|json ExportTraceServiceRequest into SpanEvents; ProtobufUnavailable downgrade when protobuf missing; _classify maps OTel span -> layer/event_type/kind; _map_otel_span validates each span",
+      "engine/java/otlp_receiver.py (T29) - OtlpReceiver: dual channel (protobuf|json), in-memory ingest, batch write to output/runs/<run_id>/java_trace.json on stop, status(); effective_channel() reports json when protobuf deps absent",
+      "engine/java/strategies.py (T31) - JavaMethodInstrumentation + 4 strategies (framework_only/spring_aop/with_span/bytebuddy) + select_strategy('auto' => non-intrusive spring_aop|framework_only); emits agent_args/env/snippets",
+      "engine/java/source_mapper.py (T32) - SourceMapper builds a (class,method)->(file,line) index from *.java; map_span resolves via runtime code.* (1.0) then static index (0.9/0.6); resolve_rate() reports method-level coverage (>=80% target)",
+      "engine/java/java_resources/* (T33) - TracedAspect.java (Spring AOP @Around emitting nested method spans + code.namespace/function), pom-snippet.xml (AOP deps), CorsConfig.java (allow traceparent on CORS preflight), README.md",
+      "engine/java/agent_configs/* (T30) - local.md / docker.md / eks.md copy-paste OTel agent attach commands pointing at /v1/traces on :8100",
+      "backend/routes/java.py (T29/T31) - P0 receiver routes (/java/receiver/start|stop|status, /v1/traces, /java/trace/{run_id}, /java/import) + instrumentation routes (/java/instrumentation/strategies, /java/instrumentation/config); registered in web_server.py",
+      "engine/ids.py (T05) - W3C trace/span id generation (32/16 hex) + make_traceparent",
+      "engine/clock.py (T05) - clock-offset normalisation: normalize / estimate_offset / reverse_offset (workplan §8.4)",
+      "backend/web_server.py (T09) - FastAPI app on :8100; includes backend.routes.system",
+      "backend/routes/system.py (T09/T21) - Phase 1 system endpoints: /health, /api/capabilities, /api/target, /api/target/set, /file/read (path strings from engine.config.ENDPOINTS)",
+      "launch.py (T09) - start the server (uvicorn) and open the dashboard in a browser",
+      "cli/main.py (T09) - subcommands: version / check / serve / schema",
+      "scripts/check_contracts.py (T06) - CI contract checker: backend routes subset of engine.config.ENDPOINTS; front-end fetch URLs subset of routes",
+      "scripts/check_undefined_functions.py (T07) - CI static check: no undefined bare function calls in ui/",
+      "scripts/verify_clean_env.py (T08) - clean-environment acceptance (--fresh builds a venv)",
       "schema/ (T03, T04) - span_schema.json, execution_tree_schema.json, unified_graph_schema.json plus validate.py (planned, not yet created)",
       "backend/web_server.py (T21) - serves the interactive dashboard on :8100",
       "backend/routes/system.py (T21) - GET /api/capabilities exposes the dependency FATAL state to the UI",
@@ -28,7 +56,15 @@
       "correlation engine (T31-T38, Phase 3/4) - joins browser spans to backend spans via traceparent / a correlation edge into a UnifiedGraph",
       "cli/main.py (T21) - command line entry: analyze / record / correlate / serve",
       "launch.py - one-command entry point (also runs the Phase 0 spike via scripts/run_spike.py)",
-      "ui/ - interactive dashboard built on shared common/universal_ui_design.css + .js base layer with project CSS as override only (AGENTS.md §18)"
+      "ui/ - interactive dashboard built on shared common/universal_ui_design.css + .js base layer with project CSS as override only (AGENTS.md §18)",
+      "engine/correlation/models.py (T34/T35/T36) - shared correlation vocabulary: METHODS (trace_id|url_time_window|inferred|unmatched), REASONS (six), Match, CorrelationInput/Result, usable_trace_id(), set_correlation()",
+      "engine/correlation/engine.py (T34) - CorrelationEngine: clock normalisation onto the browser base clock (per-collector median clock_offset_ms, correction recorded in clock.offset_ms), primary trace_id join at confidence 1.0, fallback dispatch, and parent_overrides stitching the Java handler under the browser request span",
+      "engine/correlation/fallback.py (T35) - FallbackMatcher: HTTP fingerprint (method + path, query stripped, id segments collapsed to {id}) plus a +/-200 ms window; unique 0.8 / ambiguous 0.6 / path-only 0.4 - never 1.0",
+      "engine/correlation/metrics.py (T36) - CorrelationMetrics: correlation_report.json with rate, by_method, matched_pairs and all six unmatched reasons (no_candidate, multiple_candidates, cors_preflight_blocked, clock_skew_exceeded, no_trace_id, out_of_window)",
+      "engine/correlation/execution_tree.py (T37) - ExecutionTreeBuilder: tree by parent_span_id, synthetic root (layer user, confidence 0.3) for orphan spans, parent-cycle guard, start_offset_ms / self_time_ms / stats; validated against execution_tree_schema.json before it is returned",
+      "backend/routes/correlation.py (T38) - Phase 4 REST endpoints (workplan 8.5 rows 18-20): POST /correlate, GET /correlation/report/{run_id}, GET /execution_tree/{run_id}; loads browser_trace.json + java_trace.json from output/runs/<run_id> with optional browser_run_id / java_run_id overrides",
+      "ui/static_dashboard.html (T39/T40) - execution tree tab (correlate/load controls, correlation summary strip, indented layer-coloured tree) and a Span inspector with six cross-layer sections: span, timing, source, initiator+HTTP, backend span stack, attributes",
+      "ui/web-tracer.css (T39) - project override layer: six-colour layer band (user/browser/http/java/db/external), tree rows, time bars, correlation strip and inspector key-value styles"
     ],
     "data_flows": [
       "Browser events (click/submit/fetch) -> initiator mapping -> HTTP spans carrying traceparent",
@@ -115,6 +151,11 @@
       "name": "Static analysis (Phase 5)",
       "entry_point": "cli/main.py analyze --path <project>",
       "description": "tree-sitter-python extracts python_call_graph.json and merges static_call edges into the UnifiedGraph"
+    },
+    {
+      "name": "Correlate a run and render the execution tree (Phase 4)",
+      "entry_point": "POST /correlate {run_id, window_ms, strategy}",
+      "description": "Loads browser_trace.json + java_trace.json for the run, joins request spans to server handlers by trace_id (1.0) then by URL + +/-200 ms window (<=0.8), writes correlation_report.json and execution_tree.json into output/runs/<run_id>, and the dashboard renders the tree from GET /execution_tree/{run_id}"
     }
   ],
   "functions": [
@@ -131,7 +172,13 @@
     "correlation.engine.correlate(run) - join browser + backend spans into UnifiedGraph (Phase 3/4)",
     "static.analyze(path) - tree-sitter-python -> python_call_graph.json (Phase 5)",
     "cli.main (analyze / record / correlate / serve) - command-line entry points",
-    "launch.main() - one-command entry point"
+    "launch.main() - one-command entry point",
+    "correlation.engine.CorrelationEngine.correlate(input) - normalise clocks, primary trace_id join, fallback URL+time join, classify leftovers; returns CorrelationResult{matches, unmatched, clock, stats, parent_overrides, warnings}",
+    "correlation.fallback.FallbackMatcher.match(http_spans, java_handlers, time_of) - URL + time-window matching; failures are recorded on .failures with one of the six reasons",
+    "correlation.metrics.CorrelationMetrics.report(result) - correlation_report.json payload (total, matched, rate, by_method, unmatched_reasons, matched_pairs, warnings)",
+    "correlation.execution_tree.ExecutionTreeBuilder.build(spans, result, trace_id, run_id) - schema-validated execution_tree.json with start_offset_ms / self_time_ms / stats",
+    "backend.routes.correlation.correlate() / correlation_report() / execution_tree() - Phase 4 endpoints; /correlate persists correlation_report.json + execution_tree.json into the run folder",
+    "backend.routes.system.dashboard() / ui_asset(filename) - serves the single-page dashboard and its CSS so the one-command entry point opens a usable UI"
   ],
   "data_flows": [
     {
@@ -155,6 +202,19 @@
         "python_call_graph.json merged into the UnifiedGraph"
       ],
       "destination": "output/python_call_graph.json + merged UnifiedGraph"
+    },
+    {
+      "name": "Correlation and execution tree (Phase 4)",
+      "source": "output/runs/<run_id>/browser_trace.json + java_trace.json",
+      "transformations": [
+        "clock normalisation onto the browser base clock",
+        "primary trace_id join - confidence 1.0",
+        "fallback method+path + +/-200 ms window join - 0.8 unique / 0.6 ambiguous / 0.4 path-only",
+        "unmatched requests classified with one of six reasons (never silently dropped)",
+        "tree built from parent_span_id, synthetic root for orphans, cycle guard",
+        "start_offset_ms / self_time_ms / stats computed and schema-validated"
+      ],
+      "destination": "output/runs/<run_id>/correlation_report.json + execution_tree.json, rendered by the dashboard tree tab and Span inspector"
     }
   ],
   "data_quality_checks": [
@@ -196,7 +256,7 @@
       "playwright - browser automation (Phase 2)"
     ],
     "infrastructure": [
-      "Python 3.13 (conda environment; web_tracer env to be created in Phase 1, T01)",
+      "Python 3.13 (conda env 'web_tracer' created 2026-10-01; required deps: networkx, jsonschema)",
       "Native Linux (current workstation); WSL Ubuntu / Docker Desktop / EKS deferred to later phases",
       "Service port :8100 for the web_tracer dashboard; :5000 for the Case A dcc target"
     ]
@@ -205,7 +265,9 @@
     "I002 - Resolved 2026-09-30 (T00) - web_tracer/knowledge.json missing; created v0.1.0 with canonical name + abbreviation and full AGENTS.md §2.4 structure; all ten required folders created",
     "I003 - Blocked - config/schemas/knowledge_base_schema.json (referenced by AGENTS.md §2.4) does not exist; this knowledge.json is built to the documented field contract until the shared schema is provided or AGENTS.md is corrected. Blocked on a repository-owner decision",
     "R12 (design risk, tracked in workplan risk register) - subprocess trace-propagation boundary: dcc/serve.py spawns dcc_engine_pipeline.py as a subprocess; if traceparent is not forwarded (e.g. via OTEL_TRACEPARENT env) the cross-layer tree splits. Validated by the Phase 0 spike (Case A). Not a separate issue ID yet",
-    "Documentation debt - a few stale Java references remain in the workplan debugging guide (§8.9) and §9 from the original Java/Spring framing; to be cleared in the next workplan hygiene pass (outside T00)"
+    "Documentation debt - a few stale Java references remain in the workplan debugging guide (§8.9) and §9 from the original Java/Spring framing; to be cleared in the next workplan hygiene pass (outside T00)",
+    "I004 (Phase 4) - Open - M1 (primary correlation >= 95 % on the target app) is verified at 100 % on synthetic fixtures only; no recorded run of the target application exists yet, so the gate must be re-measured at the first real capture",
+    "I005 (Phase 4) - Open - the dashboard tree and inspector are served over HTTP (GET / and GET /ui/{filename}) and verified by content assertions, a JS syntax check and a live uvicorn smoke test, but not by a headless browser render; a Playwright UI check is a candidate for Phase 7"
   ],
   "total_issues_resolved": 1,
   "total_issues_deferred": 0,
@@ -215,6 +277,12 @@
       "date": "2026-09-30",
       "author": "AI assistant",
       "summary": "Inception knowledge base created in T00: declares canonical name 'Web Application Tracer' and abbreviation 'web_tracer'; full AGENTS.md §2.4 structure (project_metadata, architecture_overview, domain_concepts, key_schemas, workflows, functions, data_flows, dependencies, known_issues). Built to the documented field contract because the shared config/schemas/knowledge_base_schema.json is absent (I003). Ten required folders scaffolded (config/ data/ docs/ output/ test/ ui/ engine/ added). I002 resolved."
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-10-02",
+      "author": "AI assistant",
+      "summary": "Phase 4 content added: engine/correlation/{models,engine,fallback,metrics,execution_tree}.py, backend/routes/correlation.py, three new contract constants in engine/config.py, execution tree tab + Span inspector in ui/static_dashboard.html and ui/web-tracer.css. Version number unchanged (0.1.0) until the first release; 57 pytest pass and the contract checker is green on 21 routes. Also serves the dashboard at GET / (plus /ui assets) and adds the import -> correlate -> render path; 58 pytest pass, contract checker green on 23 routes."
     }
   ]
 }

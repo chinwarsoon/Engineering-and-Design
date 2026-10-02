@@ -1,0 +1,15 @@
+# web_tracer required runtime dependencies (Phase 1 skeleton, T01)
+# Keep in sync with:
+#   - engine/capability.py REQUIRED_PACKAGES (these are probed for FATAL)
+#   - web_tracer.yml (re-export after `pip install -r requirements.txt`)
+networkx>=3.0
+jsonschema>=4.0
+
+# Phase 1 service stack (T09/T21): FastAPI backend + launcher + test client.
+# These are also listed in engine/capability.py REQUIRED_PACKAGES (probed for FATAL).
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+# File upload (multipart) for /browser/import (T28).
+python-multipart>=0.0.9
+pytest>=8.0
